@@ -23,7 +23,7 @@ public record struct FontsByFamily(string FamilyName, byte[][] FontFaces);
 /// <summary>
 ///     Provides methods to retrieve system font data
 /// </summary>
-public static class FontProvider
+public static class SystemFontProvider
 {
     /// Retrieves system fonts grouped by font family.
     /// <returns>

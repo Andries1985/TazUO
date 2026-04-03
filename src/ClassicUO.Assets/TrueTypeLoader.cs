@@ -121,46 +121,57 @@ public class TrueTypeLoader
     private void LoadSystemFonts()
     {
         int totalLoaded = 0;
-        foreach (FontsByFamily fontFamily in FontProvider.GetSystemFonts())
+        try
         {
-            if (_fonts.ContainsKey(fontFamily.FamilyName))
-            {
-                Log.Warn($"System font family {fontFamily.FamilyName} appears more than once");
-                continue;
-            }
-
-            if (fontFamily.FontFaces.Length <= 0)
-            {
-                Log.Warn($"Could not find any available fonts for family '{fontFamily.FamilyName}'");
-                continue;
-            }
-
-            int numLoadedInSystem = 0;
-            var fontSystem = new FontSystem(_fontSysSettings);
-            foreach (byte[] font in fontFamily.FontFaces)
-            {
-                try
-                {
-                    fontSystem.AddFont(font);
-                    numLoadedInSystem++;
-                }
-                catch (Exception e)
-                {
-                    Log.Warn($"Failed to load a font binary from family {fontFamily.FamilyName} - {e.Message}");
-                }
-            }
-
-            if (numLoadedInSystem > 0)
-            {
-                _fonts[fontFamily.FamilyName] = fontSystem;
-                totalLoaded += numLoadedInSystem;
-                Log.Debug($"Loaded {numLoadedInSystem} fonts for family '{fontFamily.FamilyName}'");
-            }
-            else
-                Log.Warn($"Could not load any fonts for family '{fontFamily.FamilyName}'. The entire family will be omitted");
+            foreach (FontsByFamily fontFamily in SystemFontProvider.GetSystemFonts())
+                totalLoaded += LoadFontFamily(fontFamily);
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Failed to load system fonts - {e.Message}");
         }
 
         Log.Debug($"Loaded a total of {totalLoaded} system fonts");
+    }
+
+    private int LoadFontFamily(FontsByFamily family)
+    {
+        if (_fonts.ContainsKey(family.FamilyName))
+        {
+            Log.Warn($"System font family {family.FamilyName} appears more than once");
+            return 0;
+        }
+
+        if (family.FontFaces.Length <= 0)
+        {
+            Log.Warn($"Could not find any available fonts for family '{family.FamilyName}'");
+            return 0;
+        }
+
+        int numLoadedInSystem = 0;
+        var fontSystem = new FontSystem(_fontSysSettings);
+        foreach (byte[] font in family.FontFaces)
+        {
+            try
+            {
+                fontSystem.AddFont(font);
+                numLoadedInSystem++;
+            }
+            catch (Exception e)
+            {
+                Log.Warn($"Failed to load a font binary from family {family.FamilyName} - {e.Message}");
+            }
+        }
+
+        if (numLoadedInSystem > 0)
+        {
+            _fonts[family.FamilyName] = fontSystem;
+            Log.Debug($"Loaded {numLoadedInSystem} fonts for family '{family.FamilyName}'");
+        }
+        else
+            Log.Warn($"Could not load any fonts for family '{family.FamilyName}'. The entire family will be omitted");
+
+        return numLoadedInSystem;
     }
 
     private void LoadEmbeddedFonts()
