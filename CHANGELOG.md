@@ -6,6 +6,8 @@ All notable changes to TazUO will be recorded here.
 
 ### Misc
 * Added a few fixes to music filter system - ([bittiez](https://github.com/bittiez))
+* Added option to set current macros as default for new characters - ([bittiez](https://github.com/bittiez))
+* Added option to override all other character macros with current characters - ([bittiez](https://github.com/bittiez))
 
 ## V5.1.0
 
