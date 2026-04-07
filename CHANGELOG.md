@@ -4,6 +4,9 @@ All notable changes to TazUO will be recorded here.
 ---
 ## In Development ( `dev` branch )
 
+### Features
+* Automatic loading of system fonts - [P.R 444](https://github.com/PlayTazUO/TazUO/pull/444) ([yuval-po](https://github.com/yuval-po) & [bittiez](https://github.com/bittiez))
+
 ### Misc
 * Added a few fixes to music filter system - ([bittiez](https://github.com/bittiez))
 * Added option to set current macros as default for new characters - ([bittiez](https://github.com/bittiez))
