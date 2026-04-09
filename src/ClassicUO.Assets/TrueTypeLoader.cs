@@ -37,6 +37,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json.Serialization;
 using ClassicUO.IO.Persistency;
 using ClassicUO.Utility.Logging;
 using FontStashSharp;
@@ -61,7 +62,7 @@ public static class EmbeddedFontNames
     public const string UO_UNICODE = "uo-unicode-1";
 
     /// <summary>
-    /// The names of all embedded fonts
+    ///     The names of all embedded fonts
     /// </summary>
     public static FrozenSet<string> Names { get; }
 
@@ -74,7 +75,6 @@ public static class EmbeddedFontNames
             .Select(fi => (string)fi.GetRawConstantValue())
             .ToFrozenSet();
     }
-
 }
 
 public class TrueTypeLoader
@@ -82,6 +82,7 @@ public class TrueTypeLoader
     public const string EMBEDDED_FONT = EmbeddedFontNames.ROBOTO;
 
     private readonly Dictionary<string, FontSystem> _fonts = new();
+    private HashSet<string> _availableSystemFontFamilyNames = [];
 
     private TrueTypeLoader()
     {
@@ -97,6 +98,17 @@ public class TrueTypeLoader
 
     public void Load()
     {
+        LoadUserFonts();
+        LoadEmbeddedFonts();
+        PopulateAvailableSystemFontFamilyNames();
+        BuildSysFontsCache();
+    }
+
+    /// <summary>
+    /// Loads user-provided fonts present in the 'Fonts' directory
+    /// </summary>
+    private void LoadUserFonts()
+    {
         string fontPath = Path.Combine(AppContext.BaseDirectory, "Fonts");
 
         if (!Directory.Exists(fontPath))
@@ -109,18 +121,28 @@ public class TrueTypeLoader
 
             _fonts[Path.GetFileNameWithoutExtension(ttf)] = fontSystem;
         }
-
-        LoadEmbeddedFonts();
-        LoadSystemFonts();
     }
 
     /// <summary>
-    /// Loads fonts available on the local system
+    /// Populates an in-memory cache of available font family names
+    /// </summary>
+    private void PopulateAvailableSystemFontFamilyNames() => _availableSystemFontFamilyNames =
+        [..SystemFontProvider.GetSystemFonts().Select(f => f.FamilyName)];
+
+    /// <summary>
+    ///     Greedily attempts to load all available system fonts to determine which ones can be processed
+    ///     by FontStashSharp and marks them accordingly in a cache file
     /// </summary>
     /// <remarks>
-    /// The underlying implementation currently resolves only <em>TTF, TTC</em>, and <em>OTF</em> files
+    ///     This is a sort-of prefetch routine; Some fonts may have valid extensions and be perfectly fine but may not be
+    ///     properly loaded by <em>FontStashSharp</em>.
+    ///     To allow for a consistent experience when displaying available fonts in the UI, we need to figure out, in advance,
+    ///     which ones are usable and which aren't.
+    ///     This method does so and stores a 'blacklist' of font families that cannot be loaded.'
+    ///     It does *not* attempt to actually keep the fonts loaded in memory.
+    ///     The underlying implementation currently resolves only <em>TTF, TTC</em>, and <em>OTF</em> files
     /// </remarks>
-    private void LoadSystemFonts()
+    private void BuildSysFontsCache()
     {
         int totalLoaded = 0;
         int familyCount = 0;
@@ -132,22 +154,35 @@ public class TrueTypeLoader
 
         try
         {
-            cachedData = CacheManager.Instance.Get(cacheDefinition);
+            cachedData = CacheManager.Instance.Get(cacheDefinition) ?? new FontCacheData();
+            cachedData.DoNotLoadFamilies ??= [];
+
+            if (cachedData.IsCacheFresh)
+            {
+                Log.Debug("Font cache is fresh, skipping rebuild");
+                return;
+            }
+
+            Log.Debug("Rebuilding system fonts cache...");
             foreach (FontsByFamily fontFamily in SystemFontProvider.GetSystemFonts())
             {
-                if (cachedData?.DoNotLoadFamilies?.Contains(fontFamily.FamilyName) == true)
+                if (cachedData.DoNotLoadFamilies.Contains(fontFamily.FamilyName))
                 {
                     Log.Debug($"Font family {fontFamily.FamilyName} is excluded from loading");
                     continue;
                 }
 
-                int loadedInFamily = LoadFontFamily(cachedData, fontFamily);
+                (int loadedInFamily, _) = CreateFontSystemForFamily(fontFamily);
+
+                if (loadedInFamily <= 0)
+                {
+                    Log.Warn($"Font family {fontFamily.FamilyName} is empty or unavailable. It will be ignored.");
+                    cachedData.DoNotLoadFamilies.Add(fontFamily.FamilyName);
+                    needsCacheUpdate = true;
+                }
+
                 totalLoaded += loadedInFamily;
                 ++familyCount;
-
-                // If nothing was loaded for the family, we'll need to update the cache to ignore it in the future.
-                if (loadedInFamily <= 0)
-                    needsCacheUpdate = true;
             }
         }
         catch (Exception e)
@@ -155,35 +190,31 @@ public class TrueTypeLoader
             Log.Error($"Failed to load system fonts - {e.Message}");
         }
 
-        if (needsCacheUpdate && cachedData != null)
+        // Update the cache if content change or timestamp has never been updated
+        if (needsCacheUpdate || cachedData is { LastUpdated: null })
         {
-            if (!CacheManager.Instance.Set(cacheDefinition, cachedData))
-                Log.WarnDebug($"Failed to update system font cache");
+            cachedData.LastUpdated = DateTime.UtcNow;
+            if (CacheManager.Instance.Set(cacheDefinition, cachedData))
+                Log.Debug("System fonts cache updated");
+            else
+                Log.WarnDebug("Failed to update system font cache");
         }
 
         stopwatch.Stop();
-        Log.Debug($"Loaded a total of {totalLoaded} system fonts over {familyCount} families in {stopwatch.ElapsedMilliseconds}ms");
+        Log.Debug($"System fonts cache build concluded. Processed total of {totalLoaded} fonts over {familyCount} families in {stopwatch.ElapsedMilliseconds}ms");
     }
 
-    private int LoadFontFamily(FontCacheData cacheData, FontsByFamily family)
+    private (int LoadedCount, FontSystem FontSys) CreateFontSystemForFamily(FontsByFamily family)
     {
-        if (_fonts.ContainsKey(family.FamilyName))
-        {
-            Log.WarnDebug($"System font family {family.FamilyName} appears more than once");
-            return 0;
-        }
-
         if (family.FontFaces.Length <= 0)
         {
             Log.Warn($"Could not find any available fonts for family '{family.FamilyName}'");
-            cacheData.DoNotLoadFamilies.Add(family.FamilyName);
-            return 0;
+            return (0, null);
         }
 
         int numLoadedInSystem = 0;
         var fontSystem = new FontSystem(_fontSysSettings);
         foreach (byte[] font in family.FontFaces)
-        {
             try
             {
                 fontSystem.AddFont(font);
@@ -193,21 +224,25 @@ public class TrueTypeLoader
             {
                 Log.Warn($"Failed to load a font binary from family {family.FamilyName} - {e.Message}");
             }
-        }
 
-        if (numLoadedInSystem > 0)
+        return (numLoadedInSystem, numLoadedInSystem > 0 ? fontSystem : null);
+    }
+
+    private FontSystem LoadAndGetFontByFamily(FontsByFamily family)
+    {
+        (int loadedInFamily, FontSystem fontSystem) = CreateFontSystemForFamily(family);
+
+        if (loadedInFamily > 0)
         {
             _fonts[family.FamilyName] = fontSystem;
-            Log.Debug($"Loaded {numLoadedInSystem} fonts for family '{family.FamilyName}'");
+            Log.Debug($"Loaded {loadedInFamily} fonts for family '{family.FamilyName}'");
         }
         else
-        {
-            cacheData.DoNotLoadFamilies.Add(family.FamilyName);
             Log.Warn($"Could not load any fonts for family '{family.FamilyName}'. The entire family will be ignored");
-        }
 
-        return numLoadedInSystem;
+        return loadedInFamily > 0 ? fontSystem : null;
     }
+
 
     private void LoadEmbeddedFonts()
     {
@@ -245,10 +280,30 @@ public class TrueTypeLoader
         }
     }
 
+    private bool TryGetSystemFont(string name, float size, out SpriteFontBase font)
+    {
+        FontsByFamily? fontFamily = SystemFontProvider.GetSystemFontFamilyByName(name);
+        if (fontFamily == null)
+        {
+            font = null;
+            return false;
+        }
+
+        FontSystem fontSystem = LoadAndGetFontByFamily(fontFamily.Value);
+        font = fontSystem?.GetFont(size);
+        return font != null;
+    }
+
     public SpriteFontBase GetFont(string name, float size)
     {
+        // Try standard fonts first
         if (_fonts.TryGetValue(name, out FontSystem font))
             return font.GetFont(size);
+
+        // If the font isn't present in the loaded ones but is available on the system, try to load it
+        if (_availableSystemFontFamilyNames.Contains(name))
+            if (TryGetSystemFont(name, size, out SpriteFontBase sysFont))
+                return sysFont;
 
         // Use the default embedded font as a fallback
         if (_fonts.TryGetValue(EmbeddedFontNames.ROBOTO, out FontSystem embeddedFont))
@@ -260,12 +315,17 @@ public class TrueTypeLoader
 
     public SpriteFontBase GetFont(string name) => GetFont(name, 12);
 
-    public string[] Fonts => _fonts.Keys.ToArray();
+    public string[] Fonts => _fonts.Keys.Concat(_availableSystemFontFamilyNames).ToArray();
 }
 
 internal class FontCacheData
 {
+    public DateTime? LastUpdated { get; set; } = null;
     public List<string> DoNotLoadFamilies { get; set; } = [];
+
+    [JsonIgnore]
+    // We can re-build the cache every 30 days for good measure
+    public bool IsCacheFresh => LastUpdated != null && DateTime.UtcNow - LastUpdated.Value < TimeSpan.FromDays(30);
 }
 
 internal class FontPersistentDefinition : PersistentItemDefinition<CacheType, FontCacheData>
