@@ -766,8 +766,8 @@ namespace ClassicUO.Configuration
                 if (field != value)
                     _ = Client.Settings.SetAsync(SettingsScope.Global, Constants.SqlSettings.IRC_AUTO_CONNECT, value);
 
-                if(value && !TazUOChatManager.Instance.IsConnected)
-                    TazUOChatManager.Instance.Init();
+                // if(value && !TazUOChatManager.Instance.IsConnected)
+                //     TazUOChatManager.Instance.Init();
 
                 field = value;
             }

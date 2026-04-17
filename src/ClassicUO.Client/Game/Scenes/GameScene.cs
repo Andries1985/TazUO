@@ -229,8 +229,8 @@ namespace ClassicUO.Game.Scenes
             if(ProfileManager.CurrentProfile.EnableCaveBorder)
                 StaticFilters.ApplyCaveTileBorder();
 
-            if(!ProfileManager.CurrentProfile.DisableConnectToIrcOnLogin)
-                TazUOChatManager.Instance.Init();
+            // if(!ProfileManager.CurrentProfile.DisableConnectToIrcOnLogin)
+            //     TazUOChatManager.Instance.Init();
 
             if (ProfileManager.CurrentProfile.VoiceRecognitionEnabled)
                 VoiceRecognitionManager.Instance.InitializeAsync(ProfileManager.CurrentProfile.VoiceModelPath, startListeningAfter: true);
