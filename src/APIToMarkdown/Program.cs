@@ -627,7 +627,7 @@ public static partial class GenDoc
         };
     }
 
-    [GeneratedRegex(@"<c(?:ode)?\>\s*(.*?)\s*<\/c(?:ode)?>", RegexOptions.Multiline)]
+    [GeneratedRegex(@"<c(?:ode)?\>\s*(.*?)\s*<\/c(?:ode)?>", RegexOptions.Singleline)]
     private static partial Regex CodeBlockRx();
 
     [GeneratedRegex(@"^\s*(///.*)$", RegexOptions.Multiline // Treat ^ and $ as start/end of LINE

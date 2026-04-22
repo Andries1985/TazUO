@@ -1162,7 +1162,7 @@ def ScheduleTimedCallback(delayMs: "int", callback: "Any", timesToRepeat: "int" 
     """
     pass
 
-def RemoveTimedCallback(id: "int") -> "bool":
+def RemoveTimedCallback(id: "int") -> None:
     """
      Removes a previously scheduled timed callback
     

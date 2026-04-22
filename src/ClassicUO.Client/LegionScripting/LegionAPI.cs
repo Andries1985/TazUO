@@ -427,7 +427,11 @@ namespace ClassicUO.LegionScripting
         ///
         /// Note that as with keyboard hotkeys, you must call `ProcessCallbacks` for the callback to actually be run.
         /// </summary>
-        /// <param name="delayMs">The delay, in milliseconds, after which to invoke the callback</param>
+        /// <param name="delayMs">
+        /// The delay, in milliseconds, after which to invoke the callback.
+        /// <br/>
+        /// The minimum delay is 5ms.
+        /// </param>
         /// <param name="callback">The callback to invoke</param>
         /// <param name="timesToRepeat">
         /// The number of times the callback the callback should be repeated after the initial invocation.
@@ -445,17 +449,20 @@ namespace ClassicUO.LegionScripting
             uint clampedDelay = Math.Max(5, delayMs);
 
             uint id = Interlocked.Increment(ref _timedCallbackCurrentId);
-            var timer = new Timer(clampedDelay);
+            var timer = new Timer(clampedDelay) { AutoReset = false };
             var callbackData = new TimedCallback(timer, timesToRepeat);
             timer.Elapsed += (_, _) =>
             {
-                // This may theoretically be susceptible to races (ticks may compete for CB removal),
-                // but realistically this may only happen during debug of if the clampedDelay is very low
-                if (callbackData.TimesToRepeat >= 0 && callbackData.TimesInvoked >= (uint)callbackData.TimesToRepeat)
-                    RemoveTimedCallback(id);
+                if (_disposed || !_timedCallbacks.ContainsKey(id))
+                    return;
+
+                ScheduleCallbackActions([WrapScriptCallback(callback)]);
 
                 callbackData.TimesInvoked++;
-                ScheduleCallbackActions([WrapScriptCallback(callback)]);
+                if (callbackData.TimesToRepeat < 0 || callbackData.TimesInvoked <= (ulong)callbackData.TimesToRepeat)
+                    timer.Start();
+                else
+                    RemoveTimedCallback(id);
             };
 
             _timedCallbacks[id] = callbackData;
@@ -468,15 +475,13 @@ namespace ClassicUO.LegionScripting
         /// Removes a previously scheduled timed callback
         /// </summary>
         /// <param name="id">The callback's ID, as returned by `ScheduleTimedCallback`</param>
-        /// <returns><c>true</c> if the callback does not exist or was removed, <c>false</c> otherwise</returns>
-        public bool RemoveTimedCallback(uint id)
+        public void RemoveTimedCallback(uint id)
         {
-            if (!_timedCallbacks.TryGetValue(id, out TimedCallback callback))
-                return true;
+            if (!_timedCallbacks.TryRemove(id, out TimedCallback callback))
+                return;
 
             callback.Timer?.Stop();
             callback.Timer?.Dispose();
-            return _timedCallbacks.TryRemove(id, out _);
         }
 
         /// <summary>

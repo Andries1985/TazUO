@@ -235,7 +235,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 
 | Name | Type | Optional | Description |
 | --- | --- | --- | --- |
-| `delayMs` | `uint` | ❌ No | The delay, in milliseconds, after which to invoke the callback |
+| `delayMs` | `uint` | ❌ No | The delay, in milliseconds, after which to invoke the callback.<br>         <br/>  The minimum delay is 5ms. |
 | `callback` | `Action` | ❌ No | The callback to invoke |
 | `timesToRepeat` | `int` | ✅ Yes | The number of times the callback the callback should be repeated after the initial invocation.<br>         Repeated invocations respect the requested delay.<br>         A negative number means "forever", 0 means "do not repeat" (i.e., invoke once) and positive numbers mean "repeat N times".<br>         A repeat of '9', for example, will result in 10 total invocations (1 initial + 9 repeats). |
 
@@ -254,7 +254,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 | --- | --- | --- | --- |
 | `id` | `uint` | ❌ No | The callback's ID, as returned by `ScheduleTimedCallback` |
 
-**Return Type:** `bool`
+**Return Type:** `void` *(Does not return anything)*
 
 ---
 
