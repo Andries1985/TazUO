@@ -29,7 +29,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 586, Y = 445, ButtonAction = ButtonAction.Activate
+                    X = 1100, Y = 590, ButtonAction = ButtonAction.Activate
                 }
             );
 
@@ -37,7 +37,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int) Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 610, Y = 445, ButtonAction = ButtonAction.Activate
+                    X = 1135, Y = 590, ButtonAction = ButtonAction.Activate
                 }
             );
 
@@ -47,9 +47,9 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044579), true, textColor, font: 1)
+                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044579), true, textColor, font: 2)
                     {
-                        X = 155, Y = 70
+                        X = 775, Y = 460
                     }
                 ); // "Select which shard to play on:"
 
@@ -57,28 +57,28 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 {
                     Add
                     (
-                        new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044577), true, textColor, font: 1)
+                        new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044577), true, textColor, font: 2)
                         {
-                            X = 400, Y = 70
+                            X = 1020, Y = 460
                         }
                     ); // "Latency:"
 
                     Add
                     (
-                        new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044578), true, textColor, font: 1)
+                        new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044578), true, textColor, font: 2)
                         {
-                            X = 470, Y = 70
+                            X = 1090, Y = 460
                         }
                     ); // "Packet Loss:"
                 }
 
-                Add
-                (
-                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044580), true, textColor, font: 1)
-                    {
-                        X = 153, Y = 368
-                    }
-                ); // "Sort by:"
+                // Add
+                // (
+                //     new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044580), true, textColor, font: 2)
+                //     {
+                //         X = 153, Y = 368
+                //     }
+                // ); // "Sort by:"
             }
             else
             {
@@ -117,58 +117,58 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 );
             }
 
-            Add
-            (
-                new Button((int) Buttons.SortTimeZone, 0x093B, 0x093C, 0x093D)
-                {
-                    X = 230, Y = 366
-                }
-            );
-
-            Add
-            (
-                new Button((int) Buttons.SortFull, 0x093E, 0x093F, 0x0940)
-                {
-                    X = 338, Y = 366
-                }
-            );
-
-            Add
-            (
-                new Button((int) Buttons.SortConnection, 0x0941, 0x0942, 0x0943)
-                {
-                    X = 446, Y = 366
-                }
-            );
-
-            // World Pic Bg
-            Add(new GumpPic(150, 390, 0x0589, 0));
-
-            // Earth
-            Add
-            (
-                new Button((int) Buttons.Earth, 0x15E8, 0x15EA, 0x15E9)
-                {
-                    X = 160, Y = 400, ButtonAction = ButtonAction.Activate
-                }
-            );
+            // Add
+            // (
+            //     new Button((int) Buttons.SortTimeZone, 0x093B, 0x093C, 0x093D)
+            //     {
+            //         X = 230, Y = 366
+            //     }
+            // );
+            //
+            // Add
+            // (
+            //     new Button((int) Buttons.SortFull, 0x093E, 0x093F, 0x0940)
+            //     {
+            //         X = 338, Y = 366
+            //     }
+            // );
+            //
+            // Add
+            // (
+            //     new Button((int) Buttons.SortConnection, 0x0941, 0x0942, 0x0943)
+            //     {
+            //         X = 446, Y = 366
+            //     }
+            // );
+            //
+            // // World Pic Bg
+            // Add(new GumpPic(150, 390, 0x0589, 0));
+            //
+            // // Earth
+            // Add
+            // (
+            //     new Button((int) Buttons.Earth, 0x15E8, 0x15EA, 0x15E9)
+            //     {
+            //         X = 160, Y = 400, ButtonAction = ButtonAction.Activate
+            //     }
+            // );
 
             // Sever Scroll Area Bg
             Add
             (
-                new ResizePic(0x0DAC)
+                new ResizePic(0x0E10)
                 {
-                    X = 150, Y = 90, Width = 393 - 14, Height = 271
+                    X = 740, Y = 450, Width = 405 - 14, Height = 170
                 }
             );
 
             // Sever Scroll Area
             var scrollArea = new ScrollArea
             (
-                150,
-                90,
-                393,
-                271,
+                740,
+                450,
+                405,
+                170,
                 true
             );
 
@@ -181,7 +181,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             foreach (ServerListEntry server in loginScene.Servers)
             {
-                databox.Add(new ServerEntryGump(server, 5, NORMAL_COLOR, SELECTED_COLOR));
+                databox.Add(new ServerEntryGump(server, 9, NORMAL_COLOR, SELECTED_COLOR));
             }
 
             databox.ReArrangeChildren();
@@ -189,19 +189,19 @@ namespace ClassicUO.Game.UI.Gumps.Login
             Add(scrollArea);
             scrollArea.Add(databox);
 
-            if (loginScene.Servers.Length != 0)
-            {
-                int index = loginScene.GetServerIndexFromSettings();
-
-                Add
-                (
-                    new Label(loginScene.Servers[index].Name, false, 0x0481, font: 9)
-                    {
-                        X = 243,
-                        Y = 420
-                    }
-                );
-            }
+            // if (loginScene.Servers.Length != 0)
+            // {
+            //     int index = loginScene.GetServerIndexFromSettings();
+            //
+            //     Add
+            //     (
+            //         new Label(loginScene.Servers[index].Name, false, 0x0481, font: 9)
+            //         {
+            //             X = 243,
+            //             Y = 420
+            //         }
+            //     );
+            // }
 
             AcceptKeyboardInput = true;
             CanCloseWithRightClick = false;

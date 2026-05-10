@@ -18,12 +18,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         0,
                         0,
-                        640,
-                        480,
+                        1843,
+                        1022,
                         0x0150
                     ) { AcceptKeyboardInput = false }
                 );
-
+                
+                // Border
+                Add(new GumpPic(0, 0, 0x157C, 0) { AcceptKeyboardInput = false });
                 // UO Flag
                 Add(new GumpPic(0, 4, 0x0151, 0) { AcceptKeyboardInput = false });
             }
