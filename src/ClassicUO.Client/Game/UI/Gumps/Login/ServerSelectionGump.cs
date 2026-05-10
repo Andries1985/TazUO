@@ -29,7 +29,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 1100, Y = 590, ButtonAction = ButtonAction.Activate
+                    X = 1050, Y = 600, ButtonAction = ButtonAction.Activate
                 }
             );
 
@@ -37,7 +37,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int) Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 1135, Y = 590, ButtonAction = ButtonAction.Activate
+                    X = 1085, Y = 600, ButtonAction = ButtonAction.Activate
                 }
             );
 
@@ -49,7 +49,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044579), true, textColor, font: 2)
                     {
-                        X = 775, Y = 460
+                        X = 765, Y = 450
                     }
                 ); // "Select which shard to play on:"
 
@@ -59,7 +59,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044577), true, textColor, font: 2)
                         {
-                            X = 1020, Y = 460
+                            X = 990, Y = 450
                         }
                     ); // "Latency:"
 
@@ -67,11 +67,11 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044578), true, textColor, font: 2)
                         {
-                            X = 1090, Y = 460
+                            X = 1050, Y = 450
                         }
                     ); // "Packet Loss:"
                 }
-
+                
                 // Add
                 // (
                 //     new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044580), true, textColor, font: 2)
@@ -156,19 +156,19 @@ namespace ClassicUO.Game.UI.Gumps.Login
             // Sever Scroll Area Bg
             Add
             (
-                new ResizePic(0x0E10)
+                new ResizePic(0x13BE)
                 {
-                    X = 740, Y = 450, Width = 405 - 14, Height = 170
+                    X = 747, Y = 468, Width = 400 - 14, Height = 132
                 }
             );
 
             // Sever Scroll Area
             var scrollArea = new ScrollArea
             (
-                740,
-                450,
-                405,
-                170,
+                747,
+                468,
+                400,
+                132,
                 true
             );
 
@@ -309,7 +309,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         font: font
                     )
                     {
-                        X = 74,
+                        X = 15,
                         AcceptMouseInput = false
                     }
                 );
@@ -326,7 +326,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         font: font
                     )
                     {
-                        X = 250,
+                        X = 255,
                         AcceptMouseInput = false
                     }
                 );
@@ -343,7 +343,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         font: font
                     )
                     {
-                        X = 320,
+                        X = 325,
                         AcceptMouseInput = false
                     }
                 );
