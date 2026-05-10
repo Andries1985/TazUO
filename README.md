@@ -1,38 +1,40 @@
-<p align="center"><a href="https://github.com/bittiez/TazUO/discussions">Join our discussions page</a></p>
-
-<p align="center"><a href="https://discord.gg/QvqzkB95G4">Join our Discord</a></p>
-
-! Due to a bad actor deleting the original TazUO Repo we have lost the original Wiki and Discord server !
-
-The wiki has been restored! And we have set up a new [Discord](https://discord.gg/QvqzkB95G4)
+<p align="center"><a href="https://discord.gg/QvqzkB95G4"><img src="https://discord.com/api/guilds/1344851225538986064/widget.png?style=banner3" alt="Discord Banner 3"/></a></p>
 
 ***
 
 
-Release: [![Release](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml/badge.svg?branch=main)](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml)   
-Dev: [![Dev](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml/badge.svg?branch=dev)](https://github.com/bittiez/TazUO/actions/workflows/build-test.yml)   
+| Channel | Status                                                                                                                                                                     |
+| --- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Release | [![Release](https://github.com/PlayTazUO/TazUO/actions/workflows/build-test.yml/badge.svg?branch=main)](https://github.com/PlayTazUO/TazUO/actions/workflows/build-test.yml) |
+| Dev | [![Dev](https://github.com/PlayTazUO/TazUO/actions/workflows/build-test.yml/badge.svg?branch=dev)](https://github.com/PlayTazUO/TazUO/actions/workflows/build-test.yml)        |
+
 
 # What is TazUO?
 **TazUO** was originally a fork from ClassicUO with the mindset of adding features requested by users to improve QOL. **TazUO** has since moved away from ClassicUO, we will keep an eye on ClassicUO updates and incorporate changes or fixes as they have a wider user base that provides bug reports, but **TazUO** will no longer be merging all changes from ClassicUO.
 
+# Play now
+The easiest way to play with TazUO is via our [launcher](https://github.com/PlayTazUO/TUO-Launcher/releases/latest)!
+
 # TazUO features
-Check out our [wiki](../../wiki) for details on all of the changes TazUO has made for players!  
+Check out our [website](https://tazuo.org) for details on all the changes TazUO has made for players!  
 
 ***Most*** features can be disabled if you don't want to use said feature.  
 
-- [Launcher](../../wiki/TazUO.Updater-Launcher) - Managing profiles for multiple accounts/servers
-- [Grid containers](../../wiki/TazUO.Grid-Containers) - Easily find and move items with out fully customizable grid containers
-- [Journal](../../wiki/TazUO.Journal) - Vastly improved journal for readability and organization
-- [Alternative paperdoll](../../wiki/TazUO.Alternate-Paperdoll) - A new flavor a your paperdoll
-- [Improved buff bar](../../wiki/TazUO.Buff-Bars)
-- [Client commands](../../wiki/TazUO.Commands) - Several commands have been added for various features
-- [Controller support](../../wiki/TazUO.Controller-Support) - That's right, play with your controller!
-- [Cooldown bars](../../wiki/TazUO.Cooldown-bars) - Customizable cooldown bars
-- [Grid Highlighting](../../wiki/TazUO.Grid-highlighting-based-on-item-properties) - Grid highlighting of items that have specific properties, easier looting!
-- [Tooltip overrides](../../wiki/TazUO.Tooltip-Override) - Customize and override any text in tooltips!
-- [Custom fonts](../../wiki/TazUO.TTF-Fonts) - BYOF, Bring your own fonts for better readability.
+- [Launcher](https://tazuo.org/?q=launcher) - Managing profiles for multiple accounts/servers
+- [Grid containers](https://tazuo.org/?q=grid+containers) - Easily find and move items with our fully customizable grid containers
+- [Custom build-in scripting](https://tazuo.org/?q=legion+scripting) - Build in powerful scripting languages. **Python** and Legion Script.
+- **Assistant features built-in** - Like Auto buy, sell, auto loot and more.
+- [Journal](https://tazuo.org/?q=journal) - Vastly improved journal for readability and organization
+- [Alternative paperdoll](https://tazuo.org/?q=alternate+paperdoll) - A new flavor of your paperdoll
+- [Improved buff bar](https://tazuo.org/?q=buff+bars)
+- [Client commands](https://tazuo.org/?q=commands) - Several commands have been added for various features
+- [Controller support](https://tazuo.org/?q=controller+support) - That's right, play with your controller!
+- [Cooldown bars](https://tazuo.org/?q=cooldown+bars) - Customizable cooldown bars
+- [Grid Highlighting](https://tazuo.org/?q=grid+highlighting) - Grid highlighting of items that have specific properties, easier looting!
+- [Tooltip overrides](https://tazuo.org/?q=tooltip+override) - Customize and override any text in tooltips!
+- [Custom fonts](https://tazuo.org/?q=ttf+fonts) - BYOF, Bring your own fonts for better readability.
 
-There are ***many*** more features to check out in our [wiki](../../wiki) or in game, this list is just a sample!
+There are ***many*** more features to check out in our [website](https://tazuo.org) or in game, this list is just a sample!
 
 
 # Screenshots
