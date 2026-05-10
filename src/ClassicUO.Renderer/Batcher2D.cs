@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Renderer.Effects;
 using FontStashSharp.Interfaces;
@@ -146,15 +116,18 @@ namespace ClassicUO.Renderer
         }
 
 
-        public void SetBrightlight(float f)
-        {
-            _basicUOEffect.Brighlight.SetValue(f);
-        }
+        public void SetBrightlight(float f) => _basicUOEffect.Brighlight.SetValue(f);
 
         // For IFontStashRenderer
         public void Draw(Texture2D texture, Vector2 position, Rectangle? sourceRectangle, Color color, float rotation, Vector2 scale, float depth)
         {
-            Vector3 hueVector = new Vector3(0, ShaderHueTranslator.SHADER_TEXT_HUE, MathHelper.Clamp(color.A / 255f, 0f, 1f));
+            // Skip if texture is null or disposed
+            if (texture == null || texture.IsDisposed)
+            {
+                return;
+            }
+
+            var hueVector = new Vector3(0, ShaderHueTranslator.SHADER_TEXT_HUE, MathHelper.Clamp(color.A / 255f, 0f, 1f));
 
             float sourceX, sourceY, sourceW, sourceH;
             if (sourceRectangle.HasValue)
@@ -178,10 +151,10 @@ namespace ClassicUO.Renderer
 
             EnsureSize();
 
-            ref var sprite = ref _vertexInfo[_numSprites];
+            ref PositionNormalTextureColor4 sprite = ref _vertexInfo[_numSprites];
 
-            var rotationSin = (float)Math.Sin(rotation);
-            var rotationCos = (float)Math.Cos(rotation);
+            float rotationSin = (float)Math.Sin(rotation);
+            float rotationCos = (float)Math.Cos(rotation);
 
             sprite.Position0.X = position.X;
             sprite.Position0.Y = position.Y;
@@ -220,9 +193,9 @@ namespace ClassicUO.Renderer
             sprite.Hue2 = hueVector;
             sprite.Hue3 = hueVector;
 
-            var r = color.R / 255.0f;
-            var g = color.G / 255.0f;
-            var b = color.B / 255.0f;
+            float r = color.R / 255.0f;
+            float g = color.G / 255.0f;
+            float b = color.B / 255.0f;
 
             sprite.Normal0.X = r;
             sprite.Normal0.Y = g;
@@ -244,9 +217,12 @@ namespace ClassicUO.Renderer
             ++_numSprites;
         }
 
-        public void DrawString(SpriteFont spriteFont, string text, int x, int y, Vector3 color)
+        public void DrawString(SpriteFont spriteFont, ReadOnlySpan<char> text, int x, int y, Vector3 color)
+            => DrawString(spriteFont, text, new Vector2(x, y), color);
+
+        public void DrawString(SpriteFont spriteFont, ReadOnlySpan<char> text, Vector2 position, Vector3 color)
         {
-            if (string.IsNullOrEmpty(text))
+            if (text.IsEmpty)
             {
                 return;
             }
@@ -254,6 +230,12 @@ namespace ClassicUO.Renderer
             EnsureSize();
 
             Texture2D textureValue = spriteFont.Texture;
+
+            // Skip if the font texture is null or disposed
+            if (textureValue == null || textureValue.IsDisposed)
+            {
+                return;
+            }
             List<Rectangle> glyphData = spriteFont.GlyphData;
             List<Rectangle> croppingData = spriteFont.CroppingData;
             List<Vector3> kerning = spriteFont.Kerning;
@@ -326,17 +308,13 @@ namespace ClassicUO.Renderer
                 Rectangle cGlyph = glyphData[index];
 
                 float offsetX = baseOffset.X + (curOffset.X + cCrop.X) * axisDirX;
-
                 float offsetY = baseOffset.Y + (curOffset.Y + cCrop.Y) * axisDirY;
 
+                var pos = new Vector2(offsetX, offsetY);
                 Draw
                 (
                     textureValue,
-                    new Vector2
-                    (
-                        x + (int)Math.Round(offsetX),
-                        y + (int)Math.Round(offsetY)
-                    ),
+                    position + pos,
                     cGlyph,
                     color
                 );
@@ -370,6 +348,12 @@ namespace ClassicUO.Renderer
             float depth
         )
         {
+            // Skip if texture is null or disposed
+            if (texture == null || texture.IsDisposed)
+            {
+                return;
+            }
+
             EnsureSize();
 
             ref PositionNormalTextureColor4 vertex = ref _vertexInfo[_numSprites];
@@ -427,6 +411,12 @@ namespace ClassicUO.Renderer
 
         public void DrawShadow(Texture2D texture, Vector2 position, Rectangle sourceRect, bool flip, float depth)
         {
+            // Skip if texture is null or disposed
+            if (texture == null || texture.IsDisposed)
+            {
+                return;
+            }
+
             float width = sourceRect.Width;
             float height = sourceRect.Height * 0.5f;
             float translatedY = position.Y + height - 10;
@@ -507,6 +497,12 @@ namespace ClassicUO.Renderer
             float depth
         )
         {
+            // Skip if texture is null or disposed
+            if (texture == null || texture.IsDisposed)
+            {
+                return;
+            }
+
             EnsureSize();
 
             float h03 = sourceRect.Height * mod.X;
@@ -719,10 +715,16 @@ namespace ClassicUO.Renderer
             Vector3 hue
         )
         {
+            // Skip if texture is null or disposed
+            if (texture == null || texture.IsDisposed)
+            {
+                return;
+            }
+
             int h = destinationRectangle.Height;
 
             Rectangle rect = sourceRectangle;
-            Vector2 pos = new Vector2(destinationRectangle.X, destinationRectangle.Y);
+            var pos = new Vector2(destinationRectangle.X, destinationRectangle.Y);
 
             while (h > 0)
             {
@@ -763,7 +765,13 @@ namespace ClassicUO.Renderer
             float depth = 0f
         )
         {
-            Rectangle rect = new Rectangle(x, y, width, 1);
+            // Skip if texture is null or disposed
+            if (texture == null || texture.IsDisposed)
+            {
+                return false;
+            }
+
+            var rect = new Rectangle(x, y, width, 1);
             Draw(texture, rect, null, hue, 0f, Vector2.Zero, SpriteEffects.None, depth);
 
             rect.X += width;
@@ -795,8 +803,14 @@ namespace ClassicUO.Renderer
             float stroke
         )
         {
-            var radians = ClassicUO.Utility.MathHelper.AngleBetweenVectors(start, end);
-            Vector2.Distance(ref start, ref end, out var length);
+            // Skip if texture is null or disposed
+            if (texture == null || texture.IsDisposed)
+            {
+                return;
+            }
+
+            float radians = ClassicUO.Utility.MathHelper.AngleBetweenVectors(start, end);
+            Vector2.Distance(ref start, ref end, out float length);
 
             Draw
             (
@@ -820,10 +834,7 @@ namespace ClassicUO.Renderer
             Texture2D texture,
             Vector2 position,
             Vector3 color
-        )
-        {
-            AddSprite(texture, 0f, 0f, 1f, 1f, position.X, position.Y, texture.Width, texture.Height, color, 0f, 0f, 0f, 1f, 0f, 0);
-        }
+        ) => AddSprite(texture, 0f, 0f, 1f, 1f, position.X, position.Y, texture.Width, texture.Height, color, 0f, 0f, 0f, 1f, 0f, 0);
 
         public void Draw
         (
@@ -974,9 +985,7 @@ namespace ClassicUO.Renderer
             Texture2D texture,
             Rectangle destinationRectangle,
             Vector3 color
-        )
-        {
-            AddSprite(
+        ) => AddSprite(
                 texture,
                 0.0f,
                 0.0f,
@@ -994,7 +1003,6 @@ namespace ClassicUO.Renderer
                 0.0f,
                 0
             );
-        }
 
         public void Draw
         (
@@ -1096,6 +1104,121 @@ namespace ClassicUO.Renderer
             );
         }
 
+        public void DrawOutlined
+        (
+            Texture2D texture,
+            Vector2 position,
+            Rectangle? sourceRectangle,
+            Vector3 hue,
+            Vector3 outlineColor,
+            float rotation,
+            Vector2 origin,
+            Vector2 scale,
+            SpriteEffects effects,
+            float layerDepth
+        )
+        {
+            float sourceX, sourceY, sourceW, sourceH;
+            if (sourceRectangle.HasValue)
+            {
+                sourceX = sourceRectangle.Value.X / (float)texture.Width;
+                sourceY = sourceRectangle.Value.Y / (float)texture.Height;
+                sourceW = Math.Sign(sourceRectangle.Value.Width) * Math.Max(Math.Abs(sourceRectangle.Value.Width), Utility.MathHelper.MachineEpsilonFloat) / (float)texture.Width;
+                sourceH = Math.Sign(sourceRectangle.Value.Height) * Math.Max(Math.Abs(sourceRectangle.Value.Height), Utility.MathHelper.MachineEpsilonFloat) / (float)texture.Height;
+                scale.X *= sourceRectangle.Value.Width;
+                scale.Y *= sourceRectangle.Value.Height;
+            }
+            else
+            {
+                sourceX = 0.0f;
+                sourceY = 0.0f;
+                sourceW = 1.0f;
+                sourceH = 1.0f;
+                scale.X *= texture.Width;
+                scale.Y *= texture.Height;
+            }
+
+            AddSprite
+            (
+                texture,
+                sourceX,
+                sourceY,
+                sourceW,
+                sourceH,
+                position.X,
+                position.Y,
+                scale.X,
+                scale.Y,
+                hue,
+                origin.X / sourceW / (float)texture.Width,
+                origin.Y / sourceH / (float)texture.Height,
+                (float)Math.Sin(rotation),
+                (float)Math.Cos(rotation),
+                layerDepth,
+                (byte)(effects & (SpriteEffects)0x03),
+                outlineColor
+            );
+        }
+
+        public void DrawOutlined
+        (
+            Texture2D texture,
+            Vector2 position,
+            Rectangle? sourceRectangle,
+            Vector3 hue,
+            Vector3 outlineColor,
+            float rotation,
+            Vector2 origin,
+            float scale,
+            SpriteEffects effects,
+            float layerDepth
+        )
+        {
+            float sourceX, sourceY, sourceW, sourceH;
+            float destW = scale;
+            float destH = scale;
+
+            if (sourceRectangle.HasValue)
+            {
+                sourceX = sourceRectangle.Value.X / (float)texture.Width;
+                sourceY = sourceRectangle.Value.Y / (float)texture.Height;
+                sourceW = Math.Sign(sourceRectangle.Value.Width) * Math.Max(Math.Abs(sourceRectangle.Value.Width), Utility.MathHelper.MachineEpsilonFloat) / (float)texture.Width;
+                sourceH = Math.Sign(sourceRectangle.Value.Height) * Math.Max(Math.Abs(sourceRectangle.Value.Height), Utility.MathHelper.MachineEpsilonFloat) / (float)texture.Height;
+                destW *= sourceRectangle.Value.Width;
+                destH *= sourceRectangle.Value.Height;
+            }
+            else
+            {
+                sourceX = 0.0f;
+                sourceY = 0.0f;
+                sourceW = 1.0f;
+                sourceH = 1.0f;
+                destW *= texture.Width;
+                destH *= texture.Height;
+            }
+
+            AddSprite
+            (
+                texture,
+                sourceX,
+                sourceY,
+                sourceW,
+                sourceH,
+                position.X,
+                position.Y,
+                destW,
+                destH,
+                hue,
+                origin.X / sourceW / (float)texture.Width,
+                origin.Y / sourceH / (float)texture.Height,
+                (float)Math.Sin(rotation),
+                (float)Math.Cos(rotation),
+                layerDepth,
+                (byte)(effects & (SpriteEffects)0x03),
+                outlineColor
+            );
+        }
+
         private void AddSprite
         (
             Texture2D texture,
@@ -1114,8 +1237,36 @@ namespace ClassicUO.Renderer
             float rotationCos,
             float depth,
             byte effects
+        ) =>
+            AddSprite(texture, sourceX, sourceY, sourceW, sourceH, destinationX, destinationY, destinationW, destinationH, color, originX, originY, rotationSin, rotationCos, depth, effects, null);
+
+        private void AddSprite
+        (
+            Texture2D texture,
+            float sourceX,
+            float sourceY,
+            float sourceW,
+            float sourceH,
+            float destinationX,
+            float destinationY,
+            float destinationW,
+            float destinationH,
+            Vector3 color,
+            float originX,
+            float originY,
+            float rotationSin,
+            float rotationCos,
+            float depth,
+            byte effects,
+            Vector3? normal
         )
         {
+            // Skip if texture is null or disposed
+            if (texture == null || texture.IsDisposed)
+            {
+                return;
+            }
+
             EnsureSize();
 
             SetVertex
@@ -1126,7 +1277,8 @@ namespace ClassicUO.Renderer
                 color,
                 originX, originY,
                 rotationSin, rotationCos,
-                depth, effects
+                depth, effects,
+                normal
             );
 
             _textureInfo[_numSprites] = texture;
@@ -1134,15 +1286,9 @@ namespace ClassicUO.Renderer
         }
 
 
-        public void Begin()
-        {
-            Begin(null, Matrix.Identity);
-        }
+        public void Begin() => Begin(null, Matrix.Identity);
 
-        public void Begin(Effect effect)
-        {
-            Begin(effect, Matrix.Identity);
-        }
+        public void Begin(Effect effect) => Begin(effect, Matrix.Identity);
 
         public void Begin(Effect customEffect, Matrix transform_matrix)
         {
@@ -1163,6 +1309,13 @@ namespace ClassicUO.Renderer
             _customEffect = null;
         }
 
+        /// <summary>
+        /// Flushes pending draw calls to the GPU without ending the batch.
+        /// Use this before rendering with an external pipeline (e.g. Myra) so that
+        /// previously queued sprites are committed before the external render runs.
+        /// </summary>
+        public void FlushBatch() => Flush();
+
         private void SetVertex
         (
             ref PositionNormalTextureColor4 sprite,
@@ -1180,7 +1333,8 @@ namespace ClassicUO.Renderer
             float rotationSin,
             float rotationCos,
             float depth,
-            byte effects
+            byte effects,
+            Vector3? normal = null
         )
         {
             float cornerX = -originX * destinationW;
@@ -1230,23 +1384,12 @@ namespace ClassicUO.Renderer
             sprite.Hue2 = color;
             sprite.Hue3 = color;
 
+            Vector3 n = normal ?? new Vector3(0, 0, 1);
 
-
-            sprite.Normal0.X = 0;
-            sprite.Normal0.Y = 0;
-            sprite.Normal0.Z = 1;
-
-            sprite.Normal1.X = 0;
-            sprite.Normal1.Y = 0;
-            sprite.Normal1.Z = 1;
-
-            sprite.Normal2.X = 0;
-            sprite.Normal2.Y = 0;
-            sprite.Normal2.Z = 1;
-
-            sprite.Normal3.X = 0;
-            sprite.Normal3.Y = 0;
-            sprite.Normal3.Z = 1;
+            sprite.Normal0 = n;
+            sprite.Normal1 = n;
+            sprite.Normal2 = n;
+            sprite.Normal3 = n;
         }
 
 
@@ -1351,13 +1494,21 @@ namespace ClassicUO.Renderer
                 if (tex != curTexture)
                 {
                     ++TextureSwitches;
-                    InternalDraw(curTexture, baseOff + offset, i - offset);
+                    // Only draw if we have a valid texture
+                    if (curTexture != null && !curTexture.IsDisposed)
+                    {
+                        InternalDraw(curTexture, baseOff + offset, i - offset);
+                    }
                     curTexture = tex;
                     offset = i;
                 }
             }
 
-            InternalDraw(curTexture, baseOff + offset, batchSize - offset);
+            // Only draw the final batch if we have a valid texture
+            if (curTexture != null && !curTexture.IsDisposed)
+            {
+                InternalDraw(curTexture, baseOff + offset, batchSize - offset);
+            }
 
             if (_numSprites > MAX_SPRITES)
             {
@@ -1372,6 +1523,17 @@ namespace ClassicUO.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InternalDraw(Texture texture, int baseSprite, int batchSize)
         {
+            if (texture == null || texture.IsDisposed)
+            {
+                return;
+            }
+
+            if (texture is Texture2D tex2d)
+            {
+                _basicUOEffect.TexelSize.SetValue(new Vector2(1f / tex2d.Width, 1f / tex2d.Height));
+                _basicUOEffect.Pass.Apply();
+            }
+
             GraphicsDevice.Textures[0] = texture;
 
             if (_customEffect != null)
@@ -1586,12 +1748,12 @@ namespace ClassicUO.Renderer
     }
 
 
-    partial class Resources
+    public partial class Resources
     {
-        [EmbedResourceCSharp.FileEmbed("shaders/IsometricWorld.fxc")]
+        [FileEmbed.FileEmbed("shaders/IsometricWorld.fxc")]
         public static partial ReadOnlySpan<byte> GetUOShader();
 
-        [EmbedResourceCSharp.FileEmbed("shaders/xBR.fxc")]
+        [FileEmbed.FileEmbed("shaders/xBR.fxc")]
         public static partial ReadOnlySpan<byte> GetXBRShader();
     }
 }

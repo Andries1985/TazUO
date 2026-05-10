@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -36,6 +6,7 @@ using System.Linq;
 using System.Xml;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Game.UI.Gumps;
+using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.Managers
@@ -92,9 +63,11 @@ namespace ClassicUO.Game.Managers
 
         public void Save(XmlTextWriter writer)
         {
+            if(writer == null || reverseMap == null) return;
+
             foreach (AnchorGroup value in reverseMap.Values.Distinct())
             {
-                value.Save(writer);
+                value?.Save(writer);
             }
         }
 
@@ -153,16 +126,13 @@ namespace ClassicUO.Game.Managers
             return draggedControl.Location;
         }
 
-        public AnchorableGump GetAnchorableControlUnder(AnchorableGump draggedControl)
-        {
-            return ClosestOverlappingControl(draggedControl);
-        }
+        public AnchorableGump GetAnchorableControlUnder(AnchorableGump draggedControl) => ClosestOverlappingControl(draggedControl);
 
         public void DetachControl(AnchorableGump control)
         {
             if (this[control] != null)
             {
-                List<AnchorableGump> group = reverseMap.Where(o => o.Value == this[control]).Select(o => o.Key).ToList();
+                var group = reverseMap.Where(o => o.Value == this[control]).Select(o => o.Key).ToList();
 
                 if (group.Count == 2) // if detach 1+1 - need destroy all group
                 {
@@ -196,8 +166,8 @@ namespace ClassicUO.Game.Managers
 
         private (Point?, AnchorableGump) GetAnchorDirection(AnchorableGump draggedControl, AnchorableGump host)
         {
-            int xdistancescale = Math.Abs(draggedControl.X - host.X) * 100 / host.Width;
-            int ydistancescale = Math.Abs(draggedControl.Y - host.Y) * 100 / host.Height;
+            int xdistancescale = Math.Abs(draggedControl.X - host.X) * 100 / host.Width.NotZero;
+            int ydistancescale = Math.Abs(draggedControl.Y - host.Y) * 100 / host.Height.NotZero;
 
             if (xdistancescale > ydistancescale)
             {
@@ -242,22 +212,22 @@ namespace ClassicUO.Game.Managers
             AnchorableGump closestControl = null;
             int closestDistance = 99999;
 
-            foreach (Gump c in UIManager.Gumps)
+            UIManager.ForEach<AnchorableGump>(g =>
             {
-                if (!c.IsDisposed && c is AnchorableGump host && host.AnchorType == control.AnchorType)
+                if (g.AnchorType == control.AnchorType)
                 {
-                    if (IsOverlapping(control, host))
+                    if (IsOverlapping(control, g))
                     {
-                        int dirtyDistance = Math.Abs(control.X - host.X) + Math.Abs(control.Y - host.Y);
+                        int dirtyDistance = Math.Abs(control.X - g.X) + Math.Abs(control.Y - g.Y);
 
                         if (dirtyDistance < closestDistance)
                         {
                             closestDistance = dirtyDistance;
-                            closestControl = host;
+                            closestControl = g;
                         }
                     }
                 }
-            }
+            });
 
             return closestControl;
         }
@@ -379,7 +349,7 @@ namespace ClassicUO.Game.Managers
                 {
                     updateCount++;
 
-                    HashSet<Control> visited = new HashSet<Control>();
+                    var visited = new HashSet<Control>();
 
                     for (int x = 0; x < controlMatrix.GetLength(0); x++)
                     {
@@ -502,7 +472,7 @@ namespace ClassicUO.Game.Managers
 
             public void ResizeMatrix(int xCount, int yCount, int xInitial, int yInitial)
             {
-                AnchorableGump[,] newMatrix = new AnchorableGump[xCount, yCount];
+                var newMatrix = new AnchorableGump[xCount, yCount];
 
                 for (int x = 0; x < controlMatrix.GetLength(0); x++)
                 {

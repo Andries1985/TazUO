@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Runtime.CompilerServices;
@@ -38,7 +8,7 @@ using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
-using static ClassicUO.Network.NetClient;
+using static ClassicUO.Network.AsyncNetClient;
 
 namespace ClassicUO.Game.GameObjects
 {
@@ -55,7 +25,7 @@ namespace ClassicUO.Game.GameObjects
         private Direction _direction;
 
 
-        protected Entity(uint serial)
+        protected Entity(World world, uint serial) : base(world)
         {
             Serial = serial;
         }
@@ -64,19 +34,20 @@ namespace ClassicUO.Game.GameObjects
         public bool ExecuteAnimation = true;
         internal long LastAnimationChangeTime;
         public Flags Flags;
-        public ushort Hits { get => hits; set 
+        public ushort Hits { get => hits; set
             {
-                if(this is PlayerMobile)
+                if(Serial == World.Player)
                 {
-                    var arg = new PlayerStatChangedArgs(PlayerStatChangedArgs.PlayerStat.Hits, hits, value);
                     hits = value;
-                    EventSink.InvokeOnPlayerStatChange(this, arg);
+                    EventSink.InvokeOnPlayerStatChange(this, value);
                 }
                 else
                 {
                     hits = value;
                 }
-            } 
+
+                NextHitsUpdate = Time.Ticks + Constants.RECHECK_HITS_STATUS;
+            }
         }
         public ushort HitsMax;
         public byte HitsPercentage;
@@ -85,6 +56,7 @@ namespace ClassicUO.Game.GameObjects
         public string Name;
         public uint Serial;
         public HitsRequestStatus HitsRequest;
+        public uint NextHitsUpdate;
         private ushort hits;
 
         public bool IsHidden => (Flags & Flags.Hidden) != 0;
@@ -107,10 +79,7 @@ namespace ClassicUO.Game.GameObjects
         public RenderedText HitsTexture => _hitsPercText[HitsPercentage % _hitsPercText.Length];
 
 
-        public bool Equals(Entity e)
-        {
-            return e != null && Serial == e.Serial;
-        }
+        public bool Equals(Entity e) => e != null && Serial == e.Serial;
 
         public void FixHue(ushort hue)
         {
@@ -139,7 +108,7 @@ namespace ClassicUO.Game.GameObjects
             {
                 HitsPercentage = perc;
 
-                ref var rtext = ref _hitsPercText[perc % _hitsPercText.Length];
+                ref RenderedText rtext = ref _hitsPercText[perc % _hitsPercText.Length];
 
                 if (rtext == null || rtext.IsDestroyed)
                 {
@@ -177,18 +146,18 @@ namespace ClassicUO.Game.GameObjects
 
                 // TODO: Some servers may not want to receive this (causing original client to not send it),
                 //but all servers tested (latest POL, old POL, ServUO, Outlands) do.
-                if ( /*Client.Version > ClientVersion.CV_200 &&*/ SerialHelper.IsMobile(Serial))
+                if ( /*Client.Game.UO.Version > ClientVersion.CV_200 &&*/ SerialHelper.IsMobile(Serial))
                 {
                     Socket.Send_NameRequest(Serial);
                 }
 
-                UIManager.Add(new NameOverheadGump(this));
+                UIManager.Add(new NameOverheadGump(World, this), false);
             }
 
 
             if (HitsMax > 0)
             {
-                var perc = MathHelper.PercetangeOf(Hits, HitsMax);
+                int perc = MathHelper.PercentageOf(Hits, HitsMax);
                 perc = perc > 100 ? 100 : perc < 0 ? 0 : perc;
 
                 UpdateHits((byte)perc);
@@ -199,7 +168,7 @@ namespace ClassicUO.Game.GameObjects
         {
             base.Destroy();
 
-            GameActions.SendCloseStatus(Serial, HitsRequest >= HitsRequestStatus.Pending);
+            GameActions.SendCloseStatus(World, Serial, HitsRequest >= HitsRequestStatus.Pending);
 
             AnimIndex = 0;
             LastAnimationChangeTime = 0;
@@ -215,7 +184,7 @@ namespace ClassicUO.Game.GameObjects
 
                 for (LinkedObject i = Items; i != null; i = i.Next)
                 {
-                    Item it = (Item) i;
+                    var it = (Item) i;
 
                     if (it.Graphic == graphic)
                     {
@@ -242,7 +211,7 @@ namespace ClassicUO.Game.GameObjects
             {
                 for (LinkedObject i = Items; i != null; i = i.Next)
                 {
-                    Item it = (Item) i;
+                    var it = (Item) i;
 
                     if (it.Graphic == graphic && it.Hue == hue)
                     {
@@ -268,7 +237,7 @@ namespace ClassicUO.Game.GameObjects
         {
             for (LinkedObject i = Items; i != null; i = i.Next)
             {
-                Item item = (Item) i;
+                var item = (Item) i;
 
                 if (item.Graphic == graphic)
                 {
@@ -279,7 +248,7 @@ namespace ClassicUO.Game.GameObjects
                 {
                     for (LinkedObject ic = Items; ic != null; ic = ic.Next)
                     {
-                        Item childItem = (Item) ic;
+                        var childItem = (Item) ic;
 
                         Item res = childItem.GetItemByGraphic(graphic, deepsearch);
 
@@ -295,11 +264,11 @@ namespace ClassicUO.Game.GameObjects
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Item FindItemByLayer(Layer layer)
+        public virtual Item FindItemByLayer(Layer layer)
         {
             for (LinkedObject i = Items; i != null; i = i.Next)
             {
-                Item it = (Item) i;
+                var it = (Item) i;
 
                 if (!it.IsDestroyed && it.Layer == layer)
                 {
@@ -325,15 +294,9 @@ namespace ClassicUO.Game.GameObjects
             return !Equals(e, s);
         }
 
-        public override bool Equals(object obj)
-        {
-            return obj is Entity ent && Equals(ent);
-        }
+        public override bool Equals(object obj) => obj is Entity ent && Equals(ent);
 
-        public override int GetHashCode()
-        {
-            return (int) Serial;
-        }
+        public override int GetHashCode() => (int)Serial;
 
         public abstract void ProcessAnimation(bool evalutate = false);
 

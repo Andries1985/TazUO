@@ -1,34 +1,5 @@
-#region license
+// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.UI.Controls;
@@ -36,31 +7,75 @@ using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
+using System;
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using ClassicUO.Game.UI;
 
 namespace ClassicUO.Game.Managers
 {
-    public static class UIManager
+    internal static class UIManager
     {
-        private static readonly Dictionary<uint, Point> _gumpPositionCache = new Dictionary<uint, Point>();
-        private static readonly Control[] _mouseDownControls = new Control[0xFF];
+        private static readonly Dictionary<Type, List<IGui>> _gumpTypeList = new();
+        private static readonly ConcurrentDictionary<uint, Point> _gumpPositionCache = new();
+        private static readonly IGui[] _mouseDownControls = new IGui[0xFF];
 
 
         //private static readonly Dictionary<uint, TargetLineGump> _targetLineGumps = new Dictionary<uint, TargetLineGump>();
         private static Point _dragOrigin;
         private static bool _isDraggingControl;
-        private static Control _keyboardFocusControl, _lastFocus;
+        private static IGui _keyboardFocusControl, _lastFocus;
         private static bool _needSort;
+
+        // Ctrl-modified drag state for axis-locking and speed reduction
+        private static bool _ctrlDragAxisDetermined;
+        private static bool _ctrlDragLockHorizontal;
+        private static float _ctrlDragRemainderX;
+        private static float _ctrlDragRemainderY;
+        private static bool _wasCtrlHeldLastFrame;
+
+        // Ctrl-modified drag constants
+        private const int AXIS_LOCK_THRESHOLD_PIXELS = 10;
+        private const float CTRL_DRAG_SPEED_MULTIPLIER = 0.5f;
+
+        private static void ResetCtrlDragState()
+        {
+            _ctrlDragAxisDetermined = false;
+            _ctrlDragLockHorizontal = false;
+            _ctrlDragRemainderX = 0f;
+            _ctrlDragRemainderY = 0f;
+            _wasCtrlHeldLastFrame = false;
+        }
+
+
+        public static World World { get; set; }
 
         public static float ContainerScale { get; set; } = 1f;
 
-        public static AnchorManager AnchorManager { get; } = new AnchorManager();
+        public static AnchorManager AnchorManager { get; } = new();
 
-        public static LinkedList<Gump> Gumps { get; } = new LinkedList<Gump>();
+        public static LinkedList<IGui> Gumps { get; } = new();
 
-        public static Control MouseOverControl { get; private set; }
+        public static IGui MouseOverControl { get; private set; }
+
+        public static event EventHandler TopMostChanged;
+        public static IGui TopMostControl
+        {
+            get => field;
+            set
+            {
+                field?.IsTopMost = false;
+                field = value;
+                field?.IsTopMost = true;
+                TopMostChanged?.Invoke(null, EventArgs.Empty);
+            }
+        }
 
         public static bool IsModalOpen { get; private set; }
+
+        public static bool InGame;
 
         public static bool IsMouseOverWorld
         {
@@ -70,7 +85,7 @@ namespace ClassicUO.Game.Managers
                 Profile profile = ProfileManager.CurrentProfile;
 
                 return profile != null &&
-                    Client.Game.GameCursor.AllowDrawSDLCursor &&
+                    Client.Game.UO.GameCursor.AllowDrawSDLCursor &&
                     DraggingControl == null &&
                     MouseOverControl == null &&
                     !IsModalOpen &&
@@ -84,7 +99,7 @@ namespace ClassicUO.Game.Managers
 
         public static PopupMenuGump PopupMenu { get; private set; }
 
-        public static Control KeyboardFocusControl
+        public static IGui KeyboardFocusControl
         {
             get => _keyboardFocusControl;
             set
@@ -109,6 +124,25 @@ namespace ClassicUO.Game.Managers
 
         public static ContextMenuShowMenu ContextMenu { get; private set; }
 
+        public static bool UpdateTimerEnabled
+        {
+            get => updateTimerEnabled; set
+            {
+                updateTimerEnabled = value;
+                if (value)
+                {
+                    UpdateTimerTotalTime = new Dictionary<Type, double>();
+                    UpdateTimerCount = new Dictionary<Type, int>();
+                    updateTimer = Stopwatch.StartNew();
+                }
+            }
+        }
+
+        public static Dictionary<Type, double> UpdateTimerTotalTime;
+        public static Dictionary<Type, int> UpdateTimerCount;
+        private static bool updateTimerEnabled;
+        private static Stopwatch updateTimer;
+
         public static void ShowGamePopup(PopupMenuGump popup)
         {
             PopupMenu?.Dispose();
@@ -125,7 +159,7 @@ namespace ClassicUO.Game.Managers
 
         public static bool IsModalControlOpen()
         {
-            for (LinkedListNode<Gump> last = Gumps.Last; last != null; last = last.Previous)
+            for (LinkedListNode<IGui> last = Gumps.Last; last != null; last = last.Previous)
             {
                 if (last.Value.IsModal)
                 {
@@ -145,7 +179,7 @@ namespace ClassicUO.Game.Managers
             {
                 if (ProfileManager.CurrentProfile == null || !ProfileManager.CurrentProfile.HoldAltToMoveGumps || Keyboard.Alt)
                 {
-                    AttemptDragControl(_mouseDownControls[(int)MouseButtonType.Left], true);
+                    AttemptDragControl(_mouseDownControls[(int)MouseButtonType.Left]);
                 }
             }
 
@@ -183,7 +217,7 @@ namespace ClassicUO.Game.Managers
             }
             else
             {
-                foreach (Gump s in Gumps)
+                foreach (IGui s in Gumps)
                 {
                     if (s.IsModal && s.ModalClickOutsideAreaClosesThisControl)
                     {
@@ -208,7 +242,7 @@ namespace ClassicUO.Game.Managers
 
             if (MouseOverControl != null)
             {
-                if (_mouseDownControls[index] != null && MouseOverControl == _mouseDownControls[index] || Client.Game.GameCursor.ItemHold.Enabled)
+                if (_mouseDownControls[index] != null && MouseOverControl == _mouseDownControls[index] || Client.Game.UO.GameCursor.ItemHold.Enabled)
                 {
                     MouseOverControl.InvokeMouseUp(Mouse.Position, button);
                 }
@@ -227,7 +261,7 @@ namespace ClassicUO.Game.Managers
 
             if (button == MouseButtonType.Right)
             {
-                var mouseDownControl = _mouseDownControls[index];
+                IGui mouseDownControl = _mouseDownControls[index];
                 // only attempt to close the gump if the mouse is still on the gump when right click mouse up occurs
                 if (mouseDownControl != null && MouseOverControl == mouseDownControl)
                 {
@@ -248,7 +282,7 @@ namespace ClassicUO.Game.Managers
                 {
                     if (button == MouseButtonType.Left)
                     {
-                        DelayedObjectClickManager.Clear();
+                        Client.Game.UO.World.DelayedObjectClickManager.Clear();
                     }
 
                     return true;
@@ -266,25 +300,13 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public static Control LastControlMouseDown(MouseButtonType button)
-        {
-            return _mouseDownControls[(int)button];
-        }
+        public static IGui LastControlMouseDown(MouseButtonType button) => _mouseDownControls[(int)button];
 
-        public static void SavePosition(uint serverSerial, Point point)
-        {
-            _gumpPositionCache[serverSerial] = point;
-        }
+        public static void SavePosition(uint serverSerial, Point point) => _gumpPositionCache[serverSerial] = point;
 
-        public static bool RemovePosition(uint serverSerial)
-        {
-            return _gumpPositionCache.Remove(serverSerial);
-        }
+        public static bool RemovePosition(uint serverSerial) => _gumpPositionCache.Remove(serverSerial, out _);
 
-        public static bool GetGumpCachePosition(uint id, out Point pos)
-        {
-            return _gumpPositionCache.TryGetValue(id, out pos);
-        }
+        public static bool GetGumpCachePosition(uint id, out Point pos) => _gumpPositionCache.TryGetValue(id, out pos);
 
         public static void ShowContextMenu(ContextMenuShowMenu menu)
         {
@@ -300,45 +322,34 @@ namespace ClassicUO.Game.Managers
             Add(ContextMenu);
         }
 
-        public static T GetGump<T>(uint? serial = null) where T : Control
+        public static T GetGump<T>(uint? serial = null) where T : class, IGui
         {
-            if (serial.HasValue)
-            {
-                for (LinkedListNode<Gump> last = Gumps.Last; last != null; last = last.Previous)
-                {
-                    Control c = last.Value;
+            if (!_gumpTypeList.TryGetValue(typeof(T), out List<IGui> list))
+                return null;
 
-                    if (!c.IsDisposed && c.LocalSerial == serial.Value && c is T t)
-                    {
-                        return t;
-                    }
-                }
-            }
-            else
-            {
-                for (LinkedListNode<Gump> first = Gumps.First; first != null; first = first.Next)
-                {
-                    Control c = first.Value;
+            list.RemoveAll(i => i.IsDisposed);
 
-                    if (!c.IsDisposed && c is T t)
-                    {
-                        return t;
-                    }
-                }
-            }
+            if (list.Count <= 0) return null;
+
+            if(!serial.HasValue)
+                return list[0] as T;
+
+            foreach(IGui gump in list)
+                if (gump.LocalSerial == serial.Value)
+                    return gump as T;
 
             return null;
         }
 
         public static Gump GetGump(uint serial)
         {
-            for (LinkedListNode<Gump> last = Gumps.Last; last != null; last = last.Previous)
+            for (LinkedListNode<IGui> last = Gumps.Last; last != null; last = last.Previous)
             {
-                Control c = last.Value;
+                IGui c = last.Value;
 
-                if (!c.IsDisposed && c.LocalSerial == serial)
+                if (!c.IsDisposed && c.LocalSerial == serial && c is Gump gump)
                 {
-                    return c as Gump;
+                    return gump;
                 }
             }
 
@@ -347,13 +358,13 @@ namespace ClassicUO.Game.Managers
 
         public static Gump GetGumpServer(uint serial)
         {
-            for (LinkedListNode<Gump> last = Gumps.Last; last != null; last = last.Previous)
+            for (LinkedListNode<IGui> last = Gumps.Last; last != null; last = last.Previous)
             {
-                Control c = last.Value;
+                IGui c = last.Value;
 
-                if (!c.IsDisposed && c.ServerSerial == serial)
+                if (!c.IsDisposed && c.ServerSerial == serial && c is Gump g)
                 {
-                    return c as Gump;
+                    return g;
                 }
             }
 
@@ -362,7 +373,7 @@ namespace ClassicUO.Game.Managers
 
         public static TradingGump GetTradingGump(uint serial)
         {
-            for (LinkedListNode<Gump> g = Gumps.Last; g != null; g = g.Previous)
+            for (LinkedListNode<IGui> g = Gumps.Last; g != null; g = g.Previous)
             {
                 if (g.Value != null && !g.Value.IsDisposed && g.Value is TradingGump trading && (trading.ID1 == serial || trading.ID2 == serial || trading.LocalSerial == serial))
                 {
@@ -377,19 +388,39 @@ namespace ClassicUO.Game.Managers
         {
             SortControlsByInfo();
 
-            LinkedListNode<Gump> first = Gumps.First;
+            LinkedListNode<IGui> first = Gumps.First;
 
             while (first != null)
             {
-                LinkedListNode<Gump> next = first.Next;
+                LinkedListNode<IGui> next = first.Next;
 
-                Control g = first.Value;
+                IGui g = first.Value;
+                if (updateTimerEnabled)
+                {
+                    updateTimer.Restart();
+                    g.Update();
+                    updateTimer.Stop();
 
-                g.Update();
+                    if (!UpdateTimerTotalTime.ContainsKey(g.GetType()))
+                    {
+                        UpdateTimerTotalTime[g.GetType()] = 0;
+                        UpdateTimerCount[g.GetType()] = 0;
+                    }
 
+                    UpdateTimerTotalTime[g.GetType()] += updateTimer.Elapsed.TotalMilliseconds;
+                    UpdateTimerCount[g.GetType()]++;
+                }
+                else
+                {
+                    g.Update();
+                }
                 if (g.IsDisposed)
                 {
                     Gumps.Remove(first);
+                    UnregisterGump(g);
+                    // Unset if this was the top gump
+                    if (TopMostControl == g)
+                        TopMostControl = null;
                 }
 
                 first = next;
@@ -399,23 +430,27 @@ namespace ClassicUO.Game.Managers
             HandleMouseInput();
         }
 
-        public static void SlowUpdate()
+        public static void PreDraw()
         {
             SortControlsByInfo();
 
-            LinkedListNode<Gump> first = Gumps.First;
+            LinkedListNode<IGui> first = Gumps.First;
 
             while (first != null)
             {
-                LinkedListNode<Gump> next = first.Next;
+                LinkedListNode<IGui> next = first.Next;
 
-                Control g = first.Value;
+                IGui g = first.Value;
 
-                g.SlowUpdate();
+                g.PreDraw();
 
                 if (g.IsDisposed)
                 {
                     Gumps.Remove(first);
+                    UnregisterGump(g);
+                    // Unset if this was the top gump
+                    if (TopMostControl == g)
+                        TopMostControl = null;
                 }
 
                 first = next;
@@ -425,25 +460,25 @@ namespace ClassicUO.Game.Managers
         public static void Draw(UltimaBatcher2D batcher)
         {
             SortControlsByInfo();
-
             batcher.Begin();
 
-            for (LinkedListNode<Gump> last = Gumps.Last; last != null; last = last.Previous)
+            for (LinkedListNode<IGui> last = Gumps.Last; last != null; last = last.Previous)
             {
-                Control g = last.Value;
+                IGui g = last.Value;
                 g.Draw(batcher, g.X, g.Y);
             }
 
             batcher.End();
         }
 
-        public static void Add(Gump gump, bool front = true)
+        public static void Add(IGui gump, bool front = true)
         {
             if (!gump.IsDisposed)
             {
                 if (front)
                 {
                     Gumps.AddFirst(gump);
+                    TopMostControl = gump; // Set the gump as the top-most so Myra's aware of it
                 }
                 else
                 {
@@ -451,17 +486,105 @@ namespace ClassicUO.Game.Managers
                 }
 
                 _needSort = Gumps.Count > 1;
+
+                RegisterGump(gump);
             }
         }
 
         public static void Clear()
         {
-            foreach (Gump s in Gumps)
+            foreach (IGui s in Gumps)
             {
                 s.Dispose();
             }
+            Gumps.Clear();
+
+            _gumpTypeList.Clear();
         }
 
+        /// <summary>
+        /// Register gump to it's correct list(s) via Type
+        /// </summary>
+        /// <param name="item"></param>
+        private static void RegisterGump(IGui item)
+        {
+            Type t = item.GetType();
+
+            while (t != null)
+            {
+                if (t == typeof(Control)) break; //break early at control ( XX <- Gump <- Control -< Object )
+
+                if (!_gumpTypeList.TryGetValue(t, out List<IGui> list))
+                {
+                    list = new List<IGui>();
+                    _gumpTypeList[t] = list;
+                }
+                list.Add(item);
+
+                t = t.BaseType;
+            }
+        }
+
+        /// <summary>
+        /// Remove a gump from it's correct Type list(s)
+        /// </summary>
+        /// <param name="item"></param>
+        private static void UnregisterGump(IGui item)
+        {
+            Type t = item.GetType();
+
+            while (t != null)
+            {
+                if (t == typeof(Control)) break;
+
+                if (_gumpTypeList.TryGetValue(t, out List<IGui> list))
+                    list.Remove(item);
+
+                t = t.BaseType;
+            }
+        }
+
+        /// <summary>
+        /// Iterate through a snapshot of all live instances of the given type.
+        /// Disposed instances are pruned automatically before this iteration.
+        /// </summary>
+        /// <returns>True if any instances existed</returns>
+        public static bool ForEach<T>(Action<T> action, uint? serial = null) where T : IGui
+        {
+            IGui[] snapshot;
+            int count;
+
+            if (!_gumpTypeList.TryGetValue(typeof(T), out List<IGui> list))
+                return false;
+
+            list.RemoveAll(i => i.IsDisposed);
+            count = list.Count;
+            if (count == 0) return false;
+
+            snapshot = ArrayPool<IGui>.Shared.Rent(count);
+            list.CopyTo(snapshot, 0);
+
+            int c = 0;
+
+            try
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    if(!serial.HasValue || serial.Value == snapshot[i].LocalSerial)
+                    {
+                        action((T)snapshot[i]);
+                        c++;
+                    }
+                }
+            }
+            finally
+            {
+                Array.Clear(snapshot, 0, count);
+                ArrayPool<IGui>.Shared.Return(snapshot);
+            }
+
+            return c != 0;
+        }
 
         private static void HandleKeyboardInput()
         {
@@ -472,16 +595,16 @@ namespace ClassicUO.Game.Managers
 
             if (_keyboardFocusControl == null)
             {
-                if (SystemChat != null && !SystemChat.IsDisposed)
+                if (SystemChat is { IsDisposed: false })
                 {
                     _keyboardFocusControl = SystemChat.TextBoxControl;
                     _keyboardFocusControl.OnFocusEnter();
                 }
                 else
                 {
-                    for (LinkedListNode<Gump> first = Gumps.First; first != null; first = first.Next)
+                    for (LinkedListNode<IGui> first = Gumps.First; first != null; first = first.Next)
                     {
-                        Control c = first.Value;
+                        IGui c = first.Value;
 
                         if (!c.IsDisposed && c.IsVisible && c.IsEnabled)
                         {
@@ -501,7 +624,7 @@ namespace ClassicUO.Game.Managers
 
         private static void HandleMouseInput()
         {
-            Control gump = GetMouseOverControl(Mouse.Position);
+            IGui gump = GetMouseOverControl(Mouse.Position);
 
             if (MouseOverControl != null && gump != MouseOverControl)
             {
@@ -545,20 +668,20 @@ namespace ClassicUO.Game.Managers
             //}
         }
 
-        private static Control GetMouseOverControl(Point position)
+        private static IGui GetMouseOverControl(Point position)
         {
             if (_isDraggingControl)
             {
                 return DraggingControl;
             }
 
-            Control control = null;
+            IGui control = null;
 
             IsModalOpen = IsModalControlOpen();
 
-            for (LinkedListNode<Gump> first = Gumps.First; first != null; first = first.Next)
+            for (LinkedListNode<IGui> first = Gumps.First; first != null; first = first.Next)
             {
-                Control c = first.Value;
+                IGui c = first.Value;
 
                 if (IsModalOpen && !c.IsModal || !c.IsVisible || !c.IsEnabled)
                 {
@@ -576,49 +699,49 @@ namespace ClassicUO.Game.Managers
             return null;
         }
 
-        public static void MakeTopMostGump(Control control)
+        public static void MakeTopMostGump(IGui gump)
         {
-            Gump gump = control as Gump;
-            if (gump == null && control?.RootParent is Gump)
+            if (gump != null && gump?.RootParent != null)
             {
-                gump = control.RootParent as Gump;
+                gump = gump.RootParent;
             }
 
-            if (gump != null)
+            if (gump == null) return;
+
+            for (LinkedListNode<IGui> start = Gumps.First; start != null; start = start.Next)
             {
-                for (LinkedListNode<Gump> start = Gumps.First; start != null; start = start.Next)
+                if (start.Value == gump)
                 {
-                    if (start.Value == gump)
+                    if (gump.LayerOrder == UILayer.Under)
                     {
-                        if (gump.LayerOrder == UILayer.Under)
-                        {
-                            if (start != Gumps.Last)
-                            {
-                                Gumps.Remove(gump);
-                                Gumps.AddBefore(Gumps.Last, start);
-                            }
-                        }
-                        else
+                        if (start != Gumps.Last)
                         {
                             Gumps.Remove(gump);
-                            Gumps.AddFirst(start);
+                            Gumps.AddBefore(Gumps.Last, start);
                         }
-
-                        break;
                     }
-                }
+                    else
+                    {
+                        Gumps.Remove(gump);
+                        Gumps.AddFirst(start);
+                    }
 
-                _needSort = Gumps.Count > 1;
+                    break;
+                }
             }
+
+            TopMostControl = gump;
+
+            _needSort = Gumps.Count > 1;
         }
 
         private static void SortControlsByInfo()
         {
             if (_needSort)
             {
-                for (LinkedListNode<Gump> el = Gumps.First; el != null; el = el.Next)
+                for (LinkedListNode<IGui> el = Gumps.First; el != null; el = el.Next)
                 {
-                    Gump c = el.Value;
+                    IGui c = el.Value;
 
                     if (c.LayerOrder == UILayer.Default)
                     {
@@ -627,7 +750,7 @@ namespace ClassicUO.Game.Managers
 
                     if (c.LayerOrder == UILayer.Under)
                     {
-                        for (LinkedListNode<Gump> first = Gumps.First; first != null; first = first.Next)
+                        for (LinkedListNode<IGui> first = Gumps.First; first != null; first = first.Next)
                         {
                             if (first.Value == c)
                             {
@@ -641,7 +764,7 @@ namespace ClassicUO.Game.Managers
                     }
                     else if (c.LayerOrder == UILayer.Over)
                     {
-                        for (LinkedListNode<Gump> first = Gumps.First; first != null; first = first.Next)
+                        for (LinkedListNode<IGui> first = Gumps.First; first != null; first = first.Next)
                         {
                             if (first.Value == c)
                             {
@@ -656,31 +779,39 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public static void AttemptDragControl(Control control, bool attemptAlwaysSuccessful = false)
+        public static void AttemptDragControl(IGui control, bool attemptAlwaysSuccessful = false)
         {
-            if ((_isDraggingControl && !attemptAlwaysSuccessful) || Client.Game.GameCursor.ItemHold.Enabled && !Client.Game.GameCursor.ItemHold.IsFixedPosition)
+            if ((_isDraggingControl && !attemptAlwaysSuccessful) || Client.Game.UO.GameCursor.ItemHold.Enabled && !Client.Game.UO.GameCursor.ItemHold.IsFixedPosition)
             {
                 return;
             }
 
-            Control dragTarget = control;
+            if (control is not Control dragTarget) return;
+
 
             if (!dragTarget.CanMove)
             {
                 return;
             }
 
-            while (dragTarget.Parent != null)
+            while (dragTarget?.Parent != null)
             {
-                dragTarget = dragTarget.Parent;
+                dragTarget = dragTarget.Parent as Control;
             }
 
-            if (dragTarget.CanMove)
+
+            if (dragTarget?.CanMove == true)
             {
-                if (attemptAlwaysSuccessful || !_isDraggingControl)
+                Point delta = Mouse.LDragOffset;
+
+                bool doDrag = (ProfileManager.CurrentProfile == null || Math.Abs(delta.X) >= ProfileManager.CurrentProfile.MinGumpMoveDistance || Math.Abs(delta.Y) >= ProfileManager.CurrentProfile.MinGumpMoveDistance) || attemptAlwaysSuccessful;
+                if (doDrag && (!_isDraggingControl || attemptAlwaysSuccessful))
                 {
                     DraggingControl = dragTarget;
                     _dragOrigin = Mouse.LClickPosition;
+
+                    // Reset Ctrl drag state for new drag operation
+                    ResetCtrlDragState();
 
                     for (int i = 0; i < (int)MouseButtonType.Size; i++)
                     {
@@ -688,9 +819,7 @@ namespace ClassicUO.Game.Managers
                     }
                 }
 
-                Point delta = Mouse.Position - _dragOrigin;
-
-                if (attemptAlwaysSuccessful || delta != Point.Zero)
+                if (doDrag)
                 {
                     _isDraggingControl = true;
                     dragTarget.InvokeDragBegin(delta);
@@ -706,6 +835,63 @@ namespace ClassicUO.Game.Managers
             }
 
             Point delta = Mouse.Position - _dragOrigin;
+
+            // Apply Ctrl modifier: axis-locking and speed reduction
+            bool ctrlCurrentlyHeld = Keyboard.Ctrl;
+            bool ctrlJustPressed = ctrlCurrentlyHeld && !_wasCtrlHeldLastFrame;
+
+            if (ctrlJustPressed)
+            {
+                // Reset Ctrl drag state when Ctrl is newly pressed mid-drag
+                ResetCtrlDragState();
+            }
+
+            if (ctrlCurrentlyHeld)
+            {
+                // Determine axis lock direction on first significant movement
+                if (!_ctrlDragAxisDetermined)
+                {
+                    // Require threshold movement to determine direction
+                    if (Math.Abs(delta.X) >= AXIS_LOCK_THRESHOLD_PIXELS ||
+                        Math.Abs(delta.Y) >= AXIS_LOCK_THRESHOLD_PIXELS)
+                    {
+                        _ctrlDragLockHorizontal = Math.Abs(delta.X) >= Math.Abs(delta.Y);
+                        _ctrlDragAxisDetermined = true;
+                    }
+                }
+
+                // Apply axis lock if determined
+                if (_ctrlDragAxisDetermined)
+                {
+                    if (_ctrlDragLockHorizontal)
+                    {
+                        delta.Y = 0;
+                    }
+                    else
+                    {
+                        delta.X = 0;
+                    }
+                }
+
+                // Apply speed reduction with fractional tracking to prevent cumulative truncation error
+                float scaledX = delta.X * CTRL_DRAG_SPEED_MULTIPLIER + _ctrlDragRemainderX;
+                float scaledY = delta.Y * CTRL_DRAG_SPEED_MULTIPLIER + _ctrlDragRemainderY;
+
+                delta.X = (int)scaledX;
+                delta.Y = (int)scaledY;
+
+                // Track fractional remainders for next frame
+                _ctrlDragRemainderX = scaledX - delta.X;
+                _ctrlDragRemainderY = scaledY - delta.Y;
+            }
+            else
+            {
+                // Clear remainders when not in Ctrl mode
+                _ctrlDragRemainderX = 0f;
+                _ctrlDragRemainderY = 0f;
+            }
+
+            _wasCtrlHeldLastFrame = ctrlCurrentlyHeld;
 
             DraggingControl.X += delta.X;
             DraggingControl.Y += delta.Y;
@@ -723,6 +909,9 @@ namespace ClassicUO.Game.Managers
             DraggingControl?.InvokeDragEnd(mousePosition);
             DraggingControl = null;
             _isDraggingControl = false;
+
+            // Reset Ctrl drag state when drag ends
+            ResetCtrlDragState();
         }
     }
 }

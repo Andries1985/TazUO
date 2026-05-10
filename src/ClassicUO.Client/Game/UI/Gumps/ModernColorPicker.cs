@@ -9,7 +9,7 @@ using System;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class ModernColorPicker : Gump
+    public class ModernColorPicker : Gump
     {
         private const int WIDTH = 200, HEIGHT = 400;
 
@@ -42,7 +42,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        public ModernColorPicker(Action<ushort> hueChanged, uint serial = 0) : base(0, 0)
+        public ModernColorPicker(World world, Action<ushort> hueChanged, uint serial = 0) : base(world, 0, 0)
         {
             CanCloseWithRightClick = true;
             CanMove = true;
@@ -68,7 +68,7 @@ namespace ClassicUO.Game.UI.Gumps
             FillHueDisplays();
             NiceButton prev, next;
 
-            Label page = new Label(cPage.ToString(), true, 0xffff, 30, align: TEXT_ALIGN_TYPE.TS_CENTER);
+            var page = new Label(cPage.ToString(), true, 0xffff, 30, align: TEXT_ALIGN_TYPE.TS_CENTER);
             page.X = (WIDTH / 2) - 10;
             page.Y = HEIGHT - borderSize - 20;
             Add(page);
@@ -79,6 +79,8 @@ namespace ClassicUO.Game.UI.Gumps
             Add(next = new NiceButton(WIDTH - borderSize - 20, HEIGHT - borderSize - 20, 20, 20, ButtonAction.Activate, ">") { IsSelectable = false });
             next.MouseUp += (sender, e) => { if (e.Button == Input.MouseButtonType.Left) { cPage++; FillHueDisplays(cPage); page.Text = (cPage + 1).ToString(); } };
 
+            CenterXInViewPort();
+            CenterYInViewPort();
         }
 
         private void FillHueDisplays(int page = 0)
@@ -93,7 +95,7 @@ namespace ClassicUO.Game.UI.Gumps
                 for (int row = 1; row < ROWS + 1; row++)
                 {
                     int _ = row + ((col - 1) * ROWS);
-                    area.Add(new HueDisplay((ushort)(_ + (page * (ROWS * COLUMNS)) - 1), hueChanged, sendSysMessage: serial == 8787 ? true : false) { X = (col - 1) * 18, Y = (row - 1) * 18 });
+                    area.Add(new HueDisplay(World, (ushort)(_ + (page * (ROWS * COLUMNS)) - 1), hueChanged, sendSysMessage: serial == 8787 ? true : false) { X = (col - 1) * 18, Y = (row - 1) * 18 });
                 }
             }
         }
@@ -111,6 +113,7 @@ namespace ClassicUO.Game.UI.Gumps
             private bool flash = false;
             private float flashAlpha = 1f;
             private bool rev = false;
+            private World world;
 
             public ushort Hue
             {
@@ -129,12 +132,13 @@ namespace ClassicUO.Game.UI.Gumps
 
             public event EventHandler HueChanged;
 
-            public HueDisplay(ushort hue, Action<ushort> hueChanged, bool isClickable = false, bool sendSysMessage = false)
+            public HueDisplay(World world, ushort hue, Action<ushort> hueChanged, bool isClickable = false, bool sendSysMessage = false)
             {
+                this.world = world;
                 hueVector = ShaderHueTranslator.GetHueVector(hue, true, 1);
-                ref readonly var staticArt = ref Client.Game.Arts.GetArt(0x0FAB);
+                ref readonly SpriteInfo staticArt = ref Client.Game.UO.Arts.GetArt(0x0FAB);
                 texture = staticArt.Texture;
-                rect = Client.Game.Arts.GetRealArtBounds(0x0FAB);
+                rect = Client.Game.UO.Arts.GetRealArtBounds(0x0FAB);
                 Width = 18;
                 Height = 18;
                 this.bounds = staticArt.UV;
@@ -151,7 +155,7 @@ namespace ClassicUO.Game.UI.Gumps
                 this.sendSysMessage = sendSysMessage;
             }
 
-            protected override void OnMouseUp(int x, int y, MouseButtonType button)
+            public override void OnMouseUp(int x, int y, MouseButtonType button)
             {
                 base.OnMouseUp(x, y, button);
 
@@ -160,7 +164,7 @@ namespace ClassicUO.Game.UI.Gumps
                     if (isClickable)
                     {
                         UIManager.GetGump<ModernColorPicker>()?.Dispose();
-                        UIManager.Add(new ModernColorPicker(s => Hue = s) { X = 100, Y = 100 });
+                        UIManager.Add(new ModernColorPicker(world, s => Hue = s));
                     }
                     else
                     {
@@ -168,7 +172,7 @@ namespace ClassicUO.Game.UI.Gumps
                         flash = true;
                     }
                     if (sendSysMessage)
-                        GameActions.Print($"Selected hue: {hue}");
+                        GameActions.Print(world, $"Selected hue: {hue}");
                 }
             }
 

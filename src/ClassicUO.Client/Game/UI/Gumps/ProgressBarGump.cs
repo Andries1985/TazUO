@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class ProgressBarGump : Gump
+    public class ProgressBarGump : Gump
     {
         public double MaxValue { get; set; } = 1;
         public double MinValue { get; set; } = 0;
@@ -13,7 +13,7 @@ namespace ClassicUO.Game.UI.Gumps
         public Color ForegrouneColor { get; set; } = Color.Blue;
 
         private Vector3 hueVector = ShaderHueTranslator.GetHueVector(0, false, 0.6f);
-        public ProgressBarGump(string title, double startPercentage = 1.0, int width = 200, int height = 20) : base(0, 0)
+        public ProgressBarGump(World world, string title, double startPercentage = 1.0, int width = 200, int height = 20) : base(world, 0, 0)
         {
             CanCloseWithRightClick = true;
             AcceptMouseInput = false;
@@ -26,14 +26,14 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (!string.IsNullOrEmpty(title))
             {
-                TextBox t = new TextBox(title, TrueTypeLoader.EMBEDDED_FONT, 20, width, Color.White, FontStashSharp.RichText.TextHorizontalAlignment.Center, false);
-                Add(t);
+                Add(TextBox.GetOne(title, TrueTypeLoader.EMBEDDED_FONT, 20, Color.White, TextBox.RTLOptions.DefaultCentered(width)));
             }
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            base.Draw(batcher, x, y);
+            if (!base.Draw(batcher, x, y))
+                return false;
 
             batcher.Draw(
                 SolidColorTextureCache.GetTexture(ForegrouneColor),

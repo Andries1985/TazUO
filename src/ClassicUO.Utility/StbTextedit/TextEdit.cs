@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Text;
@@ -105,10 +75,7 @@ namespace StbTextEditSharp
             }
         }
 
-        public void MakeUndoInsert(int where, int length)
-        {
-            UndoState.CreateUndo(where, 0, length);
-        }
+        public void MakeUndoInsert(int where, int length) => UndoState.CreateUndo(where, 0, length);
 
         public void ClearState(bool is_single_line)
         {
@@ -139,7 +106,7 @@ namespace StbTextEditSharp
         {
             int count = start + length;
 
-            ValueStringBuilder sb = new ValueStringBuilder(count);
+            var sb = new ValueStringBuilder(count);
             for (int i = start; i < count; ++i)
             {
                 sb.Append(char.ConvertFromUtf32(codepoints[i]));
@@ -180,7 +147,7 @@ namespace StbTextEditSharp
 
         public int LocateCoord(float x, float y)
         {
-            TextEditRow r = new TextEditRow();
+            var r = new TextEditRow();
             int n = Length;
             float base_y = 0;
             int i = 0;
@@ -354,15 +321,9 @@ namespace StbTextEditSharp
             }
         }
 
-        private static bool IsSpace(int codepoint)
-        {
-            return char.IsWhiteSpace((char) codepoint);
-        }
+        private static bool IsSpace(int codepoint) => char.IsWhiteSpace((char)codepoint);
 
-        public bool IsWordBoundary(int idx)
-        {
-            return idx > 0 ? IsSpace(text[idx - 1]) && !IsSpace(text[idx]) : true;
-        }
+        public bool IsWordBoundary(int idx) => idx > 0 ? IsSpace(text[idx - 1]) && !IsSpace(text[idx]) : true;
 
         public int MoveToPreviousWord(int c)
         {
@@ -593,8 +554,8 @@ namespace StbTextEditSharp
                 case ControlKeys.Down:
                 case ControlKeys.Down | ControlKeys.Shift:
                 {
-                    FindState find = new FindState();
-                    TextEditRow row = new TextEditRow();
+                    var find = new FindState();
+                    var row = new TextEditRow();
                     bool sel = (key & ControlKeys.Shift) != 0;
 
                     if (SingleLine)
@@ -654,8 +615,8 @@ namespace StbTextEditSharp
                 case ControlKeys.Up:
                 case ControlKeys.Up | ControlKeys.Shift:
                 {
-                    FindState find = new FindState();
-                    TextEditRow row = new TextEditRow();
+                    var find = new FindState();
+                    var row = new TextEditRow();
                     int i = 0;
                     bool sel = (key & ControlKeys.Shift) != 0;
 
@@ -879,7 +840,7 @@ namespace StbTextEditSharp
                 return;
             }
 
-            UndoRecord u = new UndoRecord();
+            var u = new UndoRecord();
             u = s.undo_rec[s.undo_point - 1];
             int rpos = s.redo_point - 1;
 
@@ -940,7 +901,7 @@ namespace StbTextEditSharp
         public void Redo()
         {
             UndoState s = UndoState;
-            UndoRecord r = new UndoRecord();
+            var r = new UndoRecord();
 
             if (s.redo_point == 99)
             {
@@ -1025,9 +986,6 @@ namespace StbTextEditSharp
             }
         }
 
-        public int Paste(string ctext)
-        {
-            return PasteInternal(ctext);
-        }
+        public int Paste(string ctext) => PasteInternal(ctext);
     }
 }

@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
+using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.Scenes;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
@@ -11,18 +13,21 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class NearbyItems : Gump
+    public class NearbyItems : Gump
     {
         public const int SIZE = 75;
         public static NearbyItems NearbyItemGump;
-        public NearbyItems() : base(0, 0)
+
+        private int playerX, playerY;
+
+        private long openedTicks = Time.Ticks;
+        public NearbyItems(World world) : base(world, 0, 0)
         {
+            playerX = world.Player.X;
+            playerY = world.Player.Y;
             NearbyItemGump?.Dispose();
-
             NearbyItemGump = this;
-
             CanCloseWithRightClick = true;
-
             CanMove = false;
 
             BuildGump();
@@ -31,9 +36,19 @@ namespace ClassicUO.Game.UI.Gumps
             Y = Mouse.Position.Y - (Height / 2);
         }
 
+        public override void Update()
+        {
+            base.Update();
+
+            if(!IsDisposed && (playerX != World.Player.X || playerY != World.Player.Y || Time.Ticks - openedTicks > 30000 ))
+            {
+                Dispose();
+            }
+        }
+
         private void BuildGump()
         {
-            List<NearbyItemDisplay> items = new List<NearbyItemDisplay>();
+            var items = new List<NearbyItemDisplay>();
 
             foreach (Item i in World.Items.Values)
             {
@@ -45,7 +60,9 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if(!i.IsLootable) continue;
 
-                items.Add(new NearbyItemDisplay(i));
+                if(i.IsCorpse) continue;
+
+                items.Add(new NearbyItemDisplay(World, i));
             }
 
             if (items.Count == 0)
@@ -86,9 +103,8 @@ namespace ClassicUO.Game.UI.Gumps
         }
     }
 
-    internal class NearbyItemDisplay : Control
+    public class NearbyItemDisplay : Control
     {
-        private readonly Item item;
         private Point originalSize;
         private float scale = (ProfileManager.CurrentProfile.GridContainersScale / 100f);
         private Vector3 hueVector;
@@ -98,33 +114,34 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly AlphaBlendControl background;
 
 
-        public NearbyItemDisplay(Item item)
+        public NearbyItemDisplay(World world, Item item)
         {
             Width = NearbyItems.SIZE;
             Height = NearbyItems.SIZE;
             background = new AlphaBlendControl() { Width = Width, Height = Height };
             originalSize = new Point(Width, Height);
-            this.item = item;
             hueVector = ShaderHueTranslator.GetHueVector(item.Hue, item.ItemData.IsPartialHue, 1f);
-            realArtRectBounds = Client.Game.Arts.GetRealArtBounds((uint)item.DisplayedGraphic);
-            itemSpriteInfo = Client.Game.Arts.GetArt((uint)(item.DisplayedGraphic));
+            realArtRectBounds = Client.Game.UO.Arts.GetRealArtBounds((uint)item.DisplayedGraphic);
+            itemSpriteInfo = Client.Game.UO.Arts.GetArt((uint)(item.DisplayedGraphic));
 
-            HitBox loot = new HitBox(0, 0, Width, Height / 2);
-            loot.Add(new TextBox("Loot", TrueTypeLoader.EMBEDDED_FONT, 16, Width, Color.White, FontStashSharp.RichText.TextHorizontalAlignment.Center, false));
-            loot.MouseDown += (s, e) =>
+            var loot = new HitBox(0, 0, Width, Height / 2);
+            loot.Add(TextBox.GetOne("Loot", TrueTypeLoader.EMBEDDED_FONT, 16, Color.White, TextBox.RTLOptions.DefaultCentered(Width)));
+            loot.MouseUp += (s, e) =>
             {
-                GameActions.GrabItem(item, item.Amount);
+                if(e.Button != MouseButtonType.Left) return;
+                ObjectActionQueue.Instance.Enqueue(ObjectActionQueueItem.QuickLoot(item), ActionPriority.MoveItem);
                 Dispose();
             };
             Add(loot);
 
-            HitBox use = new HitBox(0, Height / 2, Width, Height / 2);
+            var use = new HitBox(0, Height / 2, Width, Height / 2);
             TextBox tb;
-            use.Add(tb = new TextBox("Use", TrueTypeLoader.EMBEDDED_FONT, 16, Width, Color.White, FontStashSharp.RichText.TextHorizontalAlignment.Center, false));
+            use.Add(tb = TextBox.GetOne("Use", TrueTypeLoader.EMBEDDED_FONT, 16, Color.White, TextBox.RTLOptions.DefaultCentered(Width)));
             tb.Y = use.Height - tb.MeasuredSize.Y;
-            use.MouseDown += (s, e) =>
+            use.MouseUp += (s, e) =>
             {
-                GameActions.DoubleClick(item);
+                if (e.Button != MouseButtonType.Left) return;
+                GameActions.DoubleClick(world, item);
             };
             Add(use);
 

@@ -39,14 +39,14 @@ Ultima Online(R) 2021 Electronic Arts Inc. All Rights Reserved.
                 Karasho' - https://github.com/andreakarasho
 ";
 
-        public CreditsGump() : base(0, 0)
+        public CreditsGump(World world) : base(world, 0, 0)
         {
             Client.Game.Audio.PlayMusic(8, false, true);
 
             LayerOrder = UILayer.Over;
             CanCloseWithRightClick = true;
 
-            GumpPic background = new GumpPic(0, 0, BACKGROUND_IMG, 0);
+            var background = new GumpPic(0, 0, BACKGROUND_IMG, 0);
             Width = background.Width;
             Height = background.Height;
 

@@ -1,67 +1,53 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#endregion
-
-using ClassicUO.Configuration;
-using ClassicUO.Game.Data;
+using System;
+using System.Collections.Generic;
 using ClassicUO.Game.GameObjects;
-using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Resources;
 using ClassicUO.Utility.Logging;
-using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
+using ClassicUO.Game.Data;
+using ClassicUO.Game.UI.Gumps;
+using ClassicUO.Configuration;
+using ClassicUO.Game.UI;
+using ClassicUO.LegionScripting;
 
 namespace ClassicUO.Game.Managers
 {
-    public static class CommandManager
+    public sealed class CommandManager
     {
-        private static readonly Dictionary<string, Action<string[]>> _commands = new Dictionary<string, Action<string[]>>();
+        private readonly Dictionary<string, Action<string[]>> _commands = new Dictionary<string, Action<string[]>>();
+        public Dictionary<string, Action<string[]>> Commands => _commands;
 
-        public static Dictionary<string, Action<string[]>> Commands { get { return _commands; } }
+        private readonly World _world;
 
-        public static void Initialize()
+        public CommandManager(World world)
         {
+            _world = world;
+        }
+
+        public void Initialize()
+        {
+            Register("sb", (s)=>ScriptBrowser.Show());
+
+            Register("updateapi", (s) =>
+            {
+                LegionScripting.LegionScripting.DownloadApiPy();
+            });
+
             Register
             (
                 "info",
                 s =>
                 {
-                    if (TargetManager.IsTargeting)
+                    if (_world.TargetManager.IsTargeting)
                     {
-                        TargetManager.CancelTarget();
+                        _world.TargetManager.CancelTarget();
                     }
 
-                    TargetManager.SetTargeting(CursorTarget.SetTargetClientSide, CursorType.Target, TargetType.Neutral);
+                    _world.TargetManager.SetTargeting(CursorTarget.SetTargetClientSide, CursorType.Target, TargetType.Neutral);
                 }
             );
 
@@ -70,9 +56,9 @@ namespace ClassicUO.Game.Managers
                 "datetime",
                 s =>
                 {
-                    if (World.Player != null)
+                    if (_world.Player != null)
                     {
-                        GameActions.Print(string.Format(ResGeneral.CurrentDateTimeNowIs0, DateTime.Now));
+                        GameActions.Print(_world, string.Format(ResGeneral.CurrentDateTimeNowIs0, DateTime.Now));
                     }
                 }
             );
@@ -82,12 +68,12 @@ namespace ClassicUO.Game.Managers
                 "hue",
                 s =>
                 {
-                    if (TargetManager.IsTargeting)
+                    if (_world.TargetManager.IsTargeting)
                     {
-                        TargetManager.CancelTarget();
+                        _world.TargetManager.CancelTarget();
                     }
 
-                    TargetManager.SetTargeting(CursorTarget.HueCommandTarget, CursorType.Target, TargetType.Neutral);
+                    _world.TargetManager.SetTargeting(CursorTarget.HueCommandTarget, CursorType.Target, TargetType.Neutral);
                 }
             );
 
@@ -107,7 +93,7 @@ namespace ClassicUO.Game.Managers
                 "colorpicker",
                 s =>
                 {
-                    UIManager.Add(new UI.Gumps.ModernColorPicker(null, 8787));
+                    UIManager.Add(new UI.Gumps.ModernColorPicker(_world, null, 8787));
 
                 }
             );
@@ -121,11 +107,11 @@ namespace ClassicUO.Game.Managers
                 }
                 spell = spell.Trim();
 
-                if (SpellDefinition.TryGetSpellFromName(spell, out var spellDef))
+                if (SpellDefinition.TryGetSpellFromName(spell, out SpellDefinition spellDef))
                     GameActions.CastSpell(spellDef.ID);
             });
 
-            List<Skill> sortSkills = new List<Skill>(World.Player.Skills);
+            var sortSkills = new List<Skill>(_world.Player.Skills);
 
             Register("skill", s =>
             {
@@ -138,19 +124,19 @@ namespace ClassicUO.Game.Managers
 
                 if (skill.Length > 0)
                 {
-                    for (int i = 0; i < World.Player.Skills.Length; i++)
+                    for (int i = 0; i < _world.Player.Skills.Length; i++)
                     {
-                        if (World.Player.Skills[i].Name.ToLower().Contains(skill))
+                        if (_world.Player.Skills[i].Name.ToLower().Contains(skill))
                         {
-                            GameActions.UseSkill(World.Player.Skills[i].Index);
+                            GameActions.UseSkill(_world.Player.Skills[i].Index);
                             break;
                         }
                     }
                 }
             });
 
-            Register("version", s => { UIManager.Add(new VersionHistory()); });
-            Register("rain", s => { Client.Game.GetScene<ClassicUO.Game.Scenes.GameScene>()?.Weather.Generate(WeatherType.WT_RAIN, 30, 75); });
+            Register("version", s => { UIManager.Add(new VersionHistory(_world)); });
+            Register("rain", s => { _world.Weather.Generate(WeatherType.WT_RAIN, 30, 75); });
 
             Register("marktile", s =>
             {
@@ -158,19 +144,19 @@ namespace ClassicUO.Game.Managers
                 {
                     if (s.Length == 2)
                     {
-                        TileMarkerManager.Instance.RemoveTile(World.Player.X, World.Player.Y, World.Map.Index);
+                        TileMarkerManager.Instance.RemoveTile(_world.Player.X, _world.Player.Y, _world.Map.Index);
                     }
                     else if (s.Length == 4)
                     {
-                        if (int.TryParse(s[2], out var x))
-                            if (int.TryParse(s[3], out var y))
-                                TileMarkerManager.Instance.RemoveTile(x, y, World.Map.Index);
+                        if (int.TryParse(s[2], out int x))
+                            if (int.TryParse(s[3], out int y))
+                                TileMarkerManager.Instance.RemoveTile(x, y, _world.Map.Index);
                     }
                     else if (s.Length == 5)
                     {
-                        if (int.TryParse(s[2], out var x))
-                            if (int.TryParse(s[3], out var y))
-                                if (int.TryParse(s[4], out var m))
+                        if (int.TryParse(s[2], out int x))
+                            if (int.TryParse(s[3], out int y))
+                                if (int.TryParse(s[4], out int m))
                                     TileMarkerManager.Instance.RemoveTile(x, y, m);
                     }
                 }
@@ -178,26 +164,26 @@ namespace ClassicUO.Game.Managers
                 {
                     if (s.Length == 1)
                     {
-                        TileMarkerManager.Instance.AddTile(World.Player.X, World.Player.Y, World.Map.Index, 32);
+                        TileMarkerManager.Instance.AddTile(_world.Player.X, _world.Player.Y, _world.Map.Index, 32);
                     }
                     else if (s.Length == 2)
                     {
                         if (ushort.TryParse(s[1], out ushort h))
-                            TileMarkerManager.Instance.AddTile(World.Player.X, World.Player.Y, World.Map.Index, h);
+                            TileMarkerManager.Instance.AddTile(_world.Player.X, _world.Player.Y, _world.Map.Index, h);
                     }
                     else if (s.Length == 4)
                     {
-                        if (int.TryParse(s[1], out var x))
-                            if (int.TryParse(s[2], out var y))
-                                if (ushort.TryParse(s[3], out var h))
-                                    TileMarkerManager.Instance.AddTile(x, y, World.Map.Index, h);
+                        if (int.TryParse(s[1], out int x))
+                            if (int.TryParse(s[2], out int y))
+                                if (ushort.TryParse(s[3], out ushort h))
+                                    TileMarkerManager.Instance.AddTile(x, y, _world.Map.Index, h);
                     }
                     else if (s.Length == 5)
                     {
-                        if (int.TryParse(s[1], out var x))
-                            if (int.TryParse(s[2], out var y))
-                                if (int.TryParse(s[3], out var m))
-                                    if (ushort.TryParse(s[4], out var h))
+                        if (int.TryParse(s[1], out int x))
+                            if (int.TryParse(s[2], out int y))
+                                if (int.TryParse(s[3], out int m))
+                                    if (ushort.TryParse(s[4], out ushort h))
                                         TileMarkerManager.Instance.AddTile(x, y, m, h);
                     }
                 }
@@ -210,29 +196,24 @@ namespace ClassicUO.Game.Managers
                     ProfileManager.CurrentProfile.DisplayRadius ^= true;
                 if (s.Length > 1)
                 {
-                    if (int.TryParse(s[1], out var dist))
+                    if (int.TryParse(s[1], out int dist))
                         ProfileManager.CurrentProfile.DisplayRadiusDistance = dist;
                     ProfileManager.CurrentProfile.DisplayRadius = true;
                 }
                 if (s.Length > 2)
-                    if (ushort.TryParse(s[2], out var h))
+                    if (ushort.TryParse(s[2], out ushort h))
                         ProfileManager.CurrentProfile.DisplayRadiusHue = h;
-            });
-
-            Register("options", (s) =>
-            {
-                UIManager.Add(new OptionsGump());
             });
 
             Register("paperdoll", (s) =>
             {
                 if (ProfileManager.CurrentProfile.UseModernPaperdoll)
                 {
-                    UIManager.Add(new PaperDollGump(World.Player, true));
+                    UIManager.Add(new PaperDollGump(_world, _world.Player, true));
                 }
                 else
                 {
-                    UIManager.Add(new ModernPaperdoll(World.Player));
+                    UIManager.Add(new ModernPaperdoll(_world, _world.Player));
                 }
 
             });
@@ -248,7 +229,7 @@ namespace ClassicUO.Game.Managers
                     }
                     else
                     {
-                        UIManager.Add(g = new ModernOptionsGump());
+                        UIManager.Add(g = new ModernOptionsGump(_world));
                         g.GoToPage(s[1]);
                     }
                 }
@@ -256,32 +237,54 @@ namespace ClassicUO.Game.Managers
                 {
                     if (g != null)
                     {
-                        GameActions.Print(g.GetPageString());
+                        GameActions.Print(_world, g.GetPageString());
                     }
                 }
             });
 
             Register("genspelldef", (s) =>
             {
-                Task.Run(SpellDefinition.SaveAllSpellsToJson);
+                Task.Run(() => SpellDefinition.SaveAllSpellsToJson(_world));
             });
 
             Register("setinscreen", (s) =>
             {
-                for (LinkedListNode<Gump> last = UIManager.Gumps.Last; last != null; last = last.Previous)
+                for (LinkedListNode<IGui> last = UIManager.Gumps.Last; last != null; last = last.Previous)
                 {
-                    Gump c = last.Value;
+                    IGui c = last.Value;
 
-                    if (!c.IsDisposed)
+                    if (!c.IsDisposed && c is Gump g)
                     {
-                        c.SetInScreen();   
+                        g.SetInScreen();
                     }
                 }
             });
+
+            Register("updatedebug", (s) =>
+            {
+                UIManager.Add(new UI.Gumps.UpdateTimerViewer(_world));
+            });
+
+            Register("artbrowser", (s) => { UIManager.Add(new ArtBrowserGump(_world)); });
+
+            Register("animbrowser", (s) => { UIManager.Add(new AnimBrowser(_world)); });
+
+            Register("syncfps", (_) =>
+            {
+                Settings.GlobalSettings.FPS = GameController.SupportedRefreshRate;
+                Settings.GlobalSettings.Save();
+                Client.Game.SetRefreshRate(Settings.GlobalSettings.FPS);
+                GameActions.Print($"FPS Limit updated to: {Settings.GlobalSettings.FPS}", Constants.HUE_SUCCESS);
+            });
+
+            Register("dressagent", (s) => DressAgentManager.Instance?.DressAgentCommand(s));
+            Register("organize", (s) => OrganizerAgent.Instance?.OrganizerCommand(s));
+            Register("organizer", (s) => OrganizerAgent.Instance?.OrganizerCommand(s));
+            Register("organizerlist", (s) => OrganizerAgent.Instance?.ListOrganizers());
         }
 
 
-        public static void Register(string name, Action<string[]> callback)
+        public void Register(string name, Action<string[]> callback)
         {
             name = name.ToLower();
 
@@ -295,7 +298,7 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public static void UnRegister(string name)
+        public void UnRegister(string name)
         {
             name = name.ToLower();
 
@@ -305,12 +308,9 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public static void UnRegisterAll()
-        {
-            _commands.Clear();
-        }
+        public void UnRegisterAll() => _commands.Clear();
 
-        public static void Execute(string name, params string[] args)
+        public void Execute(string name, params string[] args)
         {
             name = name.ToLower();
 
@@ -320,20 +320,20 @@ namespace ClassicUO.Game.Managers
             }
             else
             {
-                GameActions.Print(string.Format(Language.Instance.ErrorsLanguage.CommandNotFound, name));
+                GameActions.Print(_world, string.Format(Language.Instance.ErrorsLanguage.CommandNotFound, name));
                 Log.Warn($"Command: '{name}' not exists");
             }
         }
 
-        public static void OnHueTarget(Entity entity)
+        public void OnHueTarget(Entity entity)
         {
+            Mouse.LastLeftButtonClickTime = 0;
+
             if (entity != null)
             {
-                TargetManager.Target(entity);
+                _world.TargetManager.Target(entity);
+                GameActions.Print(_world, string.Format(ResGeneral.ItemID0Hue1, entity.Graphic, entity.Hue));
             }
-
-            Mouse.LastLeftButtonClickTime = 0;
-            GameActions.Print(string.Format(ResGeneral.ItemID0Hue1, entity.Graphic, entity.Hue));
         }
     }
 }

@@ -1,34 +1,5 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
 
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
@@ -41,14 +12,16 @@ using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 using System.Collections.Generic;
+using ClassicUO.Game.UI.Gumps.SpellBar;
+using ClassicUO.Game.UI.MyraWindows;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class TopBarGump : Gump
+    public class TopBarGump : Gump
     {
         private RighClickableButton XmlGumps;
 
-        private TopBarGump() : base(0, 0)
+        private TopBarGump(World world) : base(world, 0, 0)
         {
             CanMove = true;
             AcceptMouseInput = true;
@@ -69,7 +42,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             // big
             int smallWidth = 50;
-            ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(0x098B);
+            ref readonly Renderer.SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(0x098B);
             if (gumpInfo.Texture != null)
             {
                 smallWidth = gumpInfo.UV.Width;
@@ -77,7 +50,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             int largeWidth = 100;
 
-            gumpInfo = ref Client.Game.Gumps.GetGump(0x098D);
+            gumpInfo = ref Client.Game.UO.Gumps.GetGump(0x098D);
             if (gumpInfo.Texture != null)
             {
                 largeWidth = gumpInfo.UV.Width;
@@ -93,7 +66,7 @@ namespace ClassicUO.Game.UI.Gumps
                 new[] { 1, (int) Buttons.UOStore },
             };
 
-            var cliloc = ClilocLoader.Instance;
+            ClilocLoader cliloc = Client.Game.UO.FileManager.Clilocs;
 
             string[] texts =
             {
@@ -105,7 +78,7 @@ namespace ClassicUO.Game.UI.Gumps
                 cliloc.GetString(1158008, ResGumps.UOStore),
             };
 
-            bool hasUOStore = Client.Version >= ClientVersion.CV_706400;
+            bool hasUOStore = Client.Game.UO.Version >= ClientVersion.CV_706400;
 
             ResizePic background;
 
@@ -157,30 +130,50 @@ namespace ClassicUO.Game.UI.Gumps
                 background.Width = startX;
             }
 
-            RighClickableButton supporters;
-            Add
-            (supporters =
-                new RighClickableButton
-                (
-                    998877,
-                    0x098D,
-                    0x098D,
-                    0x098D,
-                    "Supporters",
-                    1,
-                    true,
-                    0,
-                    0x0036
-                )
-                {
-                    ButtonAction = ButtonAction.Activate,
-                    X = startX,
-                    Y = 1,
-                    FontCenter = true
-                },
-                1
-            );
-            supporters.MouseUp += (s, e) => { UIManager.Add(new Supporters()); };
+            RighClickableButton assistant;
+            Add(assistant = new(998877,
+                0x098D,
+                0x098D,
+                0x098D,
+                "Assistant",
+                1,
+                true,
+                0,
+                0x0036
+            )
+            {
+                ButtonAction = ButtonAction.Activate,
+                X = startX,
+                Y = 1,
+                FontCenter = true
+            }, 1);
+            assistant.MouseUp += (s, e) =>
+            {
+                AssistantWindow.Show();
+            };
+            startX += largeWidth + 1;
+
+            RighClickableButton lscript;
+            Add(lscript = new(998877,
+                0x098D,
+                0x098D,
+                0x098D,
+                "Legion Script",
+                1,
+                true,
+                0,
+                0x0036
+            )
+            {
+                ButtonAction = ButtonAction.Activate,
+                X = startX,
+                Y = 1,
+                FontCenter = true
+            }, 1);
+            lscript.MouseUp += (s, e) => {
+                MyraWindows.ScriptManagerWindow.Show();
+            };
+            startX += largeWidth + 1;
 
             RighClickableButton moreMenu;
             Add
@@ -205,20 +198,21 @@ namespace ClassicUO.Game.UI.Gumps
                 },
                 1
             );
-            moreMenu.ContextMenu = new ContextMenuControl();
+            moreMenu.ContextMenu = new ContextMenuControl(this);
             moreMenu.MouseUp += (s, e) => { moreMenu.ContextMenu?.Show(); };
+            moreMenu.ContextMenu.Add(new ContextMenuItemEntry("TazUO Chat", () => { MyraWindows.TazUOChatWindow.Show(); }));
             moreMenu.ContextMenu.Add(new ContextMenuItemEntry(Language.Instance.TopBarGump.CommandsEntry, () =>
             {
-                UIManager.Add(new CommandsGump());
+                UIManager.Add(new CommandsGump(world));
             }));
             moreMenu.ContextMenu.Add(new ContextMenuItemEntry(cliloc.GetString(1079449, ResGumps.Info), () =>
             {
-                if (TargetManager.IsTargeting)
+                if (World.TargetManager.IsTargeting)
                 {
-                    TargetManager.CancelTarget();
+                    World.TargetManager.CancelTarget();
                 }
 
-                TargetManager.SetTargeting(CursorTarget.SetTargetClientSide, CursorType.Target, TargetType.Neutral);
+                World.TargetManager.SetTargeting(CursorTarget.SetTargetClientSide, CursorType.Target, TargetType.Neutral);
             }));
             moreMenu.ContextMenu.Add(new ContextMenuItemEntry(cliloc.GetString(1042237, ResGumps.Debug), () =>
             {
@@ -226,7 +220,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (debugGump == null)
                 {
-                    debugGump = new DebugGump(100, 100);
+                    debugGump = new DebugGump(World, 100, 100);
                     UIManager.Add(debugGump);
                 }
                 else
@@ -241,7 +235,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (netstatsgump == null)
                 {
-                    netstatsgump = new NetworkStatsGump(100, 100);
+                    netstatsgump = new NetworkStatsGump(World, 100, 100);
                     UIManager.Add(netstatsgump);
                 }
                 else
@@ -251,11 +245,27 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }));
             moreMenu.ContextMenu.Add(new ContextMenuItemEntry(cliloc.GetString(3000134, ResGumps.Help), () => { GameActions.RequestHelp(); }));
-            moreMenu.ContextMenu.Add(new ContextMenuItemEntry("Open boat control", () => { UIManager.Add(new BoatControl() { X = 200, Y = 200 }); }));
 
-            moreMenu.ContextMenu.Add(new ContextMenuItemEntry("Toggle nameplates", () => { NameOverHeadManager.ToggleOverheads(); }));
-            
-            moreMenu.ContextMenu.Add(new ContextMenuItemEntry("Legion Scripting", () => { UIManager.Add(new LegionScripting.ScriptManagerGump()); }));
+            moreMenu.ContextMenu.Add(new ContextMenuItemEntry("Toggle nameplates", () => { World.NameOverHeadManager.ToggleOverheads(); }));
+
+            var submenu = new ContextMenuItemEntry("Tools");
+            submenu.Add(new ContextMenuItemEntry("Spell quick cast", () => { UIManager.Add(new SpellQuickSearch(World, 200, 200, (sp) => {if (sp != null) GameActions.CastSpell(sp.ID);})); }));
+            submenu.Add(new ContextMenuItemEntry("Open boat control", () => { UIManager.Add(new BoatControl(World) { X = 200, Y = 200 }); }));
+            submenu.Add(new ContextMenuItemEntry("Nearby loot", () => { UIManager.Add(new NearbyLootGump(World)); }));
+            submenu.Add(new ContextMenuItemEntry("Healthbar Collector", () => { UIManager.Add(new HealthbarCollectorGump(World) { X = 100, Y = 100 }); }));
+            submenu.Add(new ContextMenuItemEntry("Retrieve gumps", () =>
+            {
+                for (LinkedListNode<IGui> last = UIManager.Gumps.Last; last != null; last = last.Previous)
+                {
+                    IGui c = last.Value;
+
+                    if (!c.IsDisposed && c is Gump g)
+                    {
+                        g.SetInScreen();
+                    }
+                }
+            }));
+            moreMenu.ContextMenu.Add(submenu);
 
             startX += largeWidth + 1;
 
@@ -305,13 +315,13 @@ namespace ClassicUO.Game.UI.Gumps
             XmlGumps.ContextMenu?.Dispose();
             if (XmlGumps.ContextMenu == null)
             {
-                XmlGumps.ContextMenu = new ContextMenuControl();
+                XmlGumps.ContextMenu = new ContextMenuControl(this);
             }
 
             string[] xmls = XmlGumpHandler.GetAllXmlGumps();
 
             ContextMenuItemEntry ci = null;
-            foreach (var xml in xmls)
+            foreach (string xml in xmls)
             {
                 XmlGumps.ContextMenu.Add(ci = new ContextMenuItemEntry(xml, () =>
                 {
@@ -328,17 +338,17 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                     else
                     {
-                        UIManager.Add(XmlGumpHandler.CreateGumpFromFile(System.IO.Path.Combine(XmlGumpHandler.XmlGumpPath, xml + ".xml")));
+                        UIManager.Add(XmlGumpHandler.CreateGumpFromFile(World, System.IO.Path.Combine(XmlGumpHandler.XmlGumpPath, xml + ".xml")));
                     }
                     RefreshXmlGumps();
                 }, false, ProfileManager.CurrentProfile.AutoOpenXmlGumps.Contains(xml)));
             }
 
-            ContextMenuItemEntry reload = new ContextMenuItemEntry("Reload", RefreshXmlGumps);
+            var reload = new ContextMenuItemEntry("Reload", RefreshXmlGumps);
             XmlGumps.ContextMenu.Add(reload);
         }
 
-        public static void Create()
+        public static void Create(World world)
         {
             TopBarGump gump = UIManager.GetGump<TopBarGump>();
 
@@ -353,7 +363,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
 
                 UIManager.Add(
-                    gump = new TopBarGump
+                    gump = new TopBarGump(world)
                     {
                         X = ProfileManager.CurrentProfile.TopbarGumpPosition.X,
                         Y = ProfileManager.CurrentProfile.TopbarGumpPosition.Y
@@ -371,7 +381,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        protected override void OnMouseUp(int x, int y, MouseButtonType button)
+        public override void OnMouseUp(int x, int y, MouseButtonType button)
         {
             if (button == MouseButtonType.Right && (X != 0 || Y != 0))
             {
@@ -399,35 +409,35 @@ namespace ClassicUO.Game.UI.Gumps
             switch ((Buttons)buttonID)
             {
                 case Buttons.Paperdoll:
-                    GameActions.OpenPaperdoll(World.Player);
+                    GameActions.OpenPaperdoll(World, World.Player);
 
                     break;
 
                 case Buttons.Inventory:
-                    GameActions.OpenBackpack();
+                    GameActions.OpenBackpack(World);
 
                     break;
 
                 case Buttons.Journal:
-                    GameActions.OpenJournal();
+                    GameActions.OpenJournal(World);
 
                     break;
 
                 case Buttons.Chat:
-                    GameActions.OpenChat();
+                    GameActions.OpenChat(World);
 
                     break;
 
                 case Buttons.UOStore:
-                    if (Client.Version >= ClientVersion.CV_706400)
+                    if (Client.Game.UO.Version >= ClientVersion.CV_706400)
                     {
-                        NetClient.Socket.Send_OpenUOStore();
+                        AsyncNetClient.Socket.Send_OpenUOStore();
                     }
 
                     break;
 
                 case Buttons.WorldMap:
-                    GameActions.OpenWorldMap();
+                    GameActions.OpenWorldMap(World);
 
                     break;
             }
@@ -464,7 +474,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             public RighClickableButton(List<string> parts) : base(parts) { }
 
-            protected override void OnMouseUp(int x, int y, MouseButtonType button)
+            public override void OnMouseUp(int x, int y, MouseButtonType button)
             {
                 base.OnMouseUp(x, y, button);
                 Parent?.InvokeMouseUp(new Point(x, y), button);

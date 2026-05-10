@@ -1,41 +1,10 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Security;
-using System.Text;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Utility
 {
@@ -62,7 +31,7 @@ namespace ClassicUO.Utility
                 sb.Append(char.ConvertFromUtf32(Cp1252ToUnicode(strCp1252[i])));
             }
 
-            var str = sb.ToString();
+            string str = sb.ToString();
 
             sb.Dispose();
 
@@ -176,7 +145,7 @@ namespace ClassicUO.Utility
             }
 
             Span<char> span = stackalloc char[str.Length];
-            ValueStringBuilder sb = new ValueStringBuilder(span);
+            var sb = new ValueStringBuilder(span);
             bool capitalizeNext = true;
 
             for (int i = 0; i < str.Length; i++)
@@ -204,7 +173,7 @@ namespace ClassicUO.Utility
             }
 
             Span<char> span = stackalloc char[str.Length];
-            ValueStringBuilder sb = new ValueStringBuilder(span);
+            var sb = new ValueStringBuilder(span);
 
             bool capitalizeNext = true;
 
@@ -232,10 +201,7 @@ namespace ClassicUO.Utility
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsSafeChar(int c)
-        {
-            return c >= 0x20 && c < 0xFFFE;
-        }
+        public static bool IsSafeChar(int c) => c >= 0x20 && c < 0xFFFE;
 
         public static void AddSpaceBeforeCapital(string[] str, bool checkAcronyms = true)
         {
@@ -252,7 +218,7 @@ namespace ClassicUO.Utility
                 return "";
             }
 
-            ValueStringBuilder sb = new ValueStringBuilder(str.Length * 2);
+            var sb = new ValueStringBuilder(str.Length * 2);
             sb.Append(str[0]);
 
             for (int i = 1, len = str.Length - 1; i <= len; i++)
@@ -283,7 +249,7 @@ namespace ClassicUO.Utility
             }
 
             Span<char> span = stackalloc char[str.Length];
-            ValueStringBuilder sb = new ValueStringBuilder(span);
+            var sb = new ValueStringBuilder(span);
 
             for (int i = 0; i < str.Length; i++)
             {
@@ -317,7 +283,7 @@ namespace ClassicUO.Utility
 
         public static string GetClipboardText(bool multiline)
         {
-            if (SDL.SDL_HasClipboardText() != SDL.SDL_bool.SDL_FALSE)
+            if (SDL.SDL_HasClipboardText() != false)
             {
                 string s = multiline ? SDL.SDL_GetClipboardText() : SDL.SDL_GetClipboardText()?.Replace('\n', ' ') ?? null;
 
@@ -352,7 +318,7 @@ namespace ClassicUO.Utility
                 }
 
                 Span<char> span = stackalloc char[str.Length];
-                ValueStringBuilder sb = new ValueStringBuilder(span);
+                var sb = new ValueStringBuilder(span);
 
                 sb.Append(parts[0]);
 
@@ -394,8 +360,8 @@ namespace ClassicUO.Utility
         {
             for (int i = 0; i < length && i < str.Length; ++i)
             {
-                var c0 = char.IsLetter(buffer[i]) ? char.ToLowerInvariant(buffer[i]) : buffer[i];
-                var c1 = char.IsLetter(str[i]) ? char.ToLowerInvariant(str[i]) : str[i];
+                char c0 = char.IsLetter(buffer[i]) ? char.ToLowerInvariant(buffer[i]) : buffer[i];
+                char c1 = char.IsLetter(str[i]) ? char.ToLowerInvariant(str[i]) : str[i];
 
                 if (c0 != c1)
                 {
@@ -404,6 +370,76 @@ namespace ClassicUO.Utility
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Tries to parse a graphic ID from a string, supporting both decimal and hexadecimal (0x prefix) formats.
+        /// </summary>
+        /// <param name="text">The input string to parse</param>
+        /// <param name="graphic">The parsed graphic ID</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public static bool TryParseInt(string text, out int graphic)
+        {
+            graphic = 0;
+            if (string.IsNullOrEmpty(text)) return false;
+
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return int.TryParse(text.Substring(2), NumberStyles.AllowHexSpecifier, null, out graphic);
+
+            return int.TryParse(text, out graphic);
+        }
+
+        /// <summary>
+        /// Tries to parse a graphic ID from a string, supporting both decimal and hexadecimal (0x prefix) formats.
+        /// </summary>
+        /// <param name="text">The input string to parse</param>
+        /// <param name="graphic">The parsed graphic ID</param>
+        /// <returns>True if parsing succeeded, false otherwise</returns>
+        public static bool TryParseUint(string text, out uint graphic)
+        {
+            graphic = 0;
+            if (string.IsNullOrEmpty(text)) return false;
+
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return uint.TryParse(text.Substring(2), NumberStyles.AllowHexSpecifier, null, out graphic);
+
+            return uint.TryParse(text, out graphic);
+        }
+
+        public static string FormatAsCurrency(int amount) => amount.ToString("N0", CultureInfo.CurrentCulture);
+
+        public static bool TryParseCurrency(string text, out int result)
+        {
+            result = 0;
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+
+            return int.TryParse(text, NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out result);
+        }
+
+        public static string Truncate(string str, int maxLength, bool addEllipsis = true)
+        {
+            if (string.IsNullOrEmpty(str) || maxLength <= 0)
+            {
+                return string.Empty;
+            }
+
+            if (str.Length <= maxLength)
+            {
+                return str;
+            }
+
+            if (addEllipsis)
+            {
+                if (maxLength <= 3)
+                {
+                    return str[..maxLength];
+                }
+
+                return string.Concat(str.AsSpan(0, maxLength - 3), "...");
+            }
+
+            return str[..maxLength];
         }
     }
 }

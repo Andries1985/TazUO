@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Utility;
 using System;
@@ -37,7 +7,7 @@ using System.IO;
 
 namespace ClassicUO.Game.Data
 {
-    internal static class LightColors
+    public static class LightColors
     {
 
         private static readonly Dictionary<ushort, LightShaderData> _shaderdata = new Dictionary<ushort, LightShaderData>();
@@ -367,7 +337,7 @@ namespace ClassicUO.Game.Data
 
             if (!File.Exists(path) || force)
             {
-                using (StreamWriter writer = new StreamWriter(File.Create(path)))
+                using (var writer = new StreamWriter(File.Create(path)))
                 {
                     writer.WriteLine("# FORMAT");
 
@@ -383,7 +353,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            TextFileParser lightshadersParser = new TextFileParser(File.ReadAllText(path), new[] { ' ', '\t', ',' }, new[] { '#', ';' }, new[] { '"', '"' });
+            var lightshadersParser = new TextFileParser(File.ReadAllText(path), new[] { ' ', '\t', ',' }, new[] { '#', ';' }, new[] { '"', '"' });
 
             while (!lightshadersParser.IsEOF())
             {
@@ -431,7 +401,7 @@ namespace ClassicUO.Game.Data
 
             if (!File.Exists(lights))
             {
-                using (StreamWriter writer = new StreamWriter(lights))
+                using (var writer = new StreamWriter(lights))
                 {
                     writer.WriteLine("# FORMAT");
                     writer.WriteLine("# ITEM_ID LIGHT_SHADER_OR_HUE");
@@ -445,7 +415,7 @@ namespace ClassicUO.Game.Data
                 }
             }
 
-            TextFileParser itemlightsparser = new TextFileParser(File.ReadAllText(lights), new[] { ' ', '\t', ',' }, new[] { '#', ';' }, new[] { '"', '"' });
+            var itemlightsparser = new TextFileParser(File.ReadAllText(lights), new[] { ' ', '\t', ',' }, new[] { '#', ';' }, new[] { '"', '"' });
 
             while (!itemlightsparser.IsEOF())
             {
@@ -453,7 +423,7 @@ namespace ClassicUO.Game.Data
 
                 if (ss != null && ss.Count != 0)
                 {
-                    ItemLightData entry = new ItemLightData();
+                    var entry = new ItemLightData();
 
                     ushort id = ss[0].StartsWith("0x") ? Convert.ToUInt16(ss[0], 16) : Convert.ToUInt16(ss[0]);
 
@@ -500,7 +470,7 @@ namespace ClassicUO.Game.Data
                     uint g = (entry.Value.RGB & 0x00_FF_00) >> 8;
                     uint b = (entry.Value.RGB & 0x00_00_FF);
 
-                    buffer[32 * (entry.Key - 1) + i] = 0xFF_00_00_00 | 
+                    buffer[32 * (entry.Key - 1) + i] = 0xFF_00_00_00 |
                         ((lightCurveTables[(uint) entry.Value.BlueCurve][i] * b) / 31) << 16 |
                         ((lightCurveTables[(uint) entry.Value.GreenCurve][i] * g) / 31) << 8 |
                         ((lightCurveTables[(uint) entry.Value.RedCurve][i] * r) / 31);

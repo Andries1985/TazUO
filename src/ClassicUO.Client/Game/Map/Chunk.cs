@@ -1,58 +1,40 @@
-﻿#region license
+// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
-
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+using ClassicUO.Assets;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
-using ClassicUO.Assets;
+using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Utility;
+using System;
+using System.Buffers;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace ClassicUO.Game.Map
 {
     public sealed class Chunk
     {
-        private static readonly QueuedPool<Chunk> _pool = new QueuedPool<Chunk>
-        (
-            Constants.PREDICTABLE_CHUNKS,
-            c =>
-            {
-                c.LastAccessTime = Time.Ticks + Constants.CLEAR_TEXTURES_DELAY;
-                c.IsDestroyed = false;
-            }
-        );
+        //private static readonly QueuedPool<Chunk> _pool = new QueuedPool<Chunk>
+        //(
+        //    Constants.PREDICTABLE_CHUNKS,
+        //    c =>
+        //    {
+        //        c.LastAccessTime = Time.Ticks + Constants.CLEAR_TEXTURES_DELAY;
+        //        c.IsDestroyed = false;
+        //    }
+        //);
+
+        private readonly World _world;
+
+        public Chunk(World world)
+        {
+            _world = world;
+        }
 
         public GameObject[,] Tiles { get; } = new GameObject[8, 8];
         public bool IsDestroyed;
+        public volatile bool IsLoading;
         public long LastAccessTime;
         public LinkedListNode<int> Node;
 
@@ -61,45 +43,58 @@ namespace ClassicUO.Game.Map
         public int Y;
 
 
-        public static Chunk Create(int x, int y)
+        public static Chunk Create(World world, int x, int y, bool isAsync = false)
         {
-            Chunk c = _pool.GetOne();
+            var c = new Chunk(world); // _pool.GetOne();
+            c.LastAccessTime = Time.Ticks + Constants.CLEAR_TEXTURES_DELAY;
             c.X = x;
             c.Y = y;
+            c.IsLoading = isAsync;
 
             return c;
         }
 
 
-        public unsafe void Load(int index)
+        public unsafe void Load(int index, bool updateWorldMap = false)
         {
+            IsLoading = true;
             IsDestroyed = false;
 
-            Map map = World.Map;
-
-            ref IndexMap im = ref GetIndex(index);
-
-            if (im.MapAddress != 0)
+            try
             {
-                MapBlock* block = (MapBlock*) im.MapAddress;
-                MapCells* cells = (MapCells*) &block->Cells;
+                Map map = _world.Map;
+
+                ref IndexMap im = ref GetIndex(index);
+
+                if (!im.IsValid())
+                {
+                    return;
+                }
+
+                MapBlock block = im.MapFile.ReadAt<MapBlock>((long)im.MapAddress);
+
+                MapCellsArray cells = block.Cells;
                 int bx = X << 3;
                 int by = Y << 3;
+
+                uint[] bufferBlock = new uint[64];
+                sbyte[] bufferBlockZ = new sbyte[64];
+                HuesLoader huesLoader = Client.Game.UO.FileManager.Hues;
 
                 for (int y = 0; y < 8; ++y)
                 {
                     int pos = y << 3;
-                    ushort tileY = (ushort) (by + y);
+                    ushort tileY = (ushort)(by + y);
 
                     for (int x = 0; x < 8; ++x, ++pos)
                     {
-                        ushort tileID = (ushort) (cells[pos].TileID & 0x3FFF);
+                        ushort tileID = (ushort)(cells[pos].TileID & 0x3FFF);
 
                         sbyte z = cells[pos].Z;
 
-                        Land land = Land.Create(tileID);
+                        var land = Land.Create(_world, tileID);
 
-                        ushort tileX = (ushort) (bx + x);
+                        ushort tileX = (ushort)(bx + x);
 
                         land.ApplyStretch(map, tileX, tileY, z);
                         land.X = tileX;
@@ -107,47 +102,141 @@ namespace ClassicUO.Game.Map
                         land.Z = z;
                         land.UpdateScreenPosition();
 
+                        if (TileMarkerManager.Instance.IsTileMarked(land.X, land.Y, map.Index, out ushort hue))
+                            land.Hue = hue;
+
                         AddGameObject(land, x, y);
-                    }
-                }
 
-                if (im.StaticAddress != 0)
-                {
-                    StaticsBlock* sb = (StaticsBlock*) im.StaticAddress;
-
-                    if (sb != null)
-                    {
-                        for (int i = 0, count = (int) im.StaticCount; i < count; ++i, ++sb)
+                        if (updateWorldMap)
                         {
-                            if (sb->Color != 0 && sb->Color != 0xFFFF)
-                            {
-                                int pos = (sb->Y << 3) + sb->X;
+                            ushort color = (ushort)(0x8000 | huesLoader.GetRadarColorData(tileID & 0x3FFF));
 
-                                if (pos >= 64)
-                                {
-                                    continue;
-                                }
-
-                                Static staticObject = Static.Create(sb->Color, sb->Hue, pos);
-                                staticObject.X = (ushort) (bx + sb->X);
-                                staticObject.Y = (ushort) (by + sb->Y);
-                                staticObject.Z = sb->Z;
-                                staticObject.UpdateScreenPosition();
-
-                                AddGameObject(staticObject, sb->X, sb->Y);
-                            }
+                            int blockIndex = y * 8 + x;
+                            bufferBlock[blockIndex] = HuesHelper.Color16To32(color) | 0xFF_00_00_00;
+                            bufferBlockZ[blockIndex] = z;
                         }
                     }
                 }
+
+                //If Ultima Live is on, the statics of the first map block explored could be saved to StaticAdress 0, because the static file could be empty, so we can't check StaticAdress != 0
+                if (im.StaticAddress >= 0 && im.StaticCount > 0)
+                {
+                    StaticsBlock[] staticsBlockBuffer = ArrayPool<StaticsBlock>.Shared.Rent((int)im.StaticCount);
+                    Span<StaticsBlock> staticsSpan = staticsBlockBuffer.AsSpan(0, (int)im.StaticCount);
+                    im.StaticFile.ReadAt((long)im.StaticAddress, MemoryMarshal.AsBytes(staticsSpan));
+
+                    foreach (ref StaticsBlock sb in staticsSpan)
+                    {
+                        if (sb.Color != 0 && sb.Color != 0xFFFF)
+                        {
+                            int pos = (sb.Y << 3) + sb.X;
+
+                            if (pos >= 64)
+                            {
+                                continue;
+                            }
+
+                            var staticObject = Static.Create(_world, sb.Color, sb.Hue, pos);
+                            staticObject.X = (ushort)(bx + sb.X);
+                            staticObject.Y = (ushort)(by + sb.Y);
+                            staticObject.Z = sb.Z;
+                            staticObject.UpdateScreenPosition();
+
+                            if (TileMarkerManager.Instance.IsTileMarked(staticObject.X, staticObject.Y, map.Index, out ushort hue))
+                                staticObject.Hue = hue;
+
+                            AddGameObject(staticObject, sb.X, sb.Y);
+
+                            if (updateWorldMap)
+                            {
+                                int blockIndex = (sb.Y << 3) + sb.X;
+                                if (GameObject.CanBeDrawn(_world, sb.Color) && sb.Z >= bufferBlockZ[blockIndex])
+                                {
+                                    ushort color = (ushort)(0x8000 | (sb.Hue != 0 ? huesLoader.GetColor16(16384, sb.Hue) : huesLoader.GetRadarColorData(sb.Color + 0x4000)));
+
+                                    bufferBlock[blockIndex] = HuesHelper.Color16To32(color) | 0xFF_00_00_00;
+                                    bufferBlockZ[blockIndex] = sb.Z;
+                                }
+                            }
+                        }
+                    }
+
+                    ArrayPool<StaticsBlock>.Shared.Return(staticsBlockBuffer);
+                }
+
+                if (updateWorldMap)
+                {
+                    const float MAG_0 = 80f / 100f;
+                    const float MAG_1 = 100f / 80f;
+
+                    for (int y = 0; y < 8; ++y)
+                    {
+                        for (int x = 0; x < 8; ++x)
+                        {
+                            int blockCurrent = y * 8 + x;
+                            int blockNext = (y + 1) * 8 + x;
+
+                            //Reached last line, nothing to compare with
+                            if (y == 7)
+                            {
+                                break;
+                            }
+
+                            sbyte z0 = bufferBlockZ[++blockCurrent];
+                            sbyte z1 = bufferBlockZ[blockNext];
+
+                            if (z0 == z1)
+                            {
+                                continue;
+                            }
+
+                            ref uint cc = ref bufferBlock[blockCurrent];
+
+                            if (cc == 0)
+                            {
+                                continue;
+                            }
+
+                            byte r = (byte)(cc & 0xFF);
+                            byte g = (byte)((cc >> 8) & 0xFF);
+                            byte b = (byte)((cc >> 16) & 0xFF);
+                            byte a = (byte)((cc >> 24) & 0xFF);
+
+                            if (r != 0 || g != 0 || b != 0)
+                            {
+                                if (z0 < z1)
+                                {
+                                    r = (byte)Math.Min(0xFF, r * MAG_0);
+                                    g = (byte)Math.Min(0xFF, g * MAG_0);
+                                    b = (byte)Math.Min(0xFF, b * MAG_0);
+                                }
+                                else
+                                {
+                                    r = (byte)Math.Min(0xFF, r * MAG_1);
+                                    g = (byte)Math.Min(0xFF, g * MAG_1);
+                                    b = (byte)Math.Min(0xFF, b * MAG_1);
+                                }
+
+                                cc = (uint)(r | (g << 8) | (b << 16) | (a << 24));
+                            }
+                        }
+                    }
+
+                    UIManager.GetGump<WorldMapGump>()?.UpdateWorldMapChunk(X, Y, bufferBlock);
+                }
+            }
+            finally
+            {
+                IsLoading = false;
             }
         }
 
 
         private ref IndexMap GetIndex(int map)
         {
-            MapLoader.Instance.SanitizeMapIndex(ref map);
+            Client.Game.UO.FileManager.Maps.SanitizeMapIndex(ref map);
 
-            return ref MapLoader.Instance.GetIndex(map, X, Y);
+            return ref Client.Game.UO.FileManager.Maps.GetIndex(map, X, Y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -245,13 +334,13 @@ namespace ClassicUO.Game.Map
                     goto default;
 
                 default:
-                    ref StaticTiles data = ref TileDataLoader.Instance.StaticData[graphic];
+                    ref StaticTiles data = ref Client.Game.UO.FileManager.TileData.StaticData[graphic];
 
                     if (data.IsBackground)
                     {
                         priorityZ--;
                     }
-         
+
                     //if (data.IsSurface)
                     //{
                     //    priorityZ--;
@@ -389,7 +478,7 @@ namespace ClassicUO.Game.Map
                     {
                         GameObject next = first.TNext;
 
-                        if (!ReferenceEquals(first, World.Player))
+                        if (!ReferenceEquals(first, _world.Player))
                         {
                             first.Destroy();
                         }
@@ -409,7 +498,7 @@ namespace ClassicUO.Game.Map
             }
 
             IsDestroyed = true;
-            _pool.ReturnOne(this);
+            //_pool.ReturnOne(this);
         }
 
         public void Clear()
@@ -425,13 +514,13 @@ namespace ClassicUO.Game.Map
                         continue;
                     }
 
-                    GameObject first = GetHeadObject(i, j);
+                    GameObject first = GetHeadObject(x: i, j);
 
                     while (first != null)
                     {
                         GameObject next = first.TNext;
 
-                        if (!ReferenceEquals(first, World.Player))
+                        if (!ReferenceEquals(first, _world.Player))
                         {
                             first.Destroy();
                         }

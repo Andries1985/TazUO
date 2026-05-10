@@ -7,12 +7,14 @@ namespace ClassicUO.Renderer.Texmaps
     {
         private readonly TextureAtlas _atlas;
         private readonly SpriteInfo[] _spriteInfos;
-        private readonly PixelPicker _picker = new PixelPicker();
+        private readonly PixelPicker _picker = new PixelPicker(true);
+        private readonly TexmapsLoader _texmapsLoader;
 
-        public Texmap(GraphicsDevice device)
+        public Texmap(TexmapsLoader texmapsLoader, GraphicsDevice device)
         {
+            _texmapsLoader = texmapsLoader;
             _atlas = new TextureAtlas(device, 2048, 2048, SurfaceFormat.Color);
-            _spriteInfos = new SpriteInfo[TexmapsLoader.Instance.Entries.Length];
+            _spriteInfos = new SpriteInfo[texmapsLoader.File.Entries.Length];
         }
 
         public ref readonly SpriteInfo GetTexmap(uint idx)
@@ -20,11 +22,11 @@ namespace ClassicUO.Renderer.Texmaps
             if (idx >= _spriteInfos.Length)
                 return ref SpriteInfo.Empty;
 
-            ref var spriteInfo = ref _spriteInfos[idx];
+            ref SpriteInfo spriteInfo = ref _spriteInfos[idx];
 
             if (spriteInfo.Texture == null)
             {
-                var texmapInfo = TexmapsLoader.Instance.GetTexmap(idx);
+                TexmapInfo texmapInfo = _texmapsLoader.GetTexmap(idx);
                 if (!texmapInfo.Pixels.IsEmpty)
                 {
                     spriteInfo.Texture = _atlas.AddSprite(

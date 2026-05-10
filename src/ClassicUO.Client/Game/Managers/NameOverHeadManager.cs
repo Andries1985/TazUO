@@ -1,34 +1,5 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
@@ -36,7 +7,7 @@ using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Utility.Logging;
-using SDL2;
+using SDL3;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -79,16 +50,23 @@ namespace ClassicUO.Game.Managers
         Murderer = 1 << 18,
         Invulnerable = 1 << 19,
 
-        AllItems = Containers | Gold | Stackable | LockedDown | Other,
+        // Items cont.
+        Moveable = 1 << 20,
+        Immoveable = 1 << 21,
+
+        AllItems = Containers | Gold | Stackable | LockedDown | Moveable | Immoveable | Other,
         AllMobiles = Humanoid | Monster | OwnFollowers | Self,
         MobilesAndCorpses = AllMobiles | MonsterCorpses | HumanoidCorpses,
     }
 
-    public static class NameOverHeadManager
+    public sealed class NameOverHeadManager
     {
-        private static NameOverHeadHandlerGump _gump;
+        private NameOverHeadHandlerGump _gump;
         private static SDL.SDL_Keycode _lastKeySym = SDL.SDL_Keycode.SDLK_UNKNOWN;
-        private static SDL.SDL_Keymod _lastKeyMod = SDL.SDL_Keymod.KMOD_NONE;
+        private static SDL.SDL_Keymod _lastKeyMod = SDL.SDL_Keymod.SDL_KMOD_NONE;
+        private readonly World _world;
+
+        public NameOverHeadManager(World world) { _world = world; }
 
         public static string LastActiveNameOverheadOption
         {
@@ -104,14 +82,14 @@ namespace ClassicUO.Game.Managers
             private set => ProfileManager.CurrentProfile.NameOverheadToggled = value;
         }
 
+        public static string Search { get; set; } = string.Empty;
+
         public static bool IsTemporarilyShowing { get; private set; }
         public static bool IsShowing => IsPermaToggled || IsTemporarilyShowing || Keyboard.Ctrl && Keyboard.Shift;
 
         private static List<NameOverheadOption> Options { get; set; } = new List<NameOverheadOption>();
 
-        public static string Search { get; set; } = string.Empty;
-
-        public static bool IsAllowed(Entity serial)
+        public bool IsAllowed(Entity serial)
         {
             if (serial == null)
                 return false;
@@ -125,14 +103,14 @@ namespace ClassicUO.Game.Managers
             return false;
         }
 
-        private static bool HandleMobileOverhead(Entity serial)
+        private bool HandleMobileOverhead(Entity serial)
         {
             var mobile = serial as Mobile;
 
             if (mobile == null)
                 return false;
 
-            if (mobile.Equals(World.Player) && ActiveOverheadOptions.HasFlag(NameOverheadOptions.ExcludeSelf))
+            if (mobile.Equals(_world.Player) && ActiveOverheadOptions.HasFlag(NameOverheadOptions.ExcludeSelf))
                 return false;
 
             // Mobile types
@@ -167,7 +145,7 @@ namespace ClassicUO.Game.Managers
             if (ActiveOverheadOptions.HasFlag(NameOverheadOptions.Invulnerable) && mobile.NotorietyFlag == NotorietyFlag.Invulnerable)
                 return true;
 
-            if (ActiveOverheadOptions.HasFlag(NameOverheadOptions.Self) && mobile.Equals(World.Player))
+            if (ActiveOverheadOptions.HasFlag(NameOverheadOptions.Self) && mobile.Equals(_world.Player))
                 return true;
 
             return false;
@@ -197,6 +175,12 @@ namespace ClassicUO.Game.Managers
             if (item.IsLocked && ActiveOverheadOptions.HasFlag(NameOverheadOptions.LockedDown))
                 return true;
 
+            if (item.IsMovable && ActiveOverheadOptions.HasFlag(NameOverheadOptions.Moveable))
+                return true;
+
+            if (!item.IsMovable && ActiveOverheadOptions.HasFlag(NameOverheadOptions.Immoveable))
+                return true;
+
             if (ActiveOverheadOptions.HasFlag(NameOverheadOptions.Other))
                 return true;
 
@@ -205,7 +189,7 @@ namespace ClassicUO.Game.Managers
 
         private static bool HandleCorpseOverhead(Item item)
         {
-            var isHumanCorpse = item.IsHumanCorpse;
+            bool isHumanCorpse = item.IsHumanCorpse;
 
             if (isHumanCorpse && ActiveOverheadOptions.HasFlag(NameOverheadOptions.HumanoidCorpses))
                 return true;
@@ -217,11 +201,11 @@ namespace ClassicUO.Game.Managers
             return false;
         }
 
-        public static void Open()
+        public void Open()
         {
             if (_gump == null || _gump.IsDisposed)
             {
-                _gump = new NameOverHeadHandlerGump();
+                _gump = new NameOverHeadHandlerGump(_world);
                 UIManager.Add(_gump);
             }
 
@@ -229,21 +213,22 @@ namespace ClassicUO.Game.Managers
             _gump.IsVisible = true;
         }
 
-        public static void Close()
+        public void Close()
         {
             if (_gump == null)
-                return;
+            { //Required in case nameplates are active when closing and reopening the client
+                _gump = new NameOverHeadHandlerGump(_world);
+                UIManager.Add(_gump);
+            }
+
 
             _gump.IsEnabled = false;
             _gump.IsVisible = false;
         }
 
-        public static void ToggleOverheads()
-        {
-            SetOverheadToggled(!IsPermaToggled);
-        }
+        public void ToggleOverheads() => SetOverheadToggled(!IsPermaToggled);
 
-        public static void SetOverheadToggled(bool toggled)
+        public void SetOverheadToggled(bool toggled)
         {
             if (IsPermaToggled == toggled)
                 return;
@@ -294,36 +279,72 @@ namespace ClassicUO.Game.Managers
                     Options.Add(option);
                 }
             }
+
+            // Ensure at least one option exists after loading
+            if (Options.Count == 0)
+            {
+                Log.Trace("No nameoverhead options loaded. Creating default entries.");
+                CreateDefaultEntries();
+                Save();
+            }
         }
 
         public static void Save()
         {
-            var list = Options;
+            List<NameOverheadOption> list = Options;
 
             string path = Path.Combine(ProfileManager.ProfilePath, "nameoverhead.xml");
+            string tempPath = path + ".tmp";
 
-            using XmlTextWriter xml = new(path, Encoding.UTF8)
+            try
             {
-                Formatting = Formatting.Indented,
-                IndentChar = '\t',
-                Indentation = 1
-            };
+                using (XmlTextWriter xml = new(tempPath, Encoding.UTF8)
+                {
+                    Formatting = Formatting.Indented,
+                    IndentChar = '\t',
+                    Indentation = 1
+                })
+                {
+                    xml.WriteStartDocument(true);
+                    xml.WriteStartElement("nameoverhead");
 
-            xml.WriteStartDocument(true);
-            xml.WriteStartElement("nameoverhead");
+                    foreach (NameOverheadOption option in list)
+                    {
+                        option.Save(xml);
+                    }
 
-            foreach (var option in list)
-            {
-                option.Save(xml);
+                    xml.WriteEndElement();
+                    xml.WriteEndDocument();
+                }
+
+                // Atomic move: replace the original file with the temp file
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+                File.Move(tempPath, path);
             }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to save nameoverhead.xml: {ex}");
 
-            xml.WriteEndElement();
-            xml.WriteEndDocument();
+                // Clean up temp file if it exists
+                if (File.Exists(tempPath))
+                {
+                    try
+                    {
+                        File.Delete(tempPath);
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
+                }
+                throw;
+            }
         }
 
-        private static void CreateDefaultEntries()
-        {
-            Options.AddRange
+        private static void CreateDefaultEntries() => Options.AddRange
             (
                 new[]
                 {
@@ -333,45 +354,38 @@ namespace ClassicUO.Game.Managers
                     new NameOverheadOption("Mobiles & Corpses only", (int)NameOverheadOptions.MobilesAndCorpses),
                 }
             );
-        }
 
-        public static NameOverheadOption FindOption(string name)
-        {
-            return Options.Find(o => o.Name == name);
-        }
+        public static NameOverheadOption FindOption(string name) => Options.Find(o => o.Name == name);
 
-        public static void AddOption(NameOverheadOption option)
+        public void AddOption(NameOverheadOption option)
         {
             Options.Add(option);
             _gump?.RedrawOverheadOptions();
         }
 
-        public static void RemoveOption(NameOverheadOption option)
+        public void RemoveOption(NameOverheadOption option)
         {
             Options.Remove(option);
             _gump?.RedrawOverheadOptions();
         }
 
-        public static NameOverheadOption FindOptionByHotkey(SDL.SDL_Keycode key, bool alt, bool ctrl, bool shift)
-        {
-            return Options.FirstOrDefault(o => o.Key == key && o.Alt == alt && o.Ctrl == ctrl && o.Shift == shift);
-        }
+        public static NameOverheadOption FindOptionByHotkey(SDL.SDL_Keycode key, bool alt, bool ctrl, bool shift) => Options.FirstOrDefault(o => o.Key == key && o.Alt == alt && o.Ctrl == ctrl && o.Shift == shift);
 
         public static List<NameOverheadOption> GetAllOptions() => Options;
 
-        public static void RegisterKeyDown(SDL.SDL_Keysym key)
+        public void RegisterKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
         {
-            if (_lastKeySym == key.sym && _lastKeyMod == key.mod)
+            if (_lastKeySym == key && _lastKeyMod == mod)
                 return;
 
-            _lastKeySym = key.sym;
-            _lastKeyMod = key.mod;
+            _lastKeySym = key;
+            _lastKeyMod = mod;
 
-            bool shift = (key.mod & SDL.SDL_Keymod.KMOD_SHIFT) != SDL.SDL_Keymod.KMOD_NONE;
-            bool alt = (key.mod & SDL.SDL_Keymod.KMOD_ALT) != SDL.SDL_Keymod.KMOD_NONE;
-            bool ctrl = (key.mod & SDL.SDL_Keymod.KMOD_CTRL) != SDL.SDL_Keymod.KMOD_NONE;
+            bool shift = (mod & SDL.SDL_Keymod.SDL_KMOD_SHIFT) != SDL.SDL_Keymod.SDL_KMOD_NONE;
+            bool alt = (mod & SDL.SDL_Keymod.SDL_KMOD_ALT) != SDL.SDL_Keymod.SDL_KMOD_NONE;
+            bool ctrl = (mod & SDL.SDL_Keymod.SDL_KMOD_CTRL) != SDL.SDL_Keymod.SDL_KMOD_NONE;
 
-            var option = FindOptionByHotkey(key.sym, alt, ctrl, shift);
+            NameOverheadOption option = FindOptionByHotkey(key, alt, ctrl, shift);
 
             if (option == null)
                 return;
@@ -381,9 +395,9 @@ namespace ClassicUO.Game.Managers
             IsTemporarilyShowing = true;
         }
 
-        public static void RegisterKeyUp(SDL.SDL_Keysym key)
+        public static void RegisterKeyUp(SDL.SDL_Keycode key)
         {
-            if (key.sym != _lastKeySym)
+            if (key != _lastKeySym)
                 return;
 
             _lastKeySym = SDL.SDL_Keycode.SDLK_UNKNOWN;
@@ -391,7 +405,7 @@ namespace ClassicUO.Game.Managers
             IsTemporarilyShowing = false;
         }
 
-        public static void SetActiveOption(NameOverheadOption option)
+        public void SetActiveOption(NameOverheadOption option)
         {
             if (option == null)
             {

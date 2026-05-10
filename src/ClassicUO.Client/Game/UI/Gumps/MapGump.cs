@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
@@ -42,7 +12,7 @@ using System.Collections.Generic;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class MapGump : Gump
+    public class MapGump : Gump
     {
         private readonly Button[] _buttons = new Button[3];
         private readonly List<Control> _container = new List<Control>();
@@ -54,7 +24,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private uint _pinTimer;
 
-        public MapGump(uint serial, ushort gumpid, int width, int height) : base(serial, 0)
+        public MapGump(World world, uint serial, ushort gumpid, int width, int height) : base(world, serial, 0)
         {
             AcceptMouseInput = false;
             CanMove = true;
@@ -92,13 +62,13 @@ namespace ClassicUO.Game.UI.Gumps
 
             _hit.MouseUp += TextureControlOnMouseUp;
 
-            MenuButton menu = new MenuButton(25, Color.Black.PackedValue, 0.75f, "Menu") { X = width + 44 - 43, Y = 6 };
+            var menu = new MenuButton(25, Color.Black.PackedValue, 0.75f, "Menu") { X = width + 44 - 43, Y = 6 };
 
             menu.MouseUp += (s, e) =>
             {
                 menu.ContextMenu?.Show();
             };
-            menu.ContextMenu = new ContextMenuControl();
+            menu.ContextMenu = new ContextMenuControl(this);
             menu.ContextMenu.Add(new ContextMenuItemEntry("Show approximate location on world map", () =>
             {
                 if (foundMapLoc)
@@ -109,7 +79,7 @@ namespace ClassicUO.Game.UI.Gumps
                         if (mapFacet != -1)
                         {
                             if (World.MapIndex != mapFacet)
-                                GameActions.Print("You're on the wrong facet!", 32);
+                                GameActions.Print(World, "You're on the wrong facet!", 32);
                             else
                                 map.GoToMarker(mapX, mapY, true);
                         }
@@ -134,27 +104,33 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                 }
             }));
+            menu.ContextMenu.Add(new ContextMenuItemEntry("Create arrow pointing to location", () =>
+            {
+                if (foundMapLoc)
+                {
+                    WorldMapGump map = UIManager.GetGump<WorldMapGump>();
+                    if (map != null)
+                    {
+                        if (mapFacet != World.MapIndex)
+                            GameActions.Print(World, "You're on the wrong facet!", 32);
+                        else
+                            UIManager.Add(new QuestArrowGump(world, 0, mapX, mapY) { CanCloseWithRightClick = true });
+                    }
+                }
+            }));
             menu.ContextMenu.Add(new ContextMenuItemEntry("Try to pathfind", () =>
             {
                 if (foundMapLoc)
                 {
-                    int distance = Math.Max(Math.Abs(World.Player.X - mapX), Math.Abs(World.Player.Y - mapY));
-
-                    if (distance > 10)
-                    {
-                        GameActions.Print("You're too far away to try to pathfind, you need to be within 10 tiles.", 32);
-                        return;
-                    }
-
                     if (mapFacet != -1)
                     {
                         if (World.MapIndex != mapFacet)
-                            GameActions.Print("You're on the wrong facet!", 32);
+                            GameActions.Print(World, "You're on the wrong facet!", 32);
                         else
-                            Pathfinder.WalkTo(mapX, mapY, 0, 1);
+                            World.Player.Pathfinder.WalkTo(mapX, mapY, 0, 1);
                     }
                     else
-                        Pathfinder.WalkTo(mapX, mapY, 0, 1);
+                        World.Player.Pathfinder.WalkTo(mapX, mapY, 0, 1);
                 }
             }));
             menu.ContextMenu.Add(new ContextMenuItemEntry("Close", () => { Dispose(); }));
@@ -192,7 +168,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void AddPin(int x, int y)
         {
-            PinControl c = new PinControl(x, y);
+            var c = new PinControl(x, y);
             c.X += c.Width + 5;
             c.Y += c.Height;
             c.NumberText = (_container.Count + 1).ToString();
@@ -212,7 +188,7 @@ namespace ClassicUO.Game.UI.Gumps
                 //if (Width == 600)
                 //    multiplier = 2f;
                 if (CUOEnviroment.Debug)
-                    GameActions.Print($"Width: {Width}, Multiplier: {multiplier}, Facet: {mapFacet}, MapData: {mapX}, {mapY}, {mapEndX}, {mapEndY}");
+                    GameActions.Print(World, $"Width: {Width}, Multiplier: {multiplier}, Facet: {mapFacet}, MapData: {mapX}, {mapY}, {mapEndX}, {mapEndY}");
 
                 mapX = (int)(mapX + (x * multiplier));
                 mapY = (int)(mapY + (y * multiplier));
@@ -248,13 +224,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void OnButtonClick(int buttonID)
         {
-            ButtonType b = (ButtonType)buttonID;
+            var b = (ButtonType)buttonID;
 
             switch (b)
             {
                 case ButtonType.PlotCourse:
                 case ButtonType.StopPlotting:
-                    NetClient.Socket.Send_MapMessage(LocalSerial,
+                    AsyncNetClient.Socket.Send_MapMessage(LocalSerial,
                                                      6,
                                                      (byte)PlotState,
                                                      unchecked((ushort)-24),
@@ -265,7 +241,7 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
 
                 case ButtonType.ClearCourse:
-                    NetClient.Socket.Send_MapMessage(LocalSerial,
+                    AsyncNetClient.Socket.Send_MapMessage(LocalSerial,
                                                      5,
                                                      0,
                                                      unchecked((ushort)-24),
@@ -324,7 +300,7 @@ namespace ClassicUO.Game.UI.Gumps
                     ushort x = (ushort)(e.X + 5);
                     ushort y = (ushort)e.Y;
 
-                    NetClient.Socket.Send_MapMessage(LocalSerial,
+                    AsyncNetClient.Socket.Send_MapMessage(LocalSerial,
                                                      1,
                                                      0,
                                                      x,
@@ -351,7 +327,7 @@ namespace ClassicUO.Game.UI.Gumps
                 hueVector
             );
 
-            var texture = SolidColorTextureCache.GetTexture(Color.White);
+            Texture2D texture = SolidColorTextureCache.GetTexture(Color.White);
 
             for (int i = 0; i < _container.Count; i++)
             {
@@ -380,14 +356,14 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
 
-        protected override void OnMouseUp(int x, int y, MouseButtonType button)
+        public override void OnMouseUp(int x, int y, MouseButtonType button)
         {
             base.OnMouseUp(x, y, button);
             _currentPin = null;
             _lastPoint = Point.Zero;
         }
 
-        protected override void OnMouseDown(int x, int y, MouseButtonType button)
+        public override void OnMouseDown(int x, int y, MouseButtonType button)
         {
             _pinTimer = Time.Ticks + 300;
 
@@ -440,7 +416,7 @@ namespace ClassicUO.Game.UI.Gumps
             offsetX = (int)(tempX * cosA - tempY * sinA);
             offsetY = (int)(tempX * sinA + tempY * cosA);
 
-            Point mousePoint = new Point(x1 + offsetX, y1 + offsetY);
+            var mousePoint = new Point(x1 + offsetX, y1 + offsetY);
 
             const int POLY_OFFSET = 5;
 
@@ -449,7 +425,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (!inverseCheck)
             {
-                Rectangle rect = new Rectangle
+                var rect = new Rectangle
                 {
                     X = x1 - POLY_OFFSET,
                     Y = y1 - POLY_OFFSET,
@@ -466,7 +442,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
             else
             {
-                Rectangle rect = new Rectangle
+                var rect = new Rectangle
                 {
                     X = endX2 - POLY_OFFSET,
                     Y = endY2 - POLY_OFFSET,

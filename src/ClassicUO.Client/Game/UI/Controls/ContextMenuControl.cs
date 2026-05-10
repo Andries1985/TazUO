@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Gumps;
@@ -43,32 +13,25 @@ namespace ClassicUO.Game.UI.Controls
     public class ContextMenuControl
     {
         private readonly List<ContextMenuItemEntry> _items;
+        private readonly Gump _gump;
 
-        public ContextMenuControl()
+        public ContextMenuControl(Gump gump)
         {
             _items = new List<ContextMenuItemEntry>();
+            _gump = gump;
         }
 
-        public void Add(string text, Action action, bool canBeSelected = false, bool defaultValue = false)
-        {
-            _items.Add(new ContextMenuItemEntry(text, action, canBeSelected, defaultValue));
-        }
+        public void Add(string text, Action action, bool canBeSelected = false, bool defaultValue = false) => _items.Add(new ContextMenuItemEntry(text, action, canBeSelected, defaultValue));
 
-        public void Add(ContextMenuItemEntry entry)
-        {
-            _items.Add(entry);
-        }
+        public void Add(ContextMenuItemEntry entry) => _items.Add(entry);
 
-        public void Add(string text, List<ContextMenuItemEntry> entries)
-        {
-            _items.Add
+        public void Add(string text, List<ContextMenuItemEntry> entries) => _items.Add
             (
                 new ContextMenuItemEntry(text)
                 {
                     Items = entries
                 }
             );
-        }
 
         public void Show()
         {
@@ -81,7 +44,7 @@ namespace ClassicUO.Game.UI.Controls
 
             UIManager.ShowContextMenu
             (
-                new ContextMenuShowMenu(_items)
+                new ContextMenuShowMenu(_gump.World, _items)
             );
         }
 
@@ -102,16 +65,13 @@ namespace ClassicUO.Game.UI.Controls
             IsSelected = defaultValue;
         }
 
-        public readonly Action Action;
+        public Action Action;
         public readonly bool CanBeSelected;
         public bool IsSelected;
         public List<ContextMenuItemEntry> Items = new List<ContextMenuItemEntry>();
-        public readonly string Text;
+        public string Text;
 
-        public void Add(ContextMenuItemEntry subEntry)
-        {
-            Items.Add(subEntry);
-        }
+        public void Add(ContextMenuItemEntry subEntry) => Items.Add(subEntry);
     }
 
 
@@ -121,7 +81,7 @@ namespace ClassicUO.Game.UI.Controls
         private List<ContextMenuShowMenu> _subMenus;
 
 
-        public ContextMenuShowMenu(List<ContextMenuItemEntry> list) : base(0, 0)
+        public ContextMenuShowMenu(World world, List<ContextMenuItemEntry> list) : base(world, 0, 0)
         {
             WantUpdateSize = true;
             ModalClickOutsideAreaClosesThisControl = true;
@@ -135,11 +95,14 @@ namespace ClassicUO.Game.UI.Controls
             _background = new AlphaBlendControl(0.7f);
             Add(_background);
 
+            var _scroll = new ScrollArea(0, 0, 0, 0, true);
+            Add(_scroll);
+
             int y = 0;
 
             for (int i = 0; i < list.Count; i++)
             {
-                ContextMenuItem item = new ContextMenuItem(this, list[i]);
+                var item = new ContextMenuItem(this, list[i]);
 
                 if (i > 0)
                 {
@@ -153,10 +116,18 @@ namespace ClassicUO.Game.UI.Controls
 
                 _background.Height += item.Height;
 
-                Add(item);
+                _scroll.Add(item);
 
                 y += item.Height;
             }
+
+            if(y >= Client.Game.Window.ClientBounds.Height >> 1)
+            {
+                y = Client.Game.Window.ClientBounds.Height >> 1;
+            }
+
+            _scroll.Height = Height = _background.Height = y;
+            _scroll.Width = _background.Width;
 
             X = Mouse.Position.X + 5;
             Y = Mouse.Position.Y - 20;
@@ -171,12 +142,12 @@ namespace ClassicUO.Game.UI.Controls
                 Y = Client.Game.Window.ClientBounds.Height - _background.Height;
             }
 
-            if (Y < Client.Game.Window.ClientBounds.Y)
+            if (Y < 0)
             {
                 Y = 0;
             }
 
-            foreach (ContextMenuItem mitem in FindControls<ContextMenuItem>())
+            foreach (ContextMenuItem mitem in _scroll.FindControls<ContextMenuItem>())
             {
                 if (mitem.Width < _background.Width)
                 {
@@ -237,10 +208,12 @@ namespace ClassicUO.Game.UI.Controls
             private readonly Label _label;
             private readonly GumpPic _selectedPic;
             private readonly ContextMenuShowMenu _subMenu;
+            private readonly ContextMenuShowMenu _gump;
 
 
             public ContextMenuItem(ContextMenuShowMenu parent, ContextMenuItemEntry entry)
             {
+                _gump = parent;
                 CanCloseWithRightClick = false;
                 _entry = entry;
 
@@ -285,10 +258,10 @@ namespace ClassicUO.Game.UI.Controls
                     Width = 100;
                 }
 
-                // it is a bit tricky, but works :D 
+                // it is a bit tricky, but works :D
                 if (_entry.Items != null && _entry.Items.Count != 0)
                 {
-                    _subMenu = new ContextMenuShowMenu(_entry.Items);
+                    _subMenu = new ContextMenuShowMenu(_gump.World, _entry.Items);
                     parent.Add(_subMenu);
 
                     if (parent._subMenus == null)
@@ -328,7 +301,7 @@ namespace ClassicUO.Game.UI.Controls
                     }
                     else
                     {
-                        Control p = UIManager.MouseOverControl?.Parent;
+                        IGui p = UIManager.MouseOverControl?.Parent;
 
                         while (p != null)
                         {
@@ -345,7 +318,7 @@ namespace ClassicUO.Game.UI.Controls
                 }
             }
 
-            protected override void OnMouseUp(int x, int y, MouseButtonType button)
+            public override void OnMouseUp(int x, int y, MouseButtonType button)
             {
                 if (button == MouseButtonType.Left)
                 {

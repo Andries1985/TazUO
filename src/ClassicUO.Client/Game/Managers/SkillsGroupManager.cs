@@ -1,34 +1,5 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
 
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
@@ -43,7 +14,7 @@ using System.Xml;
 
 namespace ClassicUO.Game.Managers
 {
-    internal sealed class SkillsGroup
+    public sealed class SkillsGroup
     {
         private readonly byte[] _list = new byte[60];
 
@@ -129,13 +100,13 @@ namespace ClassicUO.Game.Managers
             byte* table = stackalloc byte[60];
             int index = 0;
 
-            int count = SkillsLoader.Instance.SkillsCount;
+            int count = Client.Game.UO.FileManager.Skills.SkillsCount;
 
             for (int i = 0; i < count; i++)
             {
                 for (int j = 0; j < Count; j++)
                 {
-                    if (SkillsLoader.Instance.GetSortedIndex(i) == _list[j])
+                    if (Client.Game.UO.FileManager.Skills.GetSortedIndex(i) == _list[j])
                     {
                         table[index++] = _list[j];
 
@@ -184,11 +155,10 @@ namespace ClassicUO.Game.Managers
         }
     }
 
-    internal static class SkillsGroupManager
+    public sealed class SkillsGroupManager
     {
-        private static bool _isActive;
-        public static readonly List<SkillsGroup> Groups = new List<SkillsGroup>();
-        public static bool IsActive
+        private bool _isActive;
+        public bool IsActive
         {
             get { return _isActive; }
             set
@@ -197,18 +167,25 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public static void Add(SkillsGroup g)
+        private readonly World _world;
+
+        public SkillsGroupManager(World world)
         {
-            Groups.Add(g);
+            _world = world;
         }
 
-        public static bool Remove(SkillsGroup g)
+        public readonly List<SkillsGroup> Groups = new List<SkillsGroup>();
+
+
+        public void Add(SkillsGroup g) => Groups.Add(g);
+
+        public bool Remove(SkillsGroup g)
         {
             if (Groups[0] == g)
             {
-                var camera = Client.Game.Scene.Camera;
+                Renderer.Camera camera = Client.Game.Scene.Camera;
 
-                MessageBoxGump messageBox = new MessageBoxGump(200, 125, ResGeneral.CannotDeleteThisGroup, null)
+                var messageBox = new MessageBoxGump(_world, 200, 125, ResGeneral.CannotDeleteThisGroup, null)
                 {
                     X = camera.Bounds.X + camera.Bounds.Width / 2 - 100,
                     Y = camera.Bounds.Y + camera.Bounds.Height / 2 - 62
@@ -225,7 +202,7 @@ namespace ClassicUO.Game.Managers
             return true;
         }
 
-        public static void Load()
+        public void Load()
         {
             Groups.Clear();
 
@@ -240,7 +217,7 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            XmlDocument doc = new XmlDocument();
+            var doc = new XmlDocument();
 
             try
             {
@@ -263,7 +240,7 @@ namespace ClassicUO.Game.Managers
                 Boolean.TryParse(root.GetAttribute("isActive"), out _isActive);
                 foreach (XmlElement xml in root.GetElementsByTagName("group"))
                 {
-                    SkillsGroup g = new SkillsGroup();
+                    var g = new SkillsGroup();
                     g.Name = xml.GetAttribute("name");
 
                     Boolean.TryParse(xml.GetAttribute("isMaximized"), out g.IsMaximized);
@@ -285,11 +262,11 @@ namespace ClassicUO.Game.Managers
         }
 
 
-        public static void Save()
+        public void Save()
         {
             string path = Path.Combine(ProfileManager.ProfilePath, "skillsgroups.xml");
 
-            using (XmlTextWriter xml = new XmlTextWriter(path, Encoding.UTF8)
+            using (var xml = new XmlTextWriter(path, Encoding.UTF8)
             {
                 Formatting = Formatting.Indented,
                 IndentChar = '\t',
@@ -311,11 +288,11 @@ namespace ClassicUO.Game.Managers
         }
 
 
-        public static void MakeDefault()
+        public void MakeDefault()
         {
             Groups.Clear();
 
-            if (!LoadMULFile(UOFileManager.GetUOFilePath("skillgrp.mul")))
+            if (!LoadMULFile(Client.Game.UO.FileManager.GetUOFilePath("skillgrp.mul")))
             {
                 MakeDefaultMiscellaneous();
                 MakeDefaultCombat();
@@ -334,9 +311,9 @@ namespace ClassicUO.Game.Managers
             Save();
         }
 
-        private static void MakeDefaultMiscellaneous()
+        private void MakeDefaultMiscellaneous()
         {
-            SkillsGroup g = new SkillsGroup();
+            var g = new SkillsGroup();
             g.Name = ResGeneral.Miscellaneous;
             g.Add(4);
             g.Add(6);
@@ -349,11 +326,11 @@ namespace ClassicUO.Game.Managers
             Add(g);
         }
 
-        private static void MakeDefaultCombat()
+        private void MakeDefaultCombat()
         {
-            int count = SkillsLoader.Instance.SkillsCount;
+            int count = Client.Game.UO.FileManager.Skills.SkillsCount;
 
-            SkillsGroup g = new SkillsGroup();
+            var g = new SkillsGroup();
             g.Name = ResGeneral.Combat;
             g.Add(1);
             g.Add(31);
@@ -394,9 +371,9 @@ namespace ClassicUO.Game.Managers
             Add(g);
         }
 
-        private static void MakeDefaultTradeSkills()
+        private void MakeDefaultTradeSkills()
         {
-            SkillsGroup g = new SkillsGroup();
+            var g = new SkillsGroup();
             g.Name = ResGeneral.TradeSkills;
             g.Add(0);
             g.Add(7);
@@ -412,11 +389,11 @@ namespace ClassicUO.Game.Managers
             Add(g);
         }
 
-        private static void MakeDefaultMagic()
+        private void MakeDefaultMagic()
         {
-            int count = SkillsLoader.Instance.SkillsCount;
+            int count = Client.Game.UO.FileManager.Skills.SkillsCount;
 
-            SkillsGroup g = new SkillsGroup();
+            var g = new SkillsGroup();
             g.Name = ResGeneral.Magic;
             g.Add(16);
 
@@ -450,9 +427,9 @@ namespace ClassicUO.Game.Managers
             Add(g);
         }
 
-        private static void MakeDefaultWilderness()
+        private void MakeDefaultWilderness()
         {
-            SkillsGroup g = new SkillsGroup();
+            var g = new SkillsGroup();
             g.Name = ResGeneral.Wilderness;
             g.Add(2);
             g.Add(35);
@@ -464,9 +441,9 @@ namespace ClassicUO.Game.Managers
             Add(g);
         }
 
-        private static void MakeDefaultThieving()
+        private void MakeDefaultThieving()
         {
-            SkillsGroup g = new SkillsGroup();
+            var g = new SkillsGroup();
             g.Name = ResGeneral.Thieving;
             g.Add(14);
             g.Add(21);
@@ -480,9 +457,9 @@ namespace ClassicUO.Game.Managers
             Add(g);
         }
 
-        private static void MakeDefaultBard()
+        private void MakeDefaultBard()
         {
-            SkillsGroup g = new SkillsGroup();
+            var g = new SkillsGroup();
             g.Name = ResGeneral.Bard;
             g.Add(15);
             g.Add(29);
@@ -492,9 +469,9 @@ namespace ClassicUO.Game.Managers
             Add(g);
         }
 
-        private static bool LoadMULFile(string path)
+        private bool LoadMULFile(string path)
         {
-            FileInfo info = new FileInfo(path);
+            var info = new FileInfo(path);
 
             if (!info.Exists)
             {
@@ -506,7 +483,7 @@ namespace ClassicUO.Game.Managers
                 byte skillidx = 0;
                 bool unicode = false;
 
-                using (BinaryReader bin = new BinaryReader(File.OpenRead(info.FullName)))
+                using (var bin = new BinaryReader(File.OpenRead(info.FullName)))
                 {
                     int start = 4;
                     int strlen = 17;
@@ -521,12 +498,12 @@ namespace ClassicUO.Game.Managers
                     }
 
 
-                    StringBuilder sb = new StringBuilder(17);
+                    var sb = new StringBuilder(17);
 
-                    SkillsGroup g = new SkillsGroup();
+                    var g = new SkillsGroup();
                     g.Name = ResGeneral.Miscellaneous;
 
-                    SkillsGroup[] groups = new SkillsGroup[count];
+                    var groups = new SkillsGroup[count];
                     groups[0] = g;
 
                     for (int i = 0; i < count - 1; ++i)
@@ -563,7 +540,7 @@ namespace ClassicUO.Game.Managers
                     {
                         int grp = bin.ReadInt32();
 
-                        if (grp < groups.Length && skillidx < SkillsLoader.Instance.SkillsCount)
+                        if (grp < groups.Length && skillidx < Client.Game.UO.FileManager.Skills.SkillsCount)
                         {
                             groups[grp].Add(skillidx++);
                         }

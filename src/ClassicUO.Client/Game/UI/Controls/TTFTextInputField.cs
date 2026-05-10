@@ -1,25 +1,24 @@
 ﻿using System;
-using System.Windows.Forms;
 using ClassicUO.Assets;
 using ClassicUO.Game.Managers;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 using StbTextEditSharp;
 
 namespace ClassicUO.Game.UI.Controls
 {
-    internal class TTFTextInputField : Control
+    public class TTFTextInputField : Control
     {
         public readonly StbTextBox TextBox;
         private AlphaBlendControl _background;
 
         public event EventHandler TextChanged { add { TextBox.TextChanged += value; } remove { TextBox.TextChanged -= value; } }
         public new event EventHandler<KeyboardEventArgs> KeyDown { add { TextBox.KeyDown += value; } remove { TextBox.KeyDown -= value; } }
-
-        public int CaretIndex { get { return TextBox.CaretIndex; } }
+        public event EventHandler EnterPressed;
+        public int CaretIndex => TextBox.CaretIndex;
         public bool ConvertHtmlColors { get { return TextBox.ConvertHtmlColors; } set { TextBox.ConvertHtmlColors = value; } }
         public TTFTextInputField
         (
@@ -53,10 +52,7 @@ namespace ClassicUO.Game.UI.Controls
             Add(TextBox);
         }
 
-        public void SetFocus()
-        {
-            TextBox.SetKeyboardFocus();
-        }
+        public void SetFocus() => TextBox.SetKeyboardFocus();
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
@@ -69,6 +65,12 @@ namespace ClassicUO.Game.UI.Controls
 
             return true;
         }
+
+        /// <summary>
+        /// Set to null to remove placeholder
+        /// </summary>
+        /// <param name="text"></param>
+        public void SetPlaceholder(string text) => TextBox.SetPlaceholder(text);
 
         private void UpdateBackground()
         {
@@ -98,18 +100,22 @@ namespace ClassicUO.Game.UI.Controls
             set => TextBox.NumbersOnly = value;
         }
 
-        public void SetText(string text)
+        public void SetText(string text) => TextBox.SetText(text);
+
+        public override void OnKeyboardReturn(int textID, string text)
         {
-            TextBox.SetText(text);
+            base.OnKeyboardReturn(textID, text);
+            EnterPressed?.Invoke(this, EventArgs.Empty);
         }
 
-        internal class StbTextBox : Control, ITextEditHandler
+        public class StbTextBox : Control, ITextEditHandler
         {
             protected static readonly Color SELECTION_COLOR = new Color() { PackedValue = 0x80a06020 };
             private const int FONT_SIZE = 20;
             private readonly int _maxCharCount = -1;
+            private TextBox _placeHolder;
 
-            public bool ConvertHtmlColors { get { return _rendererText.ConvertHtmlColors; } set { _rendererText.ConvertHtmlColors = value; } }
+            public bool ConvertHtmlColors { get { return _rendererText.Options.ConvertHtmlColors; } set { _rendererText.Options.ConvertHtmlColors = value; } }
 
             public StbTextBox
             (
@@ -126,30 +132,12 @@ namespace ClassicUO.Game.UI.Controls
                 _maxCharCount = max_char_count;
 
                 Stb = new TextEdit(this);
-                Stb.SingleLine = !multiline;
 
-                _rendererText = new TextBox(
-                    string.Empty,
-                    TrueTypeLoader.EMBEDDED_FONT,
-                    FONT_SIZE,
-                    maxWidth > 0 ? maxWidth : null,
-                    Color.White,
-                    strokeEffect: false,
-                    supportsCommands: false,
-                    ignoreColorCommands: true,
-                    calculateGlyphs: true
-                    )
-                { MultiLine = multiline };
-                _rendererCaret = new TextBox(
-                    "_",
-                    TrueTypeLoader.EMBEDDED_FONT,
-                    FONT_SIZE,
-                    null,
-                    Color.White,
-                    strokeEffect: false,
-                    supportsCommands: false,
-                    ignoreColorCommands: true,
-                    calculateGlyphs: true);
+                Stb.SingleLine = !multiline;
+                _rendererText = Controls.TextBox.GetOne(string.Empty, TrueTypeLoader.EMBEDDED_FONT, FONT_SIZE, Color.White,
+                    new TextBox.RTLOptions() { Width = maxWidth > 0 ? maxWidth : null, SupportsCommands = false, IgnoreColorCommands = true, CalculateGlyphs = true, MultiLine = true });
+
+                _rendererCaret = Controls.TextBox.GetOne("_", TrueTypeLoader.EMBEDDED_FONT, FONT_SIZE, Color.White, new TextBox.RTLOptions(){SupportsCommands = false, IgnoreColorCommands = true, CalculateGlyphs = true});
 
                 Height = _rendererCaret.Height;
                 LoseFocusOnEscapeKey = true;
@@ -157,9 +145,26 @@ namespace ClassicUO.Game.UI.Controls
 
             protected TextEdit Stb { get; }
 
+            /// <summary>
+            /// Set to null to remove placeholder
+            /// </summary>
+            /// <param name="text"></param>
+            public void SetPlaceholder(string text)
+            {
+                if (text == null)
+                {
+                    _placeHolder?.Dispose();
+
+                    return;
+                }
+
+                _placeHolder = Controls.TextBox.GetOne(text, TrueTypeLoader.EMBEDDED_FONT, FONT_SIZE, Color.Gray, Controls.TextBox.RTLOptions.Default());
+                _placeHolder.Alpha = 0.75f;
+            }
+
             public void UpdateSize(int width, int height)
             {
-                Width = width; 
+                Width = width;
                 Height = height;
                 _rendererText.Width = Width;
                 _rendererText.Height = Height;
@@ -216,13 +221,7 @@ namespace ClassicUO.Game.UI.Controls
 
             public bool AllowSelection { get; set; } = true;
 
-            internal int TotalHeight
-            {
-                get
-                {
-                    return _rendererText.MeasuredSize.Y;
-                }
-            }
+            internal int TotalHeight => _rendererText.MeasuredSize.Y;
 
             public string Text
             {
@@ -255,7 +254,7 @@ namespace ClassicUO.Game.UI.Controls
                 {
                     if (index < _rendererText.Text.Length)
                     {
-                        var glyphRender = _rendererText.RTL.GetGlyphInfoByIndex(index);
+                        FontStashSharp.RichText.TextChunkGlyph? glyphRender = _rendererText.RTL.GetGlyphInfoByIndex(index);
                         if (glyphRender != null)
                         {
                             return glyphRender.Value.Bounds.Width;
@@ -267,7 +266,7 @@ namespace ClassicUO.Game.UI.Controls
 
             public TextEditRow LayoutRow(int startIndex)
             {
-                TextEditRow r = new TextEditRow() { num_chars = _rendererText.Text.Length };
+                var r = new TextEditRow() { num_chars = _rendererText.Text.Length };
 
                 int sx = ScreenCoordinateX;
                 int sy = ScreenCoordinateY;
@@ -296,10 +295,7 @@ namespace ClassicUO.Game.UI.Controls
                 }
             }
 
-            protected void UpdateCaretScreenPosition()
-            {
-                _caretScreenPosition = GetCoordsForIndex(Stb.CursorIndex);
-            }
+            protected void UpdateCaretScreenPosition() => _caretScreenPosition = GetCoordsForIndex(Stb.CursorIndex);
 
             protected Point GetCoordsForIndex(int index)
             {
@@ -309,7 +305,7 @@ namespace ClassicUO.Game.UI.Controls
                 {
                     if (index < Text.Length)
                     {
-                        var glyphRender = _rendererText.RTL.GetGlyphInfoByIndex(index);
+                        FontStashSharp.RichText.TextChunkGlyph? glyphRender = _rendererText.RTL.GetGlyphInfoByIndex(index);
                         if (glyphRender != null)
                         {
                             x += glyphRender.Value.Bounds.Left;
@@ -319,20 +315,20 @@ namespace ClassicUO.Game.UI.Controls
                     else if (_rendererText.RTL.Lines != null && _rendererText.RTL.Lines.Count > 0)
                     {
                         // After last glyph
-                        var lastLine = _rendererText.RTL.Lines[_rendererText.RTL.Lines.Count - 1];
+                        FontStashSharp.RichText.TextLine lastLine = _rendererText.RTL.Lines[_rendererText.RTL.Lines.Count - 1];
                         if (lastLine.Count > 0)
                         {
-                            var glyphRender = lastLine.GetGlyphInfoByIndex(lastLine.Count - 1);
+                            FontStashSharp.RichText.TextChunkGlyph? glyphRender = lastLine.GetGlyphInfoByIndex(lastLine.Count - 1);
 
                             x += glyphRender.Value.Bounds.Right;
                             y += glyphRender.Value.LineTop;
                         }
                         else if (_rendererText.RTL.Lines.Count > 1)
                         {
-                            var previousLine = _rendererText.RTL.Lines[_rendererText.RTL.Lines.Count - 2];
+                            FontStashSharp.RichText.TextLine previousLine = _rendererText.RTL.Lines[_rendererText.RTL.Lines.Count - 2];
                             if (previousLine.Count > 0)
                             {
-                                var glyphRender = previousLine.GetGlyphInfoByIndex(previousLine.Count - 1);
+                                FontStashSharp.RichText.TextChunkGlyph? glyphRender = previousLine.GetGlyphInfoByIndex(previousLine.Count - 1);
                                 y += glyphRender.Value.LineTop + lastLine.Size.Y + _rendererText.RTL.VerticalSpacing;
                             }
                         }
@@ -346,7 +342,7 @@ namespace ClassicUO.Game.UI.Controls
             {
                 if (Text != null)
                 {
-                    var line = _rendererText.RTL.GetLineByY(coords.Y);
+                    FontStashSharp.RichText.TextLine line = _rendererText.RTL.GetLineByY(coords.Y);
                     if (line != null)
                     {
                         int? index = line.GetGlyphIndexByX(coords.X);
@@ -354,7 +350,8 @@ namespace ClassicUO.Game.UI.Controls
                         {
                             return (int)index + line.TextStartIndex;
                         }
-                    } else
+                    }
+                    else
                     {
                         return Text.Length;
                     }
@@ -379,23 +376,21 @@ namespace ClassicUO.Game.UI.Controls
                 UpdateCaretScreenPosition();
             }
 
-            internal override void OnFocusEnter()
+            public override void OnFocusEnter()
             {
                 base.OnFocusEnter();
                 CaretIndex = Text?.Length ?? 0;
             }
 
-            internal override void OnFocusLost()
+            public override void OnFocusLost()
             {
                 if (Stb != null)
-                {
                     Stb.SelectStart = Stb.SelectEnd = 0;
-                }
 
                 base.OnFocusLost();
             }
 
-            protected override void OnKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
+            public override void OnKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
             {
                 ControlKeys? stb_key = null;
                 bool update_caret = false;
@@ -415,7 +410,7 @@ namespace ClassicUO.Game.UI.Controls
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_a when Keyboard.Ctrl && !NoSelection:
+                    case SDL.SDL_Keycode.SDLK_A when Keyboard.Ctrl && !NoSelection:
                         SelectAll();
 
                         break;
@@ -434,7 +429,7 @@ namespace ClassicUO.Game.UI.Controls
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_c when Keyboard.Ctrl && !NoSelection:
+                    case SDL.SDL_Keycode.SDLK_C when Keyboard.Ctrl && !NoSelection:
                         int selectStart = Math.Min(Stb.SelectStart, Stb.SelectEnd);
                         int selectEnd = Math.Max(Stb.SelectStart, Stb.SelectEnd);
 
@@ -445,7 +440,7 @@ namespace ClassicUO.Game.UI.Controls
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_x when Keyboard.Ctrl && !NoSelection:
+                    case SDL.SDL_Keycode.SDLK_X when Keyboard.Ctrl && !NoSelection:
                         selectStart = Math.Min(Stb.SelectStart, Stb.SelectEnd);
                         selectEnd = Math.Max(Stb.SelectStart, Stb.SelectEnd);
 
@@ -461,17 +456,17 @@ namespace ClassicUO.Game.UI.Controls
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_v when Keyboard.Ctrl && IsEditable:
+                    case SDL.SDL_Keycode.SDLK_V when Keyboard.Ctrl && IsEditable:
                         OnTextInput(StringHelper.GetClipboardText(Multiline));
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_z when Keyboard.Ctrl && IsEditable:
+                    case SDL.SDL_Keycode.SDLK_Z when Keyboard.Ctrl && IsEditable:
                         stb_key = ControlKeys.Undo;
 
                         break;
 
-                    case SDL.SDL_Keycode.SDLK_y when Keyboard.Ctrl && IsEditable:
+                    case SDL.SDL_Keycode.SDLK_Y when Keyboard.Ctrl && IsEditable:
                         stb_key = ControlKeys.Redo;
 
                         break;
@@ -698,10 +693,7 @@ namespace ClassicUO.Game.UI.Controls
                 }
             }
 
-            public void AppendText(string text)
-            {
-                Stb.Paste(text);
-            }
+            public void AppendText(string text) => Stb.Paste(text);
 
             protected override void OnTextInput(string c)
             {
@@ -841,7 +833,7 @@ namespace ClassicUO.Game.UI.Controls
                         while (_rendererText.RTL.Lines[line].Count + _rendererText.RTL.Lines[line].TextStartIndex < selectEnd)
                             line++;
 
-                        if(startline == line)
+                        if (startline == line)
                         {
                             DrawSectionOfSelection(batcher, x + start.X, y + start.Y, end.X - start.X, _rendererCaret.Height);
                             return;
@@ -890,9 +882,18 @@ namespace ClassicUO.Game.UI.Controls
                 if (batcher.ClipBegin(x, y, Width, Height))
                 {
                     base.Draw(batcher, x, y);
-                    DrawSelection(batcher, slideX, y);
-                    _rendererText.Draw(batcher, slideX, y);
-                    DrawCaret(batcher, slideX, y);
+
+                    if (!IsFocused && string.IsNullOrEmpty(_rendererText.Text) && _placeHolder != null)
+                    {
+                        _placeHolder.Draw(batcher, slideX, y);
+                    }
+                    else
+                    {
+                        DrawSelection(batcher, slideX, y);
+                        _rendererText.Draw(batcher, slideX, y);
+                        DrawCaret(batcher, slideX, y);
+                    }
+
                     batcher.ClipEnd();
                 }
 
@@ -907,7 +908,7 @@ namespace ClassicUO.Game.UI.Controls
                 }
             }
 
-            protected override void OnMouseDown(int x, int y, MouseButtonType button)
+            public override void OnMouseDown(int x, int y, MouseButtonType button)
             {
                 if (button == MouseButtonType.Left && IsEditable)
                 {
@@ -922,7 +923,7 @@ namespace ClassicUO.Game.UI.Controls
                 base.OnMouseDown(x, y, button);
             }
 
-            protected override void OnMouseUp(int x, int y, MouseButtonType button)
+            public override void OnMouseUp(int x, int y, MouseButtonType button)
             {
                 if (button == MouseButtonType.Left)
                 {
@@ -932,7 +933,7 @@ namespace ClassicUO.Game.UI.Controls
                 base.OnMouseUp(x, y, button);
             }
 
-            protected override void OnMouseOver(int x, int y)
+            public override void OnMouseOver(int x, int y)
             {
                 base.OnMouseOver(x, y);
 
@@ -948,11 +949,12 @@ namespace ClassicUO.Game.UI.Controls
             {
                 _rendererText?.Dispose();
                 _rendererCaret?.Dispose();
+                _placeHolder?.Dispose();
 
                 base.Dispose();
             }
 
-            protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
+            public override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
             {
                 if (!NoSelection && CaretIndex < Text.Length && CaretIndex >= 0 && !char.IsWhiteSpace(Text[CaretIndex]))
                 {

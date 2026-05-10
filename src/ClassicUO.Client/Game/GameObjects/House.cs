@@ -1,48 +1,22 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
-using ClassicUO.Utility.Collections;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.GameObjects
 {
     public sealed class House : IEquatable<uint>
     {
-        public House(uint serial, uint revision, bool isCustom)
+        private readonly World _world;
+        private Dictionary<long, List<Multi>> _spatialIndex = new Dictionary<long, List<Multi>>();
+        private bool _spatialIndexDirty = true;
+
+        public House(World world, uint serial, uint revision, bool isCustom)
         {
+            _world = world;
             Serial = serial;
             Revision = revision;
             IsCustom = isCustom;
@@ -53,17 +27,47 @@ namespace ClassicUO.Game.GameObjects
 
         public Rectangle Bounds;
 
-        public bool Equals(uint other)
-        {
-            return Serial == other;
-        }
+        public bool Equals(uint other) => Serial == other;
 
         public bool IsCustom;
         public uint Revision;
 
-        public IEnumerable<Multi> GetMultiAt(int x, int y)
+        private static long GetSpatialKey(int x, int y) => ((long)x << 32) | (uint)y;
+
+        public void InvalidateSpatialIndex() => _spatialIndexDirty = true;
+
+        private void RebuildSpatialIndex()
         {
-            return Components.Where(s => !s.IsDestroyed && s.X == x && s.Y == y);
+            _spatialIndex.Clear();
+
+            for (int i = 0; i < Components.Count; i++)
+            {
+                Multi m = Components[i];
+                if (m.IsDestroyed)
+                    continue;
+
+                long key = GetSpatialKey(m.X, m.Y);
+                if (!_spatialIndex.TryGetValue(key, out List<Multi> list))
+                {
+                    list = new List<Multi>();
+                    _spatialIndex[key] = list;
+                }
+                list.Add(m);
+            }
+
+            _spatialIndexDirty = false;
+        }
+
+        public IReadOnlyList<Multi> GetMultiAt(int x, int y)
+        {
+            if (_spatialIndexDirty)
+                RebuildSpatialIndex();
+
+            long key = GetSpatialKey(x, y);
+            if (_spatialIndex.TryGetValue(key, out List<Multi> list))
+                return list;
+
+            return Array.Empty<Multi>();
         }
 
         public Multi Add
@@ -77,7 +81,7 @@ namespace ClassicUO.Game.GameObjects
             bool ismovable
         )
         {
-            Multi m = Multi.Create(graphic);
+            var m = Multi.Create(_world, graphic);
             m.Hue = hue;
             m.IsCustom = iscustom;
             m.IsMovable = ismovable;
@@ -86,12 +90,32 @@ namespace ClassicUO.Game.GameObjects
 
             Components.Add(m);
 
+            // Incrementally add to spatial index if it's already built
+            if (!_spatialIndexDirty)
+            {
+                long key = GetSpatialKey(x, y);
+                if (!_spatialIndex.TryGetValue(key, out List<Multi> list))
+                {
+                    list = new List<Multi>();
+                    _spatialIndex[key] = list;
+                }
+                list.Add(m);
+            }
+
+            if (ProfileManager.CurrentProfile.ForceHouseTransparency)
+            {
+                GameObject tile = _world.Map.GetTile(x, y);
+                tile.Hue = ProfileManager.CurrentProfile.ForcedTransparencyHouseTileHue;
+                Multi.ForcedTransparency = ProfileManager.CurrentProfile.ForcedHouseTransparency;
+                m.ForceTransparentHouse = true;
+            }
+
             return m;
         }
 
         public void ClearCustomHouseComponents(CUSTOM_HOUSE_MULTI_OBJECT_FLAGS state)
         {
-            Item item = World.Items.Get(Serial);
+            Item item = _world.Items.Get(Serial);
 
             if (item != null)
             {
@@ -127,6 +151,7 @@ namespace ClassicUO.Game.GameObjects
                     if (component.IsDestroyed)
                     {
                         Components.RemoveAt(i--);
+                        _spatialIndexDirty = true;
                     }
                 }
             }
@@ -134,8 +159,11 @@ namespace ClassicUO.Game.GameObjects
 
         public void Generate(bool recalculate = false, bool pushtotile = true, bool removePreview = false)
         {
-            Item item = World.Items.Get(Serial);
+            Item item = _world.Items.Get(Serial);
             //ClearCustomHouseComponents(0);
+
+            if (recalculate)
+                _spatialIndexDirty = true;
 
             foreach (Multi s in Components)
             {
@@ -164,12 +192,12 @@ namespace ClassicUO.Game.GameObjects
                 }
             }
 
-            World.CustomHouseManager?.GenerateFloorPlace();
+            _world.CustomHouseManager?.GenerateFloorPlace();
         }
 
         public void ClearComponents(bool removeCustomOnly = false)
         {
-            Item item = World.Items.Get(Serial);
+            Item item = _world.Items.Get(Serial);
 
             if (item != null && !item.IsDestroyed)
             {
@@ -187,6 +215,7 @@ namespace ClassicUO.Game.GameObjects
 
                 s.Destroy();
                 Components.RemoveAt(i--);
+                _spatialIndexDirty = true;
             }
 
             //Components.Clear();

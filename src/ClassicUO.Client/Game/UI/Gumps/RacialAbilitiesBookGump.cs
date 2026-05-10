@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
@@ -41,7 +11,7 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class RacialAbilitiesBookGump : Gump
+    public class RacialAbilitiesBookGump : Gump
     {
         private static readonly string[] _humanNames = { "Strong Back", "Tough", "Workhorse", "Jack of All Trades" };
         private static readonly string[] _elfNames =
@@ -58,7 +28,7 @@ namespace ClassicUO.Game.UI.Gumps
         private int _tooltipOffset = 1112198;
         private int _enqueuePage = -1;
 
-        public RacialAbilitiesBookGump(int x, int y) : base(0, 0)
+        public RacialAbilitiesBookGump(World world, int x, int y) : base(world, 0, 0)
         {
             X = x;
             Y = y;
@@ -107,7 +77,7 @@ namespace ClassicUO.Game.UI.Gumps
                     }
 
 
-                    Label text = new Label(ResGumps.Index, false, 0x0288, font: 6) { X = indexX, Y = 10 };
+                    var text = new Label(ResGumps.Index, false, 0x0288, font: 6) { X = indexX, Y = 10 };
                     Add(text, page);
 
                     for (int i = 0; i < abilityOnPage; i++)
@@ -170,7 +140,7 @@ namespace ClassicUO.Game.UI.Gumps
                 bool passive = true;
                 string spellName = GetAbilityName(i, ref passive);
 
-                Label text = new Label
+                var text = new Label
                 (
                     spellName,
                     false,
@@ -194,7 +164,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 ushort graphic = (ushort) (iconStartGraphic + i);
 
-                GumpPic pic = new GumpPic(iconX, 40, graphic, 0)
+                var pic = new GumpPic(iconX, 40, graphic, 0)
                 {
                     LocalSerial = graphic
                 };
@@ -208,7 +178,7 @@ namespace ClassicUO.Game.UI.Gumps
                             return;
                         }
 
-                        RacialAbilityButton gump = new RacialAbilityButton((ushort) ((GumpPic) sender).LocalSerial)
+                        var gump = new RacialAbilityButton(World, (ushort) ((GumpPic) sender).LocalSerial)
                         {
                             X = Mouse.LClickPosition.X - 20,
                             Y = Mouse.LClickPosition.Y - 20
@@ -222,14 +192,14 @@ namespace ClassicUO.Game.UI.Gumps
                     {
                         if ((ushort) ((GumpPic) sender).LocalSerial == 0x5DDA && World.Player.Race == RaceType.GARGOYLE)
                         {
-                            NetClient.Socket.Send_ToggleGargoyleFlying();
+                            AsyncNetClient.Socket.Send_ToggleGargoyleFlying();
                             e.Result = true;
                         }
                     };
                 }
 
                 Add(pic, page1);
-                pic.SetTooltip(ClilocLoader.Instance.GetString(_tooltipOffset + i), 150);
+                pic.SetTooltip(Client.Game.UO.FileManager.Clilocs.GetString(_tooltipOffset + i), 150);
 
                 Add
                 (

@@ -1,47 +1,27 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using ClassicUO.Configuration;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Controls;
+using ClassicUO.Game.UI.Gumps.GridHighLight;
 using ClassicUO.Network;
+using ClassicUO.Network.PacketHandlers.Helpers;
+using ClassicUO.Utility;
 
 namespace ClassicUO.Game.Managers
 {
     public sealed class ObjectPropertiesListManager
     {
         private readonly Dictionary<uint, ItemProperty> _itemsProperties = new Dictionary<uint, ItemProperty>();
+        private World _world;
+
+        public ObjectPropertiesListManager(World world)
+        {
+            _world = world;
+        }
 
         public void Add(uint serial, uint revision, string name, string data, int namecliloc)
         {
@@ -58,19 +38,24 @@ namespace ClassicUO.Game.Managers
             prop.NameCliloc = namecliloc;
 
             EventSink.InvokeOPLOnReceive(null, new OPLEventArgs(serial, name, data));
+
+            Item item = _world.Items.Get(serial);
+            if(item != null)
+                ItemDatabaseManager.Instance.AddOrUpdateItem(item, _world);
         }
 
         public bool Contains(uint serial)
         {
+            if (ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.ForceTooltipsOnOldClients)
+                ForcedTooltipManager.RequestName(_world, serial);
+
             if (_itemsProperties.TryGetValue(serial, out ItemProperty p))
-            {
                 return true; //p.Revision != 0;  <-- revision == 0 can contain the name.
-            }
 
             // if we don't have the OPL of this item, let's request it to the server.
-            // Original client seems asking for OPL when character is not running. 
+            // Original client seems asking for OPL when character is not running.
             // We'll ask OPL when mouse is over an object.
-            PacketHandlers.AddMegaClilocRequest(serial);
+            SharedStore.AddMegaCliLocRequest(serial);
 
             return false;
         }
@@ -125,26 +110,20 @@ namespace ClassicUO.Game.Managers
             return 0;
         }
 
-        public ItemPropertiesData TryGetItemPropertiesData(uint serial)
+        public ItemPropertiesData TryGetItemPropertiesData(World world, uint serial)
         {
             if (Contains(serial))
-                if (World.Items.TryGetValue(serial, out Item item))
-                    return new ItemPropertiesData(item);
+                if (world.Items.TryGetValue(serial, out Item item))
+                    return new ItemPropertiesData(world, item);
             return null;
         }
 
-        public void Remove(uint serial)
-        {
-            _itemsProperties.Remove(serial);
-        }
+        public void Remove(uint serial) => _itemsProperties.Remove(serial);
 
-        public void Clear()
-        {
-            _itemsProperties.Clear();
-        }
+        public void Clear() => _itemsProperties.Clear();
     }
 
-    internal class ItemProperty
+    public class ItemProperty
     {
         public bool IsEmpty => string.IsNullOrEmpty(Name) && string.IsNullOrEmpty(Data);
         public string Data;
@@ -153,10 +132,7 @@ namespace ClassicUO.Game.Managers
         public uint Serial;
         public int NameCliloc;
 
-        public string CreateData(bool extended)
-        {
-            return string.Empty;
-        }
+        public string CreateData(bool extended) => string.Empty;
     }
 
     public class ItemPropertiesData
@@ -169,15 +145,18 @@ namespace ClassicUO.Game.Managers
         public readonly Item item, itemComparedTo;
         public List<SinglePropertyData> singlePropertyData = new List<SinglePropertyData>();
 
-        public ItemPropertiesData(Item item, Item compareTo = null)
+        private World world;
+
+        public ItemPropertiesData(World world, Item item, Item compareTo = null)
         {
             if (item == null)
                 return;
+            this.world = world;
             this.item = item;
             itemComparedTo = compareTo;
 
             serial = item.Serial;
-            if (World.OPL.TryGetNameAndData(item.Serial, out Name, out RawData))
+            if (world.OPL.TryGetNameAndData(item.Serial, out Name, out RawData))
             {
                 Name = Name.Trim();
                 HasData = true;
@@ -213,7 +192,7 @@ namespace ClassicUO.Game.Managers
                 singlePropertyData.Add(new SinglePropertyData(line));
             }
 
-            if(itemComparedTo != null)
+            if (itemComparedTo != null)
             {
                 GenComparisonData();
             }
@@ -221,9 +200,9 @@ namespace ClassicUO.Game.Managers
 
         private void GenComparisonData()
         {
-            if(itemComparedTo == null) return;
+            if (itemComparedTo == null) return;
 
-            ItemPropertiesData itemPropertiesData = new ItemPropertiesData(itemComparedTo);
+            var itemPropertiesData = new ItemPropertiesData(world, itemComparedTo);
             if (itemPropertiesData.HasData)
             {
                 foreach (SinglePropertyData thisItem in singlePropertyData)
@@ -232,12 +211,12 @@ namespace ClassicUO.Game.Managers
                     {
                         if (String.Equals(thisItem.Name, secondItem.Name, StringComparison.InvariantCultureIgnoreCase))
                         {
-                            if (thisItem.FirstValue != -1 && secondItem.FirstValue != -1)
+                            if (thisItem.FirstValue != double.MinValue && secondItem.FirstValue != double.MinValue)
                             {
                                 thisItem.FirstDiff = thisItem.FirstValue - secondItem.FirstValue;
                             }
 
-                            if (thisItem.SecondValue > -1 && secondItem.SecondValue > -1)
+                            if (thisItem.SecondValue > double.MinValue && secondItem.SecondValue > double.MinValue)
                             {
                                 thisItem.SecondDiff = thisItem.SecondValue - secondItem.SecondValue;
                             }
@@ -263,12 +242,12 @@ namespace ClassicUO.Game.Managers
                 bool foundMatch = false;
                 foreach (SinglePropertyData secondItem in comparedTo.singlePropertyData)
                 {
-                    if (String.Equals(thisItem.Name, secondItem.Name, StringComparison.InvariantCultureIgnoreCase))
+                    if (string.Equals(thisItem.Name, secondItem.Name, StringComparison.InvariantCultureIgnoreCase))
                     {
                         foundMatch = true;
                         finalTooltip += thisItem.Name;
 
-                        if (thisItem.FirstValue != -1 && secondItem.FirstValue != -1)
+                        if (thisItem.FirstValue != double.MinValue && secondItem.FirstValue != double.MinValue)
                         {
                             double diff = thisItem.FirstValue - secondItem.FirstValue;
                             finalTooltip += $" {thisItem.FirstValue}";
@@ -278,7 +257,7 @@ namespace ClassicUO.Game.Managers
                             }
                         }
 
-                        if (thisItem.SecondValue > -1 && secondItem.SecondValue > -1)
+                        if (thisItem.SecondValue > double.MinValue && secondItem.SecondValue > double.MinValue)
                         {
                             double diff = thisItem.SecondValue - secondItem.SecondValue;
                             finalTooltip += $" {thisItem.SecondValue}";
@@ -315,8 +294,8 @@ namespace ClassicUO.Game.Managers
         {
             public string OriginalString;
             public string Name = "";
-            public double FirstValue = -1;
-            public double SecondValue = -1;
+            public double FirstValue = double.MinValue;
+            public double SecondValue = double.MinValue;
             public double FirstDiff = 0;
             public double SecondDiff = 0;
 
@@ -324,28 +303,25 @@ namespace ClassicUO.Game.Managers
             {
                 OriginalString = line;
 
-                string pattern = @"(-?\d+(\.)?(\d+)?)";
-                MatchCollection matches = Regex.Matches(line, pattern, RegexOptions.CultureInvariant);
+                // Remove any color tags like /c[#...]
+                string cleaned = RegexHelper.GetRegex(@"/c\[[#a-zA-Z0-9]+\]", RegexOptions.IgnoreCase).Replace(line, "").Replace("/cd", "").Trim();
 
-                Match nameMatch = Regex.Match(line, @"(\D+)");
-                if (nameMatch.Success)
-                {
-                    Name = nameMatch.Value;
-                    //Name = Regex.Replace(Name, "/c[\"?'?(?<color>.*?)\"?'?]", "", RegexOptions.Multiline | RegexOptions.IgnoreCase);
-                    Name = Name.Replace("/cd", "");
-                }
-
-                if (Name.Length < 1)
-                    Name = line;
+                // Extract numbers
+                MatchCollection matches = RegexHelper.GetRegex(@"-?\d+(\.\d+)?").Matches(cleaned);
 
                 if (matches.Count > 0)
                 {
                     double.TryParse(matches[0].Value, out FirstValue);
                     if (matches.Count > 1)
-                    {
                         double.TryParse(matches[1].Value, out SecondValue);
-                    }
                 }
+
+                // Remove all numbers and symbols from the cleaned string to isolate the name
+                Name = RegexHelper.GetRegex(@"[-+]?\d+(\.\d+)?[%]?([- ]*\d+)?", RegexOptions.IgnoreCase).Replace(cleaned, "").Trim();
+
+                // Fallback if something went wrong
+                if (string.IsNullOrWhiteSpace(Name))
+                    Name = line;
             }
 
             public override string ToString()
@@ -355,10 +331,10 @@ namespace ClassicUO.Game.Managers
                 if (Name != null)
                     output += Name;
 
-                if (FirstValue != -1)
+                if (FirstValue != double.MinValue)
                     output += $" {FirstValue}";
 
-                if (SecondValue != -1)
+                if (SecondValue != double.MinValue)
                     output += $" {SecondValue}";
 
                 return output;

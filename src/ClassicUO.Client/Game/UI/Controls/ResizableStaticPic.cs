@@ -19,7 +19,7 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
         public uint Graphic { get { return graphic; } set { graphic = value; } }
-
+        public bool DrawBorder { get; set; }
         public ResizableStaticPic(uint graphic, int width, int height)
         {
             this.graphic = graphic;
@@ -37,12 +37,12 @@ namespace ClassicUO.Game.UI.Controls
                 return false;
             }
 
-            ref readonly var texture = ref Client.Game.Arts.GetArt(graphic);
+            ref readonly SpriteInfo texture = ref Client.Game.UO.Arts.GetArt(graphic);
 
-            Rectangle _rect = Client.Game.Arts.GetRealArtBounds(graphic);
+            Rectangle _rect = Client.Game.UO.Arts.GetRealArtBounds(graphic);
 
-            Point _originalSize = new Point(Width, Height);
-            Point _point = new Point((Width >> 1) - (_originalSize.X >> 1), (Height >> 1) - (_originalSize.Y >> 1));
+            var _originalSize = new Point(Width, Height);
+            var _point = new Point((Width >> 1) - (_originalSize.X >> 1), (Height >> 1) - (_originalSize.Y >> 1));
 
             if (_rect.Width < Width)
             {
@@ -89,6 +89,15 @@ namespace ClassicUO.Game.UI.Controls
                     ),
                     hueVector
                 );
+
+                if (DrawBorder)
+                    batcher.DrawRectangle(
+                        SolidColorTextureCache.GetTexture(Color.Gray),
+                        x, y,
+                        Width - 1,
+                        Height - 1,
+                        ShaderHueTranslator.GetHueVector(hue, false, Alpha)
+                    );
 
                 return true;
             }

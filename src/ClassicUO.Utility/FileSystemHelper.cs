@@ -1,38 +1,11 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
+using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Utility
 {
@@ -55,7 +28,7 @@ namespace ClassicUO.Utility
                 }
             }
 
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
 
             foreach (string part in parts)
             {
@@ -113,6 +86,54 @@ namespace ClassicUO.Utility
                 DirectoryInfo nextTargetSubDir = target.CreateSubdirectory(diSourceSubDir.Name);
 
                 diSourceSubDir.CopyAllTo(nextTargetSubDir);
+            }
+        }
+
+        public static void OpenFileWithDefaultApp(string filePath)
+        {
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    ProcessStartInfo p = new() { FileName = "xdg-open", ArgumentList = { filePath }};
+                    Process.Start(p);
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    ProcessStartInfo p = new() { FileName = "open", ArgumentList = { filePath }};
+                    Process.Start(p);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Error opening file: " + ex.Message);
+            }
+        }
+
+        public static bool OpenLocation(string dirOrFilePath)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(dirOrFilePath);
+                if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+                    return false;
+
+                // This may not be 100% water-tight.
+                // Think this may work better than relying on ton xdg-open for Linux, though.
+                Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true, Verb = "open" });
+
+                // We return a 'true' here to avoid having to wait sync on the UI thread (since async introduces some undue complexity).
+                // Suboptimal but good enough for this case. The same issue is already present in `OpenFileWithDefaultApp` equivalent
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error opening directory '{dirOrFilePath}': {ex.Message}");
+                return false;
             }
         }
     }

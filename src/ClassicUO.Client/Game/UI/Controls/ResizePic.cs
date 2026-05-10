@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -52,7 +22,7 @@ namespace ClassicUO.Game.UI.Controls
 
             for (_maxIndex = 0; _maxIndex < 9; ++_maxIndex)
             {
-                if (Client.Game.Gumps.GetGump((ushort)(Graphic + _maxIndex)).Texture == null)
+                if (Client.Game.UO.Gumps.GetGump((ushort)(Graphic + _maxIndex)).Texture == null)
                 {
                     break;
                 }
@@ -75,15 +45,15 @@ namespace ClassicUO.Game.UI.Controls
             x -= Offset.X;
             y -= Offset.Y;
 
-            var texture0 = GetTexture(0, out var bounds0);
-            var texture1 = GetTexture(1, out var bounds1);
-            var texture2 = GetTexture(2, out var bounds2);
-            var texture3 = GetTexture(3, out var bounds3);
-            var texture4 = GetTexture(4, out var bounds4);
-            var texture5 = GetTexture(5, out var bounds5);
-            var texture6 = GetTexture(6, out var bounds6);
-            var texture7 = GetTexture(7, out var bounds7);
-            var texture8 = GetTexture(8, out var bounds8);
+            Texture2D texture0 = GetTexture(0, out Rectangle bounds0);
+            Texture2D texture1 = GetTexture(1, out Rectangle bounds1);
+            Texture2D texture2 = GetTexture(2, out Rectangle bounds2);
+            Texture2D texture3 = GetTexture(3, out Rectangle bounds3);
+            Texture2D texture4 = GetTexture(4, out Rectangle bounds4);
+            Texture2D texture5 = GetTexture(5, out Rectangle bounds5);
+            Texture2D texture6 = GetTexture(6, out Rectangle bounds6);
+            Texture2D texture7 = GetTexture(7, out Rectangle bounds7);
+            Texture2D texture8 = GetTexture(8, out Rectangle bounds8);
 
             int offsetTop = Math.Max(bounds0.Height, bounds2.Height) - bounds1.Height;
             int offsetBottom = Math.Max(bounds5.Height, bounds7.Height) - bounds6.Height;
@@ -262,7 +232,7 @@ namespace ClassicUO.Game.UI.Controls
                 return false;
             }
 
-            return Client.Game.Gumps.PixelCheck(graphic, x, y);
+            return Client.Game.UO.Gumps.PixelCheck(graphic, x, y);
         }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
@@ -282,15 +252,15 @@ namespace ClassicUO.Game.UI.Controls
 
         private void DrawInternal(UltimaBatcher2D batcher, int x, int y, Vector3 color)
         {
-            var texture0 = GetTexture(0, out var bounds0);
-            var texture1 = GetTexture(1, out var bounds1);
-            var texture2 = GetTexture(2, out var bounds2);
-            var texture3 = GetTexture(3, out var bounds3);
-            var texture4 = GetTexture(4, out var bounds4);
-            var texture5 = GetTexture(5, out var bounds5);
-            var texture6 = GetTexture(6, out var bounds6);
-            var texture7 = GetTexture(7, out var bounds7);
-            var texture8 = GetTexture(8, out var bounds8);
+            Texture2D texture0 = GetTexture(0, out Rectangle bounds0);
+            Texture2D texture1 = GetTexture(1, out Rectangle bounds1);
+            Texture2D texture2 = GetTexture(2, out Rectangle bounds2);
+            Texture2D texture3 = GetTexture(3, out Rectangle bounds3);
+            Texture2D texture4 = GetTexture(4, out Rectangle bounds4);
+            Texture2D texture5 = GetTexture(5, out Rectangle bounds5);
+            Texture2D texture6 = GetTexture(6, out Rectangle bounds6);
+            Texture2D texture7 = GetTexture(7, out Rectangle bounds7);
+            Texture2D texture8 = GetTexture(8, out Rectangle bounds8);
 
             int offsetTop = Math.Max(bounds0.Height, bounds2.Height) - bounds1.Height;
             int offsetBottom = Math.Max(bounds5.Height, bounds7.Height) - bounds6.Height;
@@ -421,7 +391,7 @@ namespace ClassicUO.Game.UI.Controls
                     ++index;
                 }
 
-                ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(
+                ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(
                     (ushort)(Graphic + index)
                 );
 

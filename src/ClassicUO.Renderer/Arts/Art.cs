@@ -1,10 +1,10 @@
 using System;
 using ClassicUO.Assets;
 using ClassicUO.Utility;
-using FontStashSharp;
+using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Renderer.Arts
 {
@@ -12,13 +12,17 @@ namespace ClassicUO.Renderer.Arts
     {
         private readonly SpriteInfo[] _spriteInfos;
         private readonly TextureAtlas _atlas;
-        private readonly PixelPicker _picker = new PixelPicker();
+        private readonly PixelPicker _picker = new PixelPicker(true);
         private readonly Rectangle[] _realArtBounds;
+        private readonly ArtLoader _artLoader;
+        private readonly HuesLoader _huesLoader;
 
-        public Art(GraphicsDevice device)
+        public Art(ArtLoader artLoader, HuesLoader huesLoader, GraphicsDevice device)
         {
+            _artLoader = artLoader;
+            _huesLoader = huesLoader;
             _atlas = new TextureAtlas(device, 4096, 4096, SurfaceFormat.Color);
-            _spriteInfos = new SpriteInfo[ArtLoader.Instance.Entries.Length];
+            _spriteInfos = new SpriteInfo[_artLoader.File.Entries.Length];
             _realArtBounds = new Rectangle[_spriteInfos.Length];
         }
 
@@ -33,16 +37,28 @@ namespace ClassicUO.Renderer.Arts
             if (idx >= _spriteInfos.Length)
                 return ref SpriteInfo.Empty;
 
-            ref var spriteInfo = ref _spriteInfos[idx];
+            ref SpriteInfo spriteInfo = ref _spriteInfos[idx];
 
             if (spriteInfo.Texture == null)
             {
                 ArtInfo artInfo = PNGLoader.Instance.LoadArtTexture(idx);
+                bool loadedFromPNG = artInfo.Pixels != null && !artInfo.Pixels.IsEmpty;
 
-                if (artInfo.Pixels == null || artInfo.Pixels.IsEmpty)
+                if (artInfo.Pixels.IsEmpty)
                 {
-                    artInfo = ArtLoader.Instance.GetArt(idx);
+                    artInfo = _artLoader.GetArt(idx);
                 }
+
+                if (artInfo.Pixels.IsEmpty && idx > 0)
+                {
+                    // Trying to load a texture that does not exist in the client MULs
+                    // Degrading gracefully and only crash if not even the fallback ItemID exists
+                    Log.Error(
+                        $"Texture not found for sprite: idx: {idx}; itemid: {(idx > 0x4000 ? idx - 0x4000 : '-')}"
+                    );
+                    return ref Get(0); // ItemID of "UNUSED" placeholder
+                }
+
                 if (!artInfo.Pixels.IsEmpty)
                 {
                     spriteInfo.Texture = _atlas.AddSprite(
@@ -52,12 +68,18 @@ namespace ClassicUO.Renderer.Arts
                         out spriteInfo.UV
                     );
 
+                    // Clear the pixel cache from PNG Loader since it's now in the atlas
+                    if (loadedFromPNG)
+                    {
+                        PNGLoader.Instance.ClearArtPixelCache(idx);
+                    }
+
                     if (idx > 0x4000)
                     {
                         idx -= 0x4000;
                         _picker.Set(idx, artInfo.Width, artInfo.Height, artInfo.Pixels);
 
-                        var pos1 = 0;
+                        int pos1 = 0;
                         int minX = artInfo.Width,
                             minY = artInfo.Height,
                             maxX = 0,
@@ -94,7 +116,7 @@ namespace ClassicUO.Renderer.Arts
         {
             hotX = hotY = 0;
 
-            var artInfo = ArtLoader.Instance.GetArt((uint)(index + 0x4000));
+            ArtInfo artInfo = _artLoader.GetArt((uint)(index + 0x4000));
 
             if (artInfo.Pixels.IsEmpty)
             {
@@ -103,15 +125,17 @@ namespace ClassicUO.Renderer.Arts
 
             fixed (uint* ptr = artInfo.Pixels)
             {
-                SDL.SDL_Surface* surface = (SDL.SDL_Surface*)
-                    SDL.SDL_CreateRGBSurfaceWithFormatFrom(
-                        (IntPtr)ptr,
-                        artInfo.Width,
-                        artInfo.Height,
-                        32,
-                        4 * artInfo.Width,
-                        SDL.SDL_PIXELFORMAT_ABGR8888
-                    );
+                var surface = (SDL.SDL_Surface*)SDL.SDL_CreateSurfaceFrom(artInfo.Width, artInfo.Height, SDL.SDL_PixelFormat.SDL_PIXELFORMAT_ABGR8888, (IntPtr)ptr, 4 * artInfo.Width);
+                // SDL2:
+                // SDL.SDL_Surface* surface = (SDL.SDL_Surface*)
+                //     SDL.SDL_CreateRGBSurfaceWithFormatFrom(
+                //         (IntPtr)ptr,
+                //         artInfo.Width,
+                //         artInfo.Height,
+                //         32,
+                //         4 * artInfo.Width,
+                //         SDL.SDL_PIXELFORMAT_ABGR8888
+                //     );
 
                 int stride = surface->pitch >> 2;
                 uint* pixels_ptr = (uint*)surface->pixels;
@@ -155,7 +179,14 @@ namespace ClassicUO.Renderer.Arts
                             {
                                 c.PackedValue = *pixels_ptr;
                                 *pixels_ptr =
-                                    HuesLoader.Instance.ApplyHueRgba8888(HuesHelper.Color32To16(*pixels_ptr), customHue);
+                                    _huesLoader.ApplyHueRgba8888(HuesHelper.Color32To16(*pixels_ptr), customHue);
+
+                                     /*HuesHelper.Color16To32(
+                                         _huesLoader.GetColor16(
+                                             HuesHelper.ColorToHue(c),
+                                             customHue
+                                         )
+                                     ) | 0xFF_00_00_00;*/
                             }
                         }
 

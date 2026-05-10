@@ -1,34 +1,5 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
 
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
@@ -44,10 +15,11 @@ using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Xml;
+using ClassicUO.Common.Enums;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class SpellbookGump : Gump
+    public class SpellbookGump : Gump
     {
         private DataBox _dataBox;
         private HitBox _hitBox;
@@ -62,14 +34,14 @@ namespace ClassicUO.Game.UI.Gumps
 
         public SpellBookType SpellBookType => _spellBookType;
 
-        public SpellbookGump(uint item) : this()
+        public SpellbookGump(World world, uint item) : this(world)
         {
             LocalSerial = item;
 
             BuildGump();
         }
 
-        public SpellbookGump() : base(0, 0)
+        public SpellbookGump(World world) : base(world, 0, 0)
         {
             CanMove = true;
             AcceptMouseInput = false;
@@ -120,9 +92,9 @@ namespace ClassicUO.Game.UI.Gumps
         {
             base.Restore(xml);
 
-            Client.Game.GetScene<GameScene>().DoubleClickDelayed(LocalSerial);
-
             Dispose();
+
+            ObjectActionQueue.Instance.Enqueue(ObjectActionQueueItem.DoubleClick(LocalSerial), ActionPriority.UseItem);
         }
 
         private void BuildGump()
@@ -230,7 +202,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             for (LinkedObject i = item.Items; i != null; i = i.Next)
             {
-                Item spell = (Item)i;
+                var spell = (Item)i;
                 int currentCount = spell.Amount;
 
                 if (currentCount > 0 && currentCount <= maxSpellsCount)
@@ -338,9 +310,12 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 for (int j = 0; j < 2; j++)
                 {
-                    if (page == 1 && _spellBookType == SpellBookType.Chivalry)
+                    if (page == 1
+                        && (Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine
+                            ? _spellBookType == SpellBookType.Chivalry || _spellBookType == SpellBookType.Cleric
+                            : _spellBookType == SpellBookType.Chivalry))
                     {
-                        Label label = new Label(
+                        var label = new Label(
                             ResGumps.TithingPointsAvailable + World.Player.TithingPoints,
                             false,
                             0x0288,
@@ -364,7 +339,7 @@ namespace ClassicUO.Game.UI.Gumps
                         dataX = 225;
                     }
 
-                    Label text = new Label(ResGumps.Index, false, 0x0288, font: 6)
+                    var text = new Label(ResGumps.Index, false, 0x0288, font: 6)
                     {
                         X = indexX,
                         Y = 10
@@ -431,7 +406,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                                                 int iconMY = 55 + 44 * k;
 
-                                                GumpPic icon = new GumpPic(
+                                                var icon = new GumpPic(
                                                     225,
                                                     iconMY,
                                                     iconGraphic,
@@ -456,7 +431,7 @@ namespace ClassicUO.Game.UI.Gumps
                                                 if (toolTipCliloc > 0)
                                                 {
                                                     string tooltip =
-                                                        ClilocLoader.Instance.GetString(
+                                                        Client.Game.UO.FileManager.Clilocs.GetString(
                                                             toolTipCliloc + id
                                                         );
 
@@ -646,7 +621,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     case SpellBookType.Magery:
                         {
-                            Label text = new Label(
+                            var text = new Label(
                                 SpellsMagery.CircleNames[i >> 3],
                                 false,
                                 0x0288,
@@ -684,7 +659,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                     case SpellBookType.Mastery:
                         {
-                            Label text = new Label(
+                            var text = new Label(
                                 SpellsMastery.GetMasteryGroupByID(i + 1),
                                 false,
                                 0x0288,
@@ -726,7 +701,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                     default:
                         {
-                            Label text = new Label(name, false, 0x0288, font: 6)
+                            var text = new Label(name, false, 0x0288, font: 6)
                             {
                                 X = topTextX,
                                 Y = topTextY
@@ -752,7 +727,7 @@ namespace ClassicUO.Game.UI.Gumps
                 ushort iconGraphic;
                 int toolTipCliloc;
 
-                var spellDef = GetSpellDefinition(iconSerial);
+                SpellDefinition spellDef = GetSpellDefinition(iconSerial);
                 if (_spellBookType == SpellBookType.Mastery)
                 {
                     iconGraphic = (ushort)SpellsMastery.GetSpell(i + 1).GumpIconID;
@@ -765,7 +740,8 @@ namespace ClassicUO.Game.UI.Gumps
                     GetSpellToolTip(out toolTipCliloc);
                 }
 
-                HueGumpPic icon = new HueGumpPic(
+                var icon = new HueGumpPic(
+                    this,
                     iconX,
                     40,
                     iconGraphic,
@@ -781,7 +757,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (toolTipCliloc > 0)
                 {
-                    string tooltip = ClilocLoader.Instance.GetString(toolTipCliloc + i);
+                    string tooltip = Client.Game.UO.FileManager.Clilocs.GetString(toolTipCliloc + i);
                     icon.SetTooltip(tooltip, 250);
                 }
 
@@ -797,7 +773,7 @@ namespace ClassicUO.Game.UI.Gumps
                         _dataBox.Add(new GumpPicTiled(iconX, 88, 120, 5, 0x0835), page1);
                     }
 
-                    Label text = new Label(ResGumps.Reagents, false, 0x0288, font: 6)
+                    var text = new Label(ResGumps.Reagents, false, 0x0288, font: 6)
                     {
                         X = iconX,
                         Y = 92
@@ -814,7 +790,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     GetSpellRequires(i, out int requiriesY, out string requires);
 
-                    Label text = new Label(requires, false, 0x0288, font: 6)
+                    var text = new Label(requires, false, 0x0288, font: 6)
                     {
                         X = iconX,
                         Y = requiriesY
@@ -872,7 +848,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             GetSpellFloatingButton(def.ID)?.Dispose();
 
-            UseSpellButtonGump gump = new UseSpellButtonGump(def)
+            var gump = new UseSpellButtonGump(World, def)
             {
                 X = Mouse.LClickPosition.X - 22,
                 Y = Mouse.LClickPosition.Y - 22
@@ -884,7 +860,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private static UseSpellButtonGump GetSpellFloatingButton(int id)
         {
-            for (LinkedListNode<Gump> i = UIManager.Gumps.Last; i != null; i = i.Previous)
+            for (LinkedListNode<IGui> i = UIManager.Gumps.Last; i != null; i = i.Previous)
             {
                 if (i.Value is UseSpellButtonGump g && g.SpellID == id)
                 {
@@ -952,6 +928,15 @@ namespace ClassicUO.Game.UI.Gumps
 
                 case SpellBookType.Mastery:
                     def = SpellsMastery.GetSpell(idx);
+
+                    break;
+
+                case SpellBookType.Druidic when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    def = SpellsDruid.GetSpell(idx);
+
+                    break;
+                case SpellBookType.Cleric when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    def = SpellsCleric.GetSpell(idx);
 
                     break;
             }
@@ -1035,6 +1020,20 @@ namespace ClassicUO.Game.UI.Gumps
                     iconStartGraphic = 0x945;
 
                     break;
+
+                case SpellBookType.Druidic when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    maxSpellsCount = SpellsDruid.MaxSpellCount;
+                    bookGraphic = 0x2B18;
+                    minimizedGraphic = 0x2B2D;
+                    iconStartGraphic = 0x5A2A;
+                    break;
+
+                case SpellBookType.Cleric when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    maxSpellsCount = SpellsCleric.MaxSpellCount;
+                    bookGraphic = 0x2B0E;
+                    minimizedGraphic = 0x2B0C;
+                    iconStartGraphic = 0x59EC;
+                    break;
             }
 
             spellsOnPage = Math.Min(maxSpellsCount >> 1, 8);
@@ -1087,6 +1086,16 @@ namespace ClassicUO.Game.UI.Gumps
 
                 case SpellBookType.Mastery:
                     offset = 0;
+
+                    break;
+
+                case SpellBookType.Druidic when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    offset = 1136632;
+
+                    break;
+
+                case SpellBookType.Cleric when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    offset = 1136654;
 
                     break;
 
@@ -1168,6 +1177,22 @@ namespace ClassicUO.Game.UI.Gumps
                     name = def.Name;
                     abbreviature = def.PowerWords;
                     reagents = def.CreateReagentListString("\n");
+
+                    break;
+
+                case SpellBookType.Druidic when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    def = SpellsDruid.GetSpell(offset + 1);
+                    name = def.Name;
+                    abbreviature = def.PowerWords;
+                    reagents = def.CreateReagentListString("\n");
+
+                    break;
+
+                case SpellBookType.Cleric when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    def = SpellsCleric.GetSpell(offset + 1);
+                    name = def.Name;
+                    abbreviature = def.PowerWords;
+                    reagents = string.Empty;
 
                     break;
             }
@@ -1264,6 +1289,20 @@ namespace ClassicUO.Game.UI.Gumps
                     }
 
                     return;
+
+                case SpellBookType.Druidic when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    def = SpellsDruid.GetSpell(offset + 1);
+                    manaCost = def.ManaCost;
+                    minSkill = def.MinSkill;
+
+                    break;
+
+                case SpellBookType.Cleric when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    def = SpellsCleric.GetSpell(offset + 1);
+                    manaCost = def.ManaCost;
+                    minSkill = def.MinSkill;
+
+                    break;
             }
 
             text = string.Format(ResGumps.ManaCost0MinSkill1, manaCost, minSkill);
@@ -1399,6 +1438,14 @@ namespace ClassicUO.Game.UI.Gumps
                     _spellBookType = SpellBookType.Mastery;
 
                     break;
+                case 0xCE3A when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    _spellBookType = SpellBookType.Druidic;
+
+                    break;
+                case 0xCE3B when Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine:
+                    _spellBookType = SpellBookType.Cleric;
+
+                    break;
             }
         }
 
@@ -1460,6 +1507,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private class HueGumpPic : GumpPic
         {
+            private readonly SpellbookGump _gump;
             private readonly MacroManager _mm;
             private readonly ushort _spellID;
             private readonly string _spellName;
@@ -1471,6 +1519,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Keyboard.Ctrl && Keyboard.Alt && ProfileManager.CurrentProfile.FastSpellsAssign;
 
             public HueGumpPic(
+                SpellbookGump gump,
                 int x,
                 int y,
                 ushort graphic,
@@ -1479,17 +1528,18 @@ namespace ClassicUO.Game.UI.Gumps
                 string spellName
             ) : base(x, y, graphic, hue)
             {
+                _gump = gump;
                 _spellID = spellID;
                 _spellName = spellName;
 
-                _mm = Client.Game.GetScene<GameScene>().Macros;
+                _mm = gump.World.Macros;
             }
 
             public override void Update()
             {
                 base.Update();
 
-                if (World.ActiveSpellIcons.IsActive(_spellID))
+                if (_gump.World.ActiveSpellIcons.IsActive(_spellID))
                 {
                     Hue = 38;
                 }
@@ -1514,7 +1564,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     Vector3 hueVector = ShaderHueTranslator.GetHueVector(0);
 
-                    ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(0x09CF);
+                    ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(0x09CF);
 
                     if (gumpInfo.Texture != null)
                     {
@@ -1553,11 +1603,11 @@ namespace ClassicUO.Game.UI.Gumps
             /// <param name="x"></param>
             /// <param name="y"></param>
             /// <param name="button"></param>
-            protected override void OnMouseUp(int x, int y, MouseButtonType button)
+            public override void OnMouseUp(int x, int y, MouseButtonType button)
             {
                 if (button == MouseButtonType.Left && ShowEdit)
                 {
-                    Macro mCast = Macro.CreateFastMacro(
+                    var mCast = Macro.CreateFastMacro(
                         _spellName,
                         MacroType.CastSpell,
                         (MacroSubType)GetSpellsId() + SpellBookDefinition.GetSpellsGroup(_spellID)
@@ -1566,7 +1616,7 @@ namespace ClassicUO.Game.UI.Gumps
                     {
                         _mm.MoveToBack(mCast);
                     }
-                    GameActions.OpenMacroGump(_spellName);
+                    GameActions.OpenMacroGump(_gump.World, _spellName);
                 }
             }
 
@@ -1574,10 +1624,7 @@ namespace ClassicUO.Game.UI.Gumps
             /// Get Spell Id
             /// </summary>
             /// <returns></returns>
-            private int GetSpellsId()
-            {
-                return _spellID % 100;
-            }
+            private int GetSpellsId() => _spellID % 100;
         }
     }
 }

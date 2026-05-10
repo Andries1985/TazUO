@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
@@ -37,16 +7,25 @@ using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
+using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI
 {
-    internal class Tooltip
+    public class Tooltip
     {
         private uint _hash;
         private uint _lastHoverTime;
         private TextBox _textBox;
         private string _textHTML;
+        private readonly World _world;
+        private Item _item;
+
+        public Tooltip(World world)
+        {
+            _world = world;
+        }
+
         private bool _dirty = false;
 
         public static bool IsEnabled = false;
@@ -58,11 +37,23 @@ namespace ClassicUO.Game.UI
 
         public bool IsEmpty => Text == null;
 
-        public uint Serial { get; private set; }
+        public uint Serial
+        {
+            get => field;
+            private set
+            {
+                field = value;
+
+                _item = null;
+
+                if(SerialHelper.IsItem(field))
+                    _item = _world.Items.Get(field);
+            }
+        }
 
         public bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
-            if (SerialHelper.IsValid(Serial) && World.OPL.TryGetRevision(Serial, out uint revision) && _hash != revision)
+            if (SerialHelper.IsValid(Serial) && _world.OPL.TryGetRevision(Serial, out uint revision) && _hash != revision)
             {
                 _hash = revision;
                 Text = ReadProperties(Serial, out _textHTML);
@@ -110,40 +101,49 @@ namespace ClassicUO.Game.UI
                 string finalString = _textHTML;
                 if (SerialHelper.IsItem(Serial))
                 {
-                    finalString = Managers.ToolTipOverrideData.ProcessTooltipText(Serial);
+                    finalString = Managers.ToolTipOverrideData.ProcessTooltipText(_world, Serial);
                     finalString ??= _textHTML;
                 }
 
                 if (string.IsNullOrEmpty(finalString) && !string.IsNullOrEmpty(_textHTML)) //Fix for vendor search
                     finalString = Managers.ToolTipOverrideData.ProcessTooltipText(_textHTML);
 
-                string font = TrueTypeLoader.EMBEDDED_FONT;
-                int fontSize = 15;
+                if (_item?.CustomName.NotNullNotEmpty() == true) //Add custom item name
+                    finalString = $"[{_item.CustomName}]\n" + finalString;
 
-                if (ProfileManager.CurrentProfile != null)
+                if (_textBox == null || _textBox.IsDisposed)
                 {
-                    font = ProfileManager.CurrentProfile.SelectedToolTipFont;
-                    fontSize = ProfileManager.CurrentProfile.SelectedToolTipFontSize;
+                    string font = TrueTypeLoader.EMBEDDED_FONT;
+                    int fontSize = 15;
+
+                    if (ProfileManager.CurrentProfile != null)
+                    {
+                        font = ProfileManager.CurrentProfile.SelectedToolTipFont;
+                        fontSize = ProfileManager.CurrentProfile.SelectedToolTipFontSize;
+                    }
+                    TextBox.RTLOptions tooltipOptions = new() { Align = align, StrokeEffect = true };
+                    _textBox = TextBox.GetOne(TextBox.ConvertHtmlToFontStashSharpCommand(finalString).Trim(), font, fontSize, hue, tooltipOptions);
+
+                    //_textBox.Width = _textBox.MeasuredSize.X + 10;
+                }
+                else
+                {
+                    _textBox.Text = TextBox.ConvertHtmlToFontStashSharpCommand(finalString).Trim();
+                    _textBox.Update(); //For recreating the text to check size below
                 }
 
-                _textBox = new TextBox(
-                    TextBox.ConvertHtmlToFontStashSharpCommand(finalString).Trim(),
-                    font,
-                    fontSize,
-                    600,
-                    hue,
-                    align,
-                    true
-                );
-                _textBox.Width = _textBox.MeasuredSize.X + 10;
                 if (_textBox.Width > 600)
+                {
                     _textBox.Width = 600;
+                    _textBox.Update();
+                }
 
                 IsEnabled = true;
             }
 
             if (_textBox == null || _textBox.IsDisposed)
             {
+                Log.Warn("Textbox should not be null/disposed, but it is.");
                 return false;
             }
 
@@ -176,7 +176,7 @@ namespace ClassicUO.Game.UI
             Vector3 hue_vec = ShaderHueTranslator.GetHueVector(1, false, alpha);
 
             if (ProfileManager.CurrentProfile != null)
-                hue_vec.X = ProfileManager.CurrentProfile.ToolTipBGHue - 1;
+                hue_vec.X = ProfileManager.CurrentProfile.ToolTipBGHue;
 
             batcher.Draw
             (
@@ -224,12 +224,13 @@ namespace ClassicUO.Game.UI
             {
                 uint revision2 = 0;
 
-                if (Serial == 0 || Serial != serial || World.OPL.TryGetRevision(Serial, out uint revision) && World.OPL.TryGetRevision(serial, out revision2) && revision != revision2)
+                if (Serial == 0 || Serial != serial || _world.OPL.TryGetRevision(Serial, out uint revision) && _world.OPL.TryGetRevision(serial, out revision2) && revision != revision2)
                 {
                     Serial = serial;
                     _hash = revision2;
                     Text = ReadProperties(serial, out _textHTML);
                     _textBox?.Dispose();
+                    _textBox = null;
                     _dirty = true;
 
                     _lastHoverTime = (uint)(Time.Ticks + (ProfileManager.CurrentProfile != null ? ProfileManager.CurrentProfile.TooltipDelayBeforeDisplay : 250));
@@ -245,59 +246,56 @@ namespace ClassicUO.Game.UI
             string result = null;
             htmltext = string.Empty;
 
-            if (SerialHelper.IsValid(serial) && World.OPL.TryGetNameAndData(serial, out string name, out string data))
+            if (SerialHelper.IsValid(serial) && _world.OPL.TryGetNameAndData(serial, out string name, out string data))
             {
-                ValueStringBuilder sbHTML = new ValueStringBuilder();
+                var sbHTML = new ValueStringBuilder();
+                var sb = new ValueStringBuilder();
+
+                if (!string.IsNullOrEmpty(name))
                 {
-                    ValueStringBuilder sb = new ValueStringBuilder();
+                    if (SerialHelper.IsItem(serial))
                     {
-                        if (!string.IsNullOrEmpty(name))
+                        sbHTML.Append("/c[yellow]");
+                        hasStartColor = true;
+                    }
+                    else
+                    {
+                        Mobile mob = _world.Mobiles.Get(serial);
+
+                        if (mob != null)
                         {
-                            if (SerialHelper.IsItem(serial))
-                            {
-                                sbHTML.Append("<basefont color=\"yellow\">");
-                                hasStartColor = true;
-                            }
-                            else
-                            {
-                                Mobile mob = World.Mobiles.Get(serial);
-
-                                if (mob != null)
-                                {
-                                    sbHTML.Append(Notoriety.GetHTMLHue(mob.NotorietyFlag));
-                                    hasStartColor = true;
-                                }
-                            }
-
-                            sb.Append(name);
-                            sbHTML.Append(name);
-
-                            if (hasStartColor)
-                            {
-                                sbHTML.Append("<basefont color=\"#FFFFFFFF\">");
-                            }
+                            sbHTML.Append(Notoriety.GetHTMLHue(mob.NotorietyFlag));
+                            hasStartColor = true;
                         }
+                    }
 
-                        if (!string.IsNullOrEmpty(data))
-                        {
-                            sb.Append('\n');
-                            sb.Append(data);
-                            sbHTML.Append('\n');
-                            sbHTML.Append(data);
-                        }
+                    sb.Append(name);
+                    sbHTML.Append(name);
 
-                        htmltext = sbHTML.ToString();
-                        result = sb.ToString();
-
-                        sb.Dispose();
-                        sbHTML.Dispose();
+                    if (hasStartColor)
+                    {
+                        sbHTML.Append("/c[#ffffff]");
                     }
                 }
+
+                if (!string.IsNullOrEmpty(data))
+                {
+                    sb.Append('\n');
+                    sb.Append(data);
+                    sbHTML.Append('\n');
+                    sbHTML.Append(data);
+                }
+
+                htmltext = sbHTML.ToString();
+                result = sb.ToString();
+
+                sb.Dispose();
+                sbHTML.Dispose();
             }
             return string.IsNullOrEmpty(result) ? null : result;
         }
 
-        public void SetText(string text, int maxWidth = 0)
+        public void SetText(string text)
         {
             if (ProfileManager.CurrentProfile != null && !ProfileManager.CurrentProfile.UseTooltip)
             {
@@ -305,14 +303,17 @@ namespace ClassicUO.Game.UI
             }
 
             Serial = 0;
+
             Text = _textHTML = text;
 
             _dirty = true;
 
-            _lastHoverTime = (uint)(Time.Ticks + (ProfileManager.CurrentProfile != null ? ProfileManager.CurrentProfile.TooltipDelayBeforeDisplay : 250));
 
             _textBox?.Dispose();
             _textBox = null;
+
+            _lastHoverTime = (uint)(Time.Ticks + (ProfileManager.CurrentProfile != null ? ProfileManager.CurrentProfile.TooltipDelayBeforeDisplay : 250));
+
         }
     }
 }

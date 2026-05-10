@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -40,12 +10,16 @@ namespace ClassicUO.Utility
     public static class Profiler
     {
         public const int ProfileTimeCount = 60;
+        public const double SpikeThresholdMultiplier = 3.0;
+        public const double MinimumTimeForSpikeDetection = 2.0;
         private static readonly List<ContextAndTick> m_Context;
         private static readonly List<Tuple<string[], double>> m_ThisFrameData;
         private static readonly List<ProfileData> m_AllFrameData;
         private static readonly ProfileData m_TotalTimeData;
         private static readonly Stopwatch _timer;
         private static long m_BeginFrameTicks;
+
+        public static List<ProfileData> AllFrameData => m_AllFrameData;
 
         static Profiler()
         {
@@ -62,6 +36,7 @@ namespace ClassicUO.Utility
 
         public static bool Enabled = false;
 
+        [Conditional("DEBUG")]
         public static void BeginFrame()
         {
             if (!Enabled)
@@ -98,6 +73,7 @@ namespace ClassicUO.Utility
             m_BeginFrameTicks = _timer.ElapsedTicks;
         }
 
+        [Conditional("DEBUG")]
         public static void EndFrame()
         {
             if (!Enabled)
@@ -109,6 +85,7 @@ namespace ClassicUO.Utility
             m_TotalTimeData.AddNewHitLength(LastFrameTimeMS);
         }
 
+        [Conditional("DEBUG")]
         public static void EnterContext(string context_name)
         {
             if (!Enabled)
@@ -119,16 +96,19 @@ namespace ClassicUO.Utility
             m_Context.Add(new ContextAndTick(context_name, _timer.ElapsedTicks));
         }
 
-        public static void ExitContext(string context_name)
+        [Conditional("DEBUG")]
+        public static void ExitContext(string context_name, bool errorNotInContext = false)
         {
             if (!Enabled)
             {
                 return;
             }
 
-            if (m_Context[m_Context.Count - 1].Name != context_name)
+            if (m_Context.Count == 0 || m_Context[m_Context.Count - 1].Name != context_name)
             {
-                Log.Error("Profiler.ExitProfiledContext: context_name does not match current context.");
+                if(errorNotInContext)
+                    Log.Error("Profiler.ExitProfiledContext: context_name does not match current context.");
+                return;
             }
 
             string[] context = new string[m_Context.Count];
@@ -230,6 +210,19 @@ namespace ClassicUO.Utility
 
             public void AddNewHitLength(double time)
             {
+                if (m_LastIndex >= ProfileTimeCount && time >= MinimumTimeForSpikeDetection)
+                {
+                    double currentAverage = AverageTime;
+                    if (time > currentAverage * SpikeThresholdMultiplier)
+                    {
+                        string contextName = Context != null ? string.Join(":", Context) : "Unknown";
+                        if(time < 20)
+                            Log.Warn($"Performance spike detected in '{contextName}': {time:F2}ms (avg: {currentAverage:F2}ms, threshold: {currentAverage * SpikeThresholdMultiplier:F2}ms)");
+                        else
+                            Log.Error($"Major spike detected in '{contextName}': {time:F2}ms (avg: {currentAverage:F2}ms, threshold: {currentAverage * SpikeThresholdMultiplier:F2}ms)");
+                    }
+                }
+
                 m_LastTimes[m_LastIndex % ProfileTimeCount] = time;
                 m_LastIndex++;
             }
@@ -263,10 +256,7 @@ namespace ClassicUO.Utility
                 Tick = tick;
             }
 
-            public override string ToString()
-            {
-                return string.Format("{0} [{1}]", Name, Tick);
-            }
+            public override string ToString() => string.Format("{0} [{1}]", Name, Tick);
         }
     }
 }

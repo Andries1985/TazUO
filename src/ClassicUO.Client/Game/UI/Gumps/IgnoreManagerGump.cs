@@ -2,6 +2,7 @@
 using System.Linq;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.Scenes;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using ClassicUO.Resources;
@@ -10,7 +11,7 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal sealed class IgnoreManagerGump : Gump
+    public sealed class IgnoreManagerGump : Gump
     {
         private const ushort HUE_FONT = 0xFFFF;
         private const ushort BACKGROUND_COLOR = 999;
@@ -29,7 +30,7 @@ namespace ClassicUO.Game.UI.Gumps
             ADD_NEW_IGNORE,
         }
 
-        public IgnoreManagerGump() : base(0, 0)
+        public IgnoreManagerGump(World world) : base(world, 0, 0)
         {
             CanMove = true;
 
@@ -98,7 +99,7 @@ namespace ClassicUO.Game.UI.Gumps
             );
             #endregion
 
-            var initY = _gumpPosY + 10;
+            int initY = _gumpPosY + 10;
 
             #region Legend
 
@@ -139,10 +140,10 @@ namespace ClassicUO.Game.UI.Gumps
         public override void Dispose()
         {
             if (_isListModified)
-                IgnoreManager.SaveIgnoreList();
+                World.IgnoreManager.SaveIgnoreList();
 
-            if (TargetManager.IsTargeting)
-                TargetManager.CancelTarget();
+            if (World.TargetManager.IsTargeting)
+                World.TargetManager.CancelTarget();
 
             base.Dispose();
         }
@@ -158,8 +159,8 @@ namespace ClassicUO.Game.UI.Gumps
                 true
             );
 
-            var y = 0;
-            foreach (IgnoreListControl element in IgnoreManager.IgnoredCharsList.Select(m => new IgnoreListControl(m) { Y = y }))
+            int y = 0;
+            foreach (IgnoreListControl element in World.IgnoreManager.IgnoredCharsList.Select(m => new IgnoreListControl(this, m) { Y = y }))
             {
                 element.RemoveMarkerEvent += MarkerRemoveEventHandler;
 
@@ -175,10 +176,7 @@ namespace ClassicUO.Game.UI.Gumps
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void MarkerRemoveEventHandler(object sender, EventArgs e)
-        {
-            Redraw();
-        }
+        private void MarkerRemoveEventHandler(object sender, EventArgs e) => Redraw();
 
         /// <summary>
         /// Redraw ignored list
@@ -200,7 +198,7 @@ namespace ClassicUO.Game.UI.Gumps
             switch (buttonId)
             {
                 case (int)ButtonsId.ADD_NEW_IGNORE:
-                    TargetManager.SetTargeting(CursorTarget.IgnorePlayerTarget, CursorType.Target, TargetType.Neutral);
+                    World.TargetManager.SetTargeting(CursorTarget.IgnorePlayerTarget, CursorType.Target, TargetType.Neutral);
                     break;
             }
         }
@@ -210,9 +208,11 @@ namespace ClassicUO.Game.UI.Gumps
             private readonly string _chName;
 
             public event EventHandler RemoveMarkerEvent;
+            private readonly IgnoreManagerGump _gump;
 
-            public IgnoreListControl(string chName)
+            public IgnoreListControl(IgnoreManagerGump gump, string chName)
             {
+                _gump = gump;
                 CanMove = true;
                 AcceptMouseInput = false;
                 CanCloseWithRightClick = true;
@@ -225,7 +225,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             public override void OnButtonClick(int buttonId)
             {
-                IgnoreManager.RemoveIgnoredTarget(_chName);
+                _gump.World.IgnoreManager.RemoveIgnoredTarget(_chName);
                 RemoveMarkerEvent.Raise();
             }
         }

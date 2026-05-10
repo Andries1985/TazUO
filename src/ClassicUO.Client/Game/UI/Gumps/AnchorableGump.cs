@@ -1,39 +1,8 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
 using ClassicUO.Input;
-using ClassicUO.Assets;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -58,7 +27,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         const ushort LOCK_GRAPHIC = 0x082C;
 
-        protected AnchorableGump(uint local, uint server) : base(local, server) { }
+        protected AnchorableGump(World world, uint local, uint server) : base(world, local, server) { }
 
         public ANCHOR_TYPE AnchorType { get; set; }
         public virtual int GroupMatrixWidth { get; protected set; }
@@ -85,7 +54,7 @@ namespace ClassicUO.Game.UI.Gumps
             base.OnMove(x, y);
         }
 
-        protected override void OnMouseDown(int x, int y, MouseButtonType button)
+        public override void OnMouseDown(int x, int y, MouseButtonType button)
         {
             UIManager.AnchorManager[this]?.MakeTopMost();
 
@@ -95,7 +64,7 @@ namespace ClassicUO.Game.UI.Gumps
             base.OnMouseDown(x, y, button);
         }
 
-        protected override void OnMouseOver(int x, int y)
+        public override void OnMouseOver(int x, int y)
         {
             if (!IsDisposed && UIManager.IsDragging && UIManager.DraggingControl == this && AnchorType != ANCHOR_TYPE.DISABLED)
             {
@@ -129,11 +98,11 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
-        protected override void OnMouseUp(int x, int y, MouseButtonType button)
+        public override void OnMouseUp(int x, int y, MouseButtonType button)
         {
             if (button == MouseButtonType.Left && ShowLock)
             {
-                ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(LOCK_GRAPHIC);
+                ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(LOCK_GRAPHIC);
                 if (gumpInfo.Texture != null)
                 {
                     if (
@@ -160,7 +129,7 @@ namespace ClassicUO.Game.UI.Gumps
             if (ShowLock)
             {
                 hueVector = ShaderHueTranslator.GetHueVector(0);
-                ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(LOCK_GRAPHIC);
+                ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(LOCK_GRAPHIC);
 
                 if (gumpInfo.Texture != null)
                 {
@@ -231,7 +200,7 @@ namespace ClassicUO.Game.UI.Gumps
             return true;
         }
 
-        protected override void CloseWithRightClick()
+        public override void CloseWithRightClick()
         {
             if (
                 UIManager.AnchorManager[this] == null

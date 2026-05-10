@@ -1,74 +1,71 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#endregion
-
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Utility;
+using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
-using System.Collections.Generic;
-using System.IO;
 
 namespace ClassicUO.Game.Managers
 {
-    internal static class ContainerManager
+    public sealed class ContainerManager
     {
-        private static readonly Dictionary<ushort, ContainerData> _data =
-            new Dictionary<ushort, ContainerData>();
+        // Named constants for magic numbers
+        private const int DEFAULT_CONTAINER_OFFSET = 40;
+        private const int FALLBACK_CONTAINER_BOUNDS_LEFT = 44;
+        private const int FALLBACK_CONTAINER_BOUNDS_TOP = 65;
+        private const int FALLBACK_CONTAINER_BOUNDS_WIDTH = 186;
+        private const int FALLBACK_CONTAINER_BOUNDS_HEIGHT = 159;
 
-        static ContainerManager()
+        private readonly ConcurrentDictionary<ushort, ContainerData> _data = new();
+
+        private readonly World _world;
+
+        public ContainerManager(World world)
         {
-            BuildContainerFile(false);
+            _world = world;
+
+            if (Settings.GlobalSettings.UltimaOnlineDirectory.NotNullNotEmpty())
+                BuildContainerFile(false, Path.GetFullPath(Settings.GlobalSettings.UltimaOnlineDirectory)); //Use UO folder for containers.txt if it exists
+
+            if(_data.IsEmpty) //Only use default if uo folder doesn't have containers.txt
+                BuildContainerFile(false);
         }
 
-        public static int DefaultX { get; } = 40;
-        public static int DefaultY { get; } = 40;
+        public int DefaultX { get; } = DEFAULT_CONTAINER_OFFSET;
+        public int DefaultY { get; } = DEFAULT_CONTAINER_OFFSET;
 
-        public static int X { get; private set; } = 40;
-        public static int Y { get; private set; } = 40;
+        public int X { get; private set; } = DEFAULT_CONTAINER_OFFSET;
+        public int Y { get; private set; } = DEFAULT_CONTAINER_OFFSET;
 
-        public static ContainerData Get(ushort graphic)
+        public ContainerData Get(ushort graphic)
         {
             //if the server requests for a non present gump in container data dictionary, create it, but without any particular sound.
             if (!_data.TryGetValue(graphic, out ContainerData value))
             {
-                _data[graphic] = value = new ContainerData(graphic, 0, 0, 44, 65, 186, 159);
+                value = new ContainerData(
+                    graphic,
+                    0,
+                    0,
+                    FALLBACK_CONTAINER_BOUNDS_LEFT,
+                    FALLBACK_CONTAINER_BOUNDS_TOP,
+                    FALLBACK_CONTAINER_BOUNDS_WIDTH,
+                    FALLBACK_CONTAINER_BOUNDS_HEIGHT
+                );
+                _data[graphic] = value;
             }
 
             return value;
         }
 
-        public static void CalculateContainerPosition(uint serial, ushort g)
+        public void CalculateContainerPosition(uint serial, ushort g)
         {
             if (UIManager.GetGumpCachePosition(serial, out Point location))
             {
@@ -77,7 +74,7 @@ namespace ClassicUO.Game.Managers
             }
             else
             {
-                ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(g);
+                ref readonly Renderer.SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(g);
 
                 if (gumpInfo.Texture != null)
                 {
@@ -192,38 +189,38 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        private static void SetPositionNearGameObject(ushort g, uint serial, int width, int height)
+        private void SetPositionNearGameObject(ushort g, uint serial, int width, int height)
         {
-            Item item = World.Items.Get(serial);
+            Item item = _world.Items.Get(serial);
 
-            if (item == null)
+            if (item == null || _world.Player == null)
             {
                 return;
             }
 
-            Item bank = World.Player.FindItemByLayer(Layer.Bank);
-            var camera = Client.Game.Scene.Camera;
+            Item bank = _world.Player.FindItemByLayer(Layer.Bank);
+            Renderer.Camera camera = Client.Game.Scene.Camera;
 
             if (bank != null && serial == bank)
             {
                 // open bank near player
-                X = World.Player.RealScreenPosition.X + camera.Bounds.X + 40;
-                Y = World.Player.RealScreenPosition.Y + camera.Bounds.Y - (height >> 1);
+                X = _world.Player.RealScreenPosition.X + camera.Bounds.X + DEFAULT_CONTAINER_OFFSET;
+                Y = _world.Player.RealScreenPosition.Y + camera.Bounds.Y - (height >> 1);
             }
             else if (item.OnGround)
             {
                 // item is in world
-                X = item.RealScreenPosition.X + camera.Bounds.X + 40;
+                X = item.RealScreenPosition.X + camera.Bounds.X + DEFAULT_CONTAINER_OFFSET;
                 Y = item.RealScreenPosition.Y + camera.Bounds.Y - (height >> 1);
             }
             else if (SerialHelper.IsMobile(item.Container))
             {
                 // pack animal, snooped player, npc vendor
-                Mobile mobile = World.Mobiles.Get(item.Container);
+                Mobile mobile = _world.Mobiles.Get(item.Container);
 
                 if (mobile != null)
                 {
-                    X = mobile.RealScreenPosition.X + camera.Bounds.X + 40;
+                    X = mobile.RealScreenPosition.X + camera.Bounds.X + DEFAULT_CONTAINER_OFFSET;
                     Y = mobile.RealScreenPosition.Y + camera.Bounds.Y - (height >> 1);
                 }
             }
@@ -240,53 +237,72 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public static void BuildContainerFile(bool force)
+        public void BuildContainerFile(bool force, string? fromPath = null)
         {
             string path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Client");
 
-            if (!Directory.Exists(path))
-            {
-                Directory.CreateDirectory(path);
-            }
+            if (fromPath == null && !Directory.Exists(path)) Directory.CreateDirectory(path); //Only create default dir, not custom fromPath dir.
 
-            path = Path.Combine(path, "containers.txt");
+            path = fromPath != null ? Path.Combine(fromPath, "containers.txt") : Path.Combine(path, "containers.txt");
 
+            // If file doesn't exist or force rebuild, create default data and write to file
             if (!File.Exists(path) || force)
             {
+                if (fromPath != null) return;//Return early, we don't want the default containers file in other locations.
+
                 MakeDefault();
 
-                using (var stream = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite))
-                using (var writer = new StreamWriter(stream))
+                try
                 {
-                    writer.WriteLine("# FORMAT");
-
-                    writer.WriteLine(
-                        "# GRAPHIC OPEN_SOUND_ID CLOSE_SOUND_ID LEFT TOP RIGHT BOTTOM ICONIZED_GRAPHIC [0 if not exists] MINIMIZER_AREA_X [0 if not exists] MINIMIZER_AREA_Y [0 if not exists]"
-                    );
-
-                    writer.WriteLine(
-                        "# LEFT = X,  TOP = Y,  RIGHT = X + WIDTH,  BOTTOM = Y + HEIGHT"
-                    );
-                    writer.WriteLine();
-                    writer.WriteLine();
-
-                    foreach (KeyValuePair<ushort, ContainerData> e in _data)
+                    using (var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
+                    using (var writer = new StreamWriter(stream))
                     {
+                        writer.WriteLine("# FORMAT");
                         writer.WriteLine(
-                            $"{e.Value.Graphic} {e.Value.OpenSound} {e.Value.ClosedSound} {e.Value.Bounds.X} {e.Value.Bounds.Y} {e.Value.Bounds.Width} {e.Value.Bounds.Height} {e.Value.IconizedGraphic} {e.Value.MinimizerArea.X} {e.Value.MinimizerArea.Y}"
+                            "# GRAPHIC OPEN_SOUND_ID CLOSE_SOUND_ID LEFT TOP RIGHT BOTTOM ICONIZED_GRAPHIC [0 if not exists] MINIMIZER_AREA_X [0 if not exists] MINIMIZER_AREA_Y [0 if not exists]"
                         );
+                        writer.WriteLine(
+                            "# LEFT = X,  TOP = Y,  RIGHT = X + WIDTH,  BOTTOM = Y + HEIGHT"
+                        );
+                        writer.WriteLine();
+                        writer.WriteLine();
+
+                        foreach (KeyValuePair<ushort, ContainerData> e in _data)
+                        {
+                            writer.WriteLine(
+                                $"{e.Value.Graphic} {e.Value.OpenSound} {e.Value.ClosedSound} {e.Value.Bounds.X} {e.Value.Bounds.Y} {e.Value.Bounds.Width} {e.Value.Bounds.Height} {e.Value.IconizedGraphic} {e.Value.MinimizerArea.X} {e.Value.MinimizerArea.Y}"
+                            );
+                        }
                     }
                 }
+                catch (IOException ex)
+                {
+                    // If file creation fails (e.g., another process is writing), we still have the defaults in memory
+                    Log.Warn($"Unable to write containers.txt, using defaults: {ex.Message}");
+                }
+
+                // Data is already in _data from MakeDefault(), no need to read file
+                return;
             }
 
+            // File exists and no force rebuild, read from file
             _data.Clear();
 
-            TextFileParser containersParser = new TextFileParser(
-                File.ReadAllText(path),
+            string c;
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var reader = new StreamReader(stream))
+            {
+                c = reader.ReadToEnd();
+            }
+
+            var containersParser = new TextFileParser(
+                c,
                 new[] { ' ', '\t', ',' },
                 new[] { '#', ';' },
                 new[] { '"', '"' }
             );
+
+            int line = 0;
 
             while (!containersParser.IsEOF())
             {
@@ -295,55 +311,63 @@ namespace ClassicUO.Game.Managers
                 if (ss != null && ss.Count != 0)
                 {
                     if (
-                        ushort.TryParse(ss[0], out ushort graphic)
-                        && ushort.TryParse(ss[1], out ushort open_sound_id)
-                        && ushort.TryParse(ss[2], out ushort close_sound_id)
+                        ss.Count >= 7
+                        && ushort.TryParse(ss[0], out ushort graphic)
+                        && ushort.TryParse(ss[1], out ushort openSoundId)
+                        && ushort.TryParse(ss[2], out ushort closeSoundId)
                         && int.TryParse(ss[3], out int x)
                         && int.TryParse(ss[4], out int y)
                         && int.TryParse(ss[5], out int w)
                         && int.TryParse(ss[6], out int h)
                     )
                     {
-                        ushort iconized_graphic = 0;
-                        int minimizer_x = 0,
-                            minimizer_y = 0;
+                        ushort iconizedGraphic = 0;
+                        int minimizerX = 0;
+                        int minimizerY = 0;
 
-                        if (ss.Count >= 8 && ushort.TryParse(ss[7], out iconized_graphic))
+                        if (ss.Count >= 8)
                         {
-                            if (ss.Count >= 9 && int.TryParse(ss[8], out minimizer_x))
-                            {
-                                if (ss.Count >= 10 && int.TryParse(ss[9], out minimizer_y))
-                                {
-                                    // nice!
-                                }
-                            }
+                            ushort.TryParse(ss[7], out iconizedGraphic);
+                        }
+
+                        if (ss.Count >= 9)
+                        {
+                            int.TryParse(ss[8], out minimizerX);
+                        }
+
+                        if (ss.Count >= 10)
+                        {
+                            int.TryParse(ss[9], out minimizerY);
                         }
 
                         _data[graphic] = new ContainerData(
                             graphic,
-                            open_sound_id,
-                            close_sound_id,
+                            openSoundId,
+                            closeSoundId,
                             x,
                             y,
                             w,
                             h,
-                            iconized_graphic,
-                            minimizer_x,
-                            minimizer_y
+                            iconizedGraphic,
+                            minimizerX,
+                            minimizerY
                         );
                     }
+                    else
+                    {
+                        Log.Warn($"Error parsing container data at line {line}: {string.Join(" ", ss)}");
+                    }
                 }
+
+                line++;
             }
         }
 
-        private static void MakeDefault()
+        private void MakeDefault()
         {
             _data.Clear();
-
             _data[0x0007] = new ContainerData(0x0007, 0x0000, 0x0000, 30, 30, 270, 170);
-
             _data[0x0009] = new ContainerData(0x0009, 0x0000, 0x0000, 20, 85, 124, 196);
-
             _data[0x003C] = new ContainerData(
                 0x003C,
                 0x0048,
@@ -534,9 +558,12 @@ namespace ClassicUO.Game.Managers
 
             _data[0x9CE7] = new ContainerData(0x9CE7, 0x0000, 0x0000, 44, 65, 186, 159);
 
-            //
-            //    0x2A63= new ContainerData(0x2A63, 0x0187, 0x01c9, 29, 34, 137, 128)//for this particular gump area is bugged also in original client, as it is similar to the bag, probably this is an unfinished one
-            //}
+            if(Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine)
+            {
+                _data[0x9D6C] = new ContainerData(0x9D6C, 0x0000, 0x0000, 50, 60, 548, 308);
+                _data[0x9D6B] = new ContainerData(0x9D6B, 0x0000, 0x0000, 50, 60, 548, 308);
+                _data[0x9D6A] = new ContainerData(0x9D6A, 0x0000, 0x0000, 50, 60, 548, 308);
+            }
         }
     }
 }

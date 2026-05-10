@@ -1,4 +1,5 @@
 ﻿using ClassicUO.Assets;
+using ClassicUO.Configuration;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
@@ -6,34 +7,27 @@ using System;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class SimpleTimedTextGump : Gump
+    public class SimpleTimedTextGump : Gump
     {
         private readonly DateTime expireAt;
 
-        public SimpleTimedTextGump(string text, Color color, TimeSpan duration) : base(0, 0)
+        public SimpleTimedTextGump(World world, string text, Color color, TimeSpan duration) : base(world, 0, 0)
         {
             expireAt = DateTime.Now.Add(duration);
-
-            Add(new TextBox(text, TrueTypeLoader.EMBEDDED_FONT, 20, null, color));
-            
+            TextBox t;
+            Add(t = TextBox.GetOne(text, ProfileManager.CurrentProfile.OverheadChatFont, ProfileManager.CurrentProfile.OverheadChatFontSize, color, TextBox.RTLOptions.DefaultCentered()));
+            Height = t.MeasuredSize.Y;
+            Width = t.MeasuredSize.X;
             WantUpdateSize = true;
         }
 
-        public SimpleTimedTextGump(string text, uint hue, TimeSpan duration) : base(0, 0)
+        public SimpleTimedTextGump(World world, string text, uint hue, TimeSpan duration, int width) : base(world, 0, 0)
         {
             expireAt = DateTime.Now.Add(duration);
-
-            Add(new TextBox(text, TrueTypeLoader.EMBEDDED_FONT, 20, null, (int)hue));
-
-            WantUpdateSize = true;
-        }
-
-        public SimpleTimedTextGump(string text, uint hue, TimeSpan duration, int width) : base(0, 0)
-        {
-            expireAt = DateTime.Now.Add(duration);
-
-            Add(new TextBox(text, TrueTypeLoader.EMBEDDED_FONT, 20, width, (int)hue));
-
+            TextBox t;
+            Add(t = TextBox.GetOne(text, ProfileManager.CurrentProfile.OverheadChatFont, ProfileManager.CurrentProfile.OverheadChatFontSize, (int)hue, TextBox.RTLOptions.DefaultCentered(width)));
+            Height = t.MeasuredSize.Y;
+            Width = t.MeasuredSize.X;
             WantUpdateSize = true;
         }
 

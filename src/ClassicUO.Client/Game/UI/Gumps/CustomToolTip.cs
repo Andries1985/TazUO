@@ -1,5 +1,6 @@
 ﻿using ClassicUO.Configuration;
 using ClassicUO.Game.GameObjects;
+using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class CustomToolTip : Gump
+    public class CustomToolTip : Gump
     {
         private readonly Item item;
         private Control hoverReference;
@@ -19,7 +20,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public event FinishedLoadingEvent OnOPLLoaded;
 
-        public CustomToolTip(Item item, int x, int y, Control hoverReference, string prepend = "", string append = "", Item compareTo = null) : base(0, 0)
+        public CustomToolTip(World world, Item item, int x, int y, Control hoverReference, string prepend = "", string append = "", Item compareTo = null) : base(world, 0, 0)
         {
             this.item = item;
             this.hoverReference = hoverReference;
@@ -35,21 +36,14 @@ namespace ClassicUO.Game.UI.Gumps
             BuildGump();
         }
 
-        public void RemoveHoverReference()
-        {
-            hoverReference = null;
-        }
+        public void RemoveHoverReference() => hoverReference = null;
+
+        private static TextBox.RTLOptions ToolTipOptions => new TextBox.RTLOptions() { Align = ProfileManager.CurrentProfile.LeftAlignToolTips ? FontStashSharp.RichText.TextHorizontalAlignment.Left : FontStashSharp.RichText.TextHorizontalAlignment.Center };
 
         private void BuildGump()
         {
-            text = new TextBox(
-                "Loading item data...",
-                ProfileManager.CurrentProfile.SelectedToolTipFont,
-                ProfileManager.CurrentProfile.SelectedToolTipFontSize,
-                150,
-                (int)hue,
-                align: ProfileManager.CurrentProfile.LeftAlignToolTips ? FontStashSharp.RichText.TextHorizontalAlignment.Left : FontStashSharp.RichText.TextHorizontalAlignment.Center
-                );
+            text = TextBox.GetOne("Loading item data...", ProfileManager.CurrentProfile.SelectedToolTipFont, ProfileManager.CurrentProfile.SelectedToolTipFontSize, (int)hue, ToolTipOptions);
+            text.Width = 150;
 
             Height = text.Height;
             Width = text.Width;
@@ -74,20 +68,21 @@ namespace ClassicUO.Game.UI.Gumps
                     string finalString = FormatTooltip(name, data);
                     if (SerialHelper.IsItem(item.Serial))
                     {
-                        finalString = Managers.ToolTipOverrideData.ProcessTooltipText(item.Serial, compareTo == null ? uint.MinValue : compareTo.Serial);
+                        finalString = Managers.ToolTipOverrideData.ProcessTooltipText(World, item.Serial, compareTo == null ? uint.MinValue : compareTo.Serial);
                         if (finalString == null)
                             finalString = FormatTooltip(name, data);
+                        finalString = prepend + finalString + append;
                     }
 
                     text?.Dispose();
-                    text = new TextBox(
+                    text = TextBox.GetOne(
                         TextBox.ConvertHtmlToFontStashSharpCommand(finalString).Trim(),
                         ProfileManager.CurrentProfile.SelectedToolTipFont,
                         ProfileManager.CurrentProfile.SelectedToolTipFontSize,
-                        600,
                         (int)hue,
-                        align: ProfileManager.CurrentProfile.LeftAlignToolTips ? FontStashSharp.RichText.TextHorizontalAlignment.Left : FontStashSharp.RichText.TextHorizontalAlignment.Center
+                        ToolTipOptions
                         );
+                    text.Width = 600;
 
                     if (text.MeasuredSize.X + 10 < 600)
                         text.Width = text.MeasuredSize.X + 10;
@@ -123,18 +118,25 @@ namespace ClassicUO.Game.UI.Gumps
             return text;
         }
 
+        public override void Dispose()
+        {
+            base.Dispose();
+
+            text?.Dispose();
+        }
+
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {
             base.Draw(batcher, x, y);
+
             if (IsDisposed)
                 return false;
-            if (hoverReference != null && !hoverReference.MouseIsOver)
+
+            if (hoverReference is { MouseIsOver: false })
             {
                 Dispose();
                 return false;
             }
-            //if (text == null) //Waiting for opl data to load the text tooltip
-            //    return true;
 
             float alpha = 0.7f;
 
@@ -150,7 +152,7 @@ namespace ClassicUO.Game.UI.Gumps
             Vector3 hue_vec = ShaderHueTranslator.GetHueVector(1, false, alpha);
 
             if (ProfileManager.CurrentProfile != null)
-                hue_vec.X = ProfileManager.CurrentProfile.ToolTipBGHue - 1;
+                hue_vec.X = ProfileManager.CurrentProfile.ToolTipBGHue;
 
             batcher.Draw
             (

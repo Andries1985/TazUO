@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
@@ -39,7 +9,7 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class QuestArrowGump : Gump
+    public class QuestArrowGump : Gump
     {
         private GumpPic _arrow;
         private Direction _direction;
@@ -48,7 +18,7 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _needHue;
         private float _timer;
 
-        public QuestArrowGump(uint serial, int mx, int my) : base(serial, serial)
+        public QuestArrowGump(World world, uint serial, int mx, int my) : base(world, serial, serial)
         {
             CanMove = false;
             CanCloseWithRightClick = false;
@@ -81,7 +51,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            Direction dir = (Direction) GameCursor.GetMouseDirection
+            var dir = (Direction) GameCursor.GetMouseDirection
             (
                 World.Player.X,
                 World.Player.Y,
@@ -118,7 +88,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             x -= (int) World.Player.Offset.X;
             y -= (int) (World.Player.Offset.Y - World.Player.Offset.Z);
-            y += World.Player.Z << 2;
+            //y += World.Player.Z << 2;
 
 
             switch (dir)
@@ -166,9 +136,9 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
             }
 
-            var camera = scene.Camera;
+            Renderer.Camera camera = scene.Camera;
 
-            Point p = new Point(x, y);
+            var p = new Point(x, y);
             p = Client.Game.Scene.Camera.WorldToScreen(p);
             p.X += camera.Bounds.X;
             p.Y += camera.Bounds.Y;
@@ -207,8 +177,10 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
 
-        protected override void OnMouseUp(int x, int y, MouseButtonType button)
+        public override void OnMouseUp(int x, int y, MouseButtonType button)
         {
+            if (CanCloseWithRightClick) return; //This is set to true in Python API, we can ignore server-side stuff
+
             bool leftClick = button == MouseButtonType.Left;
             bool rightClick = button == MouseButtonType.Right;
 

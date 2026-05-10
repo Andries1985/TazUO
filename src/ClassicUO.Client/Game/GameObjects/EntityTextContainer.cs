@@ -1,38 +1,9 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.UI.Controls;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Renderer;
 using ClassicUO.Utility.Collections;
@@ -62,12 +33,12 @@ namespace ClassicUO.Game.GameObjects
 
         public new void Clear()
         {
-            TextObject item = (TextObject)Items;
+            var item = (TextObject)Items;
             Items = null;
 
             while (item != null)
             {
-                TextObject next = (TextObject)item.Next;
+                var next = (TextObject)item.Next;
                 item.Next = null;
                 item.Destroy();
                 Remove(item);
@@ -81,16 +52,16 @@ namespace ClassicUO.Game.GameObjects
 
 
 
-    internal class OverheadDamage
+    public class OverheadDamage
     {
         private const int DAMAGE_Y_MOVING_TIME = 25;
-
         private readonly Deque<TextObject> _messages;
-
         private Rectangle _rectangle;
+        private readonly World _world;
 
-        public OverheadDamage(GameObject parent)
+        public OverheadDamage(World world, GameObject parent)
         {
+            _world = world;
             Parent = parent;
             _messages = new Deque<TextObject>();
         }
@@ -100,37 +71,37 @@ namespace ClassicUO.Game.GameObjects
         public bool IsEmpty => _messages.Count == 0;
 
 
-        public void SetParent(GameObject parent)
-        {
-            Parent = parent;
-        }
+        public void SetParent(GameObject parent) => Parent = parent;
+
 
         public void Add(int damage)
         {
             Parent.AddDamage(damage);
 
-            TextObject text_obj = TextObject.Create();
+            var text_obj = TextObject.Create(_world);
 
             ushort hue = ProfileManager.CurrentProfile == null ? (ushort)0x0021 : ProfileManager.CurrentProfile.DamageHueOther;
             string name = string.Empty;
-            if (ReferenceEquals(Parent, World.Player))
+            if (ReferenceEquals(Parent, _world.Player))
                 hue = ProfileManager.CurrentProfile == null ? (ushort)0x0034 : ProfileManager.CurrentProfile.DamageHueSelf;
             else if (Parent is Mobile)
             {
-                Mobile _parent = (Mobile)Parent;
+                var _parent = (Mobile)Parent;
                 name = _parent.Name;
                 if (_parent.IsRenamable && _parent.NotorietyFlag != NotorietyFlag.Invulnerable && _parent.NotorietyFlag != NotorietyFlag.Enemy)
                     hue = ProfileManager.CurrentProfile == null ? (ushort)0x0033 : ProfileManager.CurrentProfile.DamageHuePet;
                 else if (_parent.NotorietyFlag == NotorietyFlag.Ally)
                     hue = ProfileManager.CurrentProfile == null ? (ushort)0x0030 : ProfileManager.CurrentProfile.DamageHueAlly;
 
-                if (_parent.Serial == TargetManager.LastAttack)
+                if (_parent.Serial == _world.TargetManager.LastAttack)
                     hue = ProfileManager.CurrentProfile == null ? (ushort)0x1F : ProfileManager.CurrentProfile.DamageHueLastAttck;
             }
             string dps = ProfileManager.CurrentProfile.ShowDPS ? $" (DPS: {Parent.GetCurrentDPS()})" : string.Empty;
-            text_obj.TextBox = new UI.Controls.TextBox(damage.ToString() + dps, ProfileManager.CurrentProfile.OverheadChatFont, ProfileManager.CurrentProfile.OverheadChatFontSize, ProfileManager.CurrentProfile.OverheadChatWidth, hue, align: FontStashSharp.RichText.TextHorizontalAlignment.Center) { AcceptMouseInput = !ProfileManager.CurrentProfile.DisableMouseInteractionOverheadText };
 
-            World.Journal.Add(damage.ToString() + dps, hue, name, TextType.CLIENT, messageType: MessageType.Damage);
+
+            text_obj.TextBox = TextBox.GetOne(damage.ToString() + dps, ProfileManager.CurrentProfile.OverheadChatFont, ProfileManager.CurrentProfile.OverheadChatFontSize, hue, TextBox.RTLOptions.DefaultCenterStroked(ProfileManager.CurrentProfile.OverheadChatWidth).MouseInput(!ProfileManager.CurrentProfile.DisableMouseInteractionOverheadText));
+
+            _world.Journal.Add(damage.ToString() + dps, hue, name, TextType.CLIENT, messageType: MessageType.Damage);
 
             text_obj.Time = Time.Ticks + 1500;
 
@@ -190,7 +161,7 @@ namespace ClassicUO.Game.GameObjects
 
             int offY = -NameOverheadGump.CurrentHeight;
 
-            Point p = new Point();
+            var p = new Point();
 
             if (Parent != null)
             {
@@ -211,7 +182,7 @@ namespace ClassicUO.Game.GameObjects
                         offY = -22;
                     }
 
-                    Client.Game.Animations.GetAnimationDimensions(
+                    Client.Game.UO.Animations.GetAnimationDimensions(
                         m.AnimIndex,
                         m.GetGraphicForAnimation(),
                         /*(byte) m.GetDirectionForAnimation()*/
@@ -232,7 +203,7 @@ namespace ClassicUO.Game.GameObjects
                 }
                 else
                 {
-                    ref readonly var artInfo = ref Client.Game.Arts.GetArt(Parent.Graphic);
+                    ref readonly SpriteInfo artInfo = ref Client.Game.UO.Arts.GetArt(Parent.Graphic);
 
                     if (artInfo.Texture != null)
                     {

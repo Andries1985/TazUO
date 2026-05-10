@@ -11,54 +11,55 @@ using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.Managers
 {
-    public static class IgnoreManager
+    public sealed class IgnoreManager
     {
+        private readonly World _world;
+
+        public IgnoreManager(World world) { _world = world; }
+
         /// <summary>
         /// Set of Char names
         /// </summary>
-        public static HashSet<string> IgnoredCharsList = new HashSet<string>();
+        public HashSet<string> IgnoredCharsList = new HashSet<string>();
 
         /// <summary>
         /// Initialize Ignore Manager
         /// - Load List from XML file
         /// </summary>
-        public static void Initialize()
-        {
-            ReadIgnoreList();
-        }
+        public void Initialize() => ReadIgnoreList();
 
         /// <summary>
         /// Add Char to ignored list
         /// </summary>
         /// <param name="entity">Targeted Entity</param>
-        public static void AddIgnoredTarget(Entity entity)
+        public void AddIgnoredTarget(Entity entity)
         {
-            if (entity is Mobile m && !m.IsYellowHits && m.Serial != World.Player.Serial)
+            if (entity is Mobile m && !m.IsYellowHits && m.Serial != _world.Player.Serial)
             {
-                var charName = m.Name;
+                string charName = m.Name;
 
                 if (IgnoredCharsList.Contains(charName))
                 {
-                    GameActions.Print(string.Format(ResGumps.AddToIgnoreListExist, charName));
+                    GameActions.Print(_world, string.Format(ResGumps.AddToIgnoreListExist, charName));
                     return;
                 }
 
                 IgnoredCharsList.Add(charName);
                 // Redraw list of chars
-                UIManager.GetGump<IgnoreManagerGump>()?.Redraw();
+                UIManager.ForEach<IgnoreManagerGump>(g => g.Redraw());
 
-                GameActions.Print(string.Format(ResGumps.AddToIgnoreListSuccess, charName));
+                GameActions.Print(_world,string.Format(ResGumps.AddToIgnoreListSuccess, charName));
                 return;
             }
 
-            GameActions.Print(string.Format(ResGumps.AddToIgnoreListNotMobile));
+            GameActions.Print(_world,string.Format(ResGumps.AddToIgnoreListNotMobile));
         }
 
         /// <summary>
         /// Remove Char from Ignored List
         /// </summary>
         /// <param name="charName">Char name</param>
-        public static void RemoveIgnoredTarget(string charName)
+        public void RemoveIgnoredTarget(string charName)
         {
             if (IgnoredCharsList.Contains(charName))
                 IgnoredCharsList.Remove(charName);
@@ -67,9 +68,9 @@ namespace ClassicUO.Game.Managers
         /// <summary>
         /// Load Ignored List from XML file
         /// </summary>
-        private static void ReadIgnoreList()
+        private void ReadIgnoreList()
         {
-            HashSet<string> list = new HashSet<string>();
+            var list = new HashSet<string>();
 
             string ignoreXmlPath = Path.Combine(ProfileManager.ProfilePath, "ignore_list.xml");
 
@@ -78,7 +79,7 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            XmlDocument doc = new XmlDocument();
+            var doc = new XmlDocument();
 
             try
             {
@@ -111,11 +112,11 @@ namespace ClassicUO.Game.Managers
         /// <summary>
         /// Save List to XML File
         /// </summary>
-        public static void SaveIgnoreList()
+        public void SaveIgnoreList()
         {
             string ignoreXmlPath = Path.Combine(ProfileManager.ProfilePath, "ignore_list.xml");
 
-            using (XmlTextWriter xml = new XmlTextWriter(ignoreXmlPath, Encoding.UTF8)
+            using (var xml = new XmlTextWriter(ignoreXmlPath, Encoding.UTF8)
             {
                 Formatting = Formatting.Indented,
                 IndentChar = '\t',
@@ -125,7 +126,7 @@ namespace ClassicUO.Game.Managers
                 xml.WriteStartDocument(true);
                 xml.WriteStartElement("ignore");
 
-                foreach (var ch in IgnoredCharsList)
+                foreach (string ch in IgnoredCharsList)
                 {
                     xml.WriteStartElement("info");
                     xml.WriteAttributeString("charname", ch);

@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
@@ -38,23 +8,40 @@ using ClassicUO.Game.Map;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace ClassicUO.Game.GameObjects
 {
     public abstract class BaseGameObject : LinkedObject
     {
+        protected BaseGameObject(World world)
+        {
+            World = world;
+        }
+
         public Point RealScreenPosition;
+
+        public World World { get; }
     }
 
     public abstract partial class GameObject : BaseGameObject
     {
+        protected GameObject(World world) : base(world) { }
+
         public bool IsDestroyed { get; protected set; }
         public bool IsPositionChanged { get; protected set; }
         public TextContainer TextContainer { get; private set; }
 
         private AverageOverTime _averageOverTime;
+        protected Profile _profile = ProfileManager.CurrentProfile;
+
+        public bool HasLineOfSightFrom(GameObject observer = null)
+        {
+            observer ??= World.Player;
+            if (observer == null)
+                return false;
+            return LineOfSightHelper.IsVisible(observer, this);
+        }
 
         public int Distance
         {
@@ -95,8 +82,46 @@ namespace ClassicUO.Game.GameObjects
 
         // FIXME: remove it
         public sbyte FoliageIndex = -1;
-        public ushort Graphic;
-        public ushort Hue;
+        public ushort OriginalGraphic => originalGraphic == 0 ? Graphic : originalGraphic;
+        public void ResetOriginalGraphic() => originalGraphic = 0;
+
+        protected byte GetGraphicObjectType()
+        {
+            // Mobile class uses Animation system
+            if (this is Mobile) return 1; // Mobile
+
+            // Land class uses Arts.GetLand()
+            if (this is Land) return 2; // Land
+
+            // Item and Static classes use Arts.GetArt()
+            if (this is Item || this is Static) return 3; // Static
+
+            return 0; // Unknown
+        }
+
+        public ushort Graphic
+        {
+            get => graphic; set
+            {
+                originalGraphic = value;
+                byte type = GetGraphicObjectType();
+                byte newType = type;
+                GraphicsReplacement.Replace(originalGraphic, type, ref value, ref hue, ref newType);
+                Hue = hue; //Workaround for making sure hues are replaced as-well
+                graphic = value;
+                OnGraphicSet(graphic);
+            }
+        }
+        public ushort Hue
+        {
+            get => hue;
+            set
+            {
+                byte type = GetGraphicObjectType();
+                GraphicsReplacement.ReplaceHue(OriginalGraphic, type, ref value);
+                hue = value;
+            }
+        }
         public Vector3 Offset;
         public short PriorityZ;
         public GameObject TNext;
@@ -105,6 +130,9 @@ namespace ClassicUO.Game.GameObjects
             Y;
         public sbyte Z;
         public GameObject RenderListNext;
+        private ushort graphic, originalGraphic, hue;
+
+        public virtual void OnGraphicSet(ushort newGraphic) { }
 
         public void AddDamage(int damage)
         {
@@ -112,36 +140,19 @@ namespace ClassicUO.Game.GameObjects
 
             _averageOverTime.AddValue(Time.Ticks, damage);
         }
-        public double GetCurrentDPS()
-        {
-            return Math.Round(_averageOverTime.LastAveragePerSecond, 1);
-        }
+        public double GetCurrentDPS() => Math.Round(_averageOverTime.LastAveragePerSecond, 1);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector2 GetScreenPosition()
-        {
-            return new Vector2(
+        public Vector2 GetScreenPosition() => new Vector2(
                 RealScreenPosition.X + Offset.X,
                 RealScreenPosition.Y + (Offset.Y - Offset.Z)
             );
-        }
 
-        public int DistanceFrom(Vector2 pos)
-        {
-            if (pos == null) { return int.MaxValue; }
+        public int DistanceFrom(Vector2 pos) => Math.Max(Math.Abs(X - (int)pos.X), Math.Abs(Y - (int)pos.Y));
 
-            return Math.Max(Math.Abs(X - (int)pos.X), Math.Abs(Y - (int)pos.Y));
-        }
+        public void AddToTile() => AddToTile(X, Y);
 
-        public void AddToTile()
-        {
-            AddToTile(X, Y);
-        }
-
-        public void AddToTile(int x, int y)
-        {
-            AddToTile(World.Map?.GetChunk(x, y), x % 8, y % 8);
-        }
+        public void AddToTile(int x, int y) => AddToTile(World.Map?.GetChunk(x, y), x % 8, y % 8);
 
         public void AddToTile(Chunk chunk, int chunkX, int chunkY)
         {
@@ -177,6 +188,7 @@ namespace ClassicUO.Game.GameObjects
             OnPositionChanged();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateRealScreenPosition(int offsetX, int offsetY)
         {
             RealScreenPosition.X = ((X - Y) * 22) - offsetX - 22;
@@ -195,9 +207,7 @@ namespace ClassicUO.Game.GameObjects
             AddToTile(x, y);
         }
 
-        public void AddMessage(MessageType type, string message, TextType text_type)
-        {
-            AddMessage(
+        public void AddMessage(MessageType type, string message, TextType text_type) => AddMessage(
                 type,
                 message,
                 ProfileManager.CurrentProfile.ChatFont,
@@ -205,7 +215,6 @@ namespace ClassicUO.Game.GameObjects
                 true,
                 text_type
             );
-        }
 
         public virtual void UpdateTextCoordsV()
         {
@@ -214,7 +223,7 @@ namespace ClassicUO.Game.GameObjects
                 return;
             }
 
-            TextObject last = (TextObject)TextContainer.Items;
+            var last = (TextObject)TextContainer.Items;
 
             while (last?.Next != null)
             {
@@ -230,14 +239,14 @@ namespace ClassicUO.Game.GameObjects
 
             Point p = RealScreenPosition;
 
-            var bounds = Client.Game.Arts.GetRealArtBounds(Graphic);
+            Rectangle bounds = Client.Game.UO.Arts.GetRealArtBounds(Graphic);
 
             p.Y -= bounds.Height >> 1;
 
             p.X += (int)Offset.X + 22;
             p.Y += (int)(Offset.Y - Offset.Z) + 44;
 
-            p = Client.Game.Scene.Camera.WorldToScreen(p);
+            // Removed Camera.WorldToScreen() - text is now transformed by worldRTMatrix during rendering
 
             for (; last != null; last = (TextObject)last.Previous)
             {
@@ -274,7 +283,7 @@ namespace ClassicUO.Game.GameObjects
             //int maxY = minY + ProfileManager.CurrentProfile.GameWindowSize.Y - 6;
 
             for (
-                TextObject item = (TextObject)TextContainer.Items;
+                var item = (TextObject)TextContainer.Items;
                 item != null;
                 item = (TextObject)item.Next
             )
@@ -331,7 +340,7 @@ namespace ClassicUO.Game.GameObjects
                 return;
             }
 
-            TextObject msg = MessageManager.CreateMessage(
+            TextObject msg = World.MessageManager.CreateMessage(
                 text,
                 hue,
                 font,
@@ -377,12 +386,11 @@ namespace ClassicUO.Game.GameObjects
 
             Next = null;
             Previous = null;
-            RenderListNext = null;
-            _averageOverTime = null;
+
             Clear();
             RemoveFromTile();
             TextContainer?.Clear();
-
+            _averageOverTime = null;
             IsDestroyed = true;
             PriorityZ = 0;
             IsPositionChanged = false;
@@ -390,13 +398,17 @@ namespace ClassicUO.Game.GameObjects
             Offset = Vector3.Zero;
             RealScreenPosition = Point.Zero;
             IsFlipped = false;
+            originalGraphic = 0;
             Graphic = 0;
             ObjectHandlesStatus = ObjectHandlesStatus.NONE;
             FrameInfo = Rectangle.Empty;
         }
 
-        public static bool CanBeDrawn(ushort g)
+        public static bool CanBeDrawn(World world, ushort g)
         {
+            if (Client.Game == null)
+                return true;
+
             switch (g)
             {
                 case 0x0001:
@@ -412,7 +424,7 @@ namespace ClassicUO.Game.GameObjects
                 case 0x9E64:
                 case 0x9E65:
                 case 0x9E7D:
-                    ref StaticTiles data = ref TileDataLoader.Instance.StaticData[g];
+                    ref StaticTiles data = ref Client.Game.UO.FileManager.TileData.StaticData[g];
 
                     return !data.IsBackground && !data.IsSurface;
             }
@@ -428,20 +440,24 @@ namespace ClassicUO.Game.GameObjects
                 // In older clients the tiledata flag for this
                 // item contains NoDiagonal for some reason.
                 // So the next check will make the item invisible.
-                if (g == 0x0F65 && Client.Version < ClientVersion.CV_60144)
+                if (g == 0x0F65 && Client.Game.UO.Version < ClientVersion.CV_60144)
                 {
                     return true;
                 }
 
-                if (g < TileDataLoader.Instance?.StaticData?.Length)
+                if (g < Client.Game.UO.FileManager.TileData.StaticData.Length)
                 {
-                    ref StaticTiles data = ref TileDataLoader.Instance.StaticData[g];
+                    ref StaticTiles data = ref Client.Game.UO.FileManager.TileData.StaticData[g];
+
+                    // Hacky way to do not render "nodraw"
+                    if (!string.IsNullOrEmpty(data.Name) && data.Name.StartsWith("nodraw", StringComparison.OrdinalIgnoreCase))
+                        return false;
 
                     if (
                         !data.IsNoDiagonal
                         || data.IsAnimated
-                            && World.Player != null
-                            && World.Player.Race == RaceType.GARGOYLE
+                            && world.Player != null
+                            && world.Player.Race == RaceType.GARGOYLE
                     )
                     {
                         return true;

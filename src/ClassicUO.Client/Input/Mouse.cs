@@ -1,44 +1,42 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
-
-using ClassicUO.Game;
+using System;
 using Microsoft.Xna.Framework;
-using SDL2;
+using Microsoft.Xna.Framework.Input;
+using Myra.Graphics2D.UI;
+using SDL3;
 
 namespace ClassicUO.Input
 {
     internal static class Mouse
     {
         public const int MOUSE_DELAY_DOUBLE_CLICK = 350;
+
+        /// <summary>
+        /// Invoked whenever the mouse position changes
+        /// </summary>
+        public static event EventHandler<MouseMovedEventArgs> Moved;
+
+        /// <summary>
+        /// Invoked whenever the left mouse button is pressed or released
+        /// </summary>
+        public static event EventHandler<MouseLeftButtonClickStateChangedEventArgs> LeftButtonClickStateChanged;
+
+        public static MouseInfo GetMyraMouseInfo()
+        {
+            var info = new MouseInfo();
+
+            info.IsLeftButtonDown = LButtonPressed;
+            info.IsRightButtonDown = RButtonPressed;
+            info.IsMiddleButtonDown = MButtonPressed;
+            info.Position = Position;
+
+            MouseState fnaMouseState = Microsoft.Xna.Framework.Input.Mouse.GetState();
+
+            info.Wheel = fnaMouseState.ScrollWheelValue;
+
+            return info;
+        }
 
         /* Log a button press event at the given time. */
         public static void ButtonPress(MouseButtonType type)
@@ -72,7 +70,7 @@ namespace ClassicUO.Input
                     break;
             }
 
-            SDL.SDL_CaptureMouse(SDL.SDL_bool.SDL_TRUE);
+            SDL.SDL_CaptureMouse(true);
         }
 
         /* Log a button release event at the given time */
@@ -104,7 +102,7 @@ namespace ClassicUO.Input
 
             if (!(LButtonPressed || RButtonPressed || MButtonPressed))
             {
-                SDL.SDL_CaptureMouse(SDL.SDL_bool.SDL_FALSE);
+                SDL.SDL_CaptureMouse(false);
             }
         }
 
@@ -124,7 +122,20 @@ namespace ClassicUO.Input
 
         public static bool CancelDoubleClick { get; set; }
 
-        public static bool LButtonPressed { get; set; }
+        public static bool LButtonPressed
+        {
+            get;
+            set
+            {
+                if (field == value)
+                    return;
+
+                var eArgs = new MouseLeftButtonClickStateChangedEventArgs(field, value);
+
+                field = value;
+                LeftButtonClickStateChanged?.Invoke(null, eArgs);
+            }
+        }
 
         public static bool RButtonPressed { get; set; }
 
@@ -144,34 +155,50 @@ namespace ClassicUO.Input
 
         public static int ControllerSensativity { get; set; } = 10;
 
+        private static bool _isWarpingMouse = false;
+
         public static void Update()
         {
+            if (_isWarpingMouse)
+                return;
+
+            Point previous = Position;
+
             if (!MouseInWindow)
             {
-                SDL.SDL_GetGlobalMouseState(out int x, out int y);
+                SDL.SDL_GetGlobalMouseState(out float x, out float y);
                 SDL.SDL_GetWindowPosition(Client.Game.Window.Handle, out int winX, out int winY);
-                Position.X = x - winX;
-                Position.Y = y - winY;
+                Position.X = (int)x - winX;
+                Position.Y = (int)y - winY;
             }
             else
             {
-                SDL.SDL_GetMouseState(out Position.X, out Position.Y);
-                Microsoft.Xna.Framework.Input.GamePadState gamePadState = Microsoft.Xna.Framework.Input.GamePad.GetState(PlayerIndex.One);
+                SDL.SDL_GetMouseState(out float x, out float y);
+                Position.X = (int)x;
+                Position.Y = (int)y;
+                GamePadState gamePadState = GamePad.GetState(PlayerIndex.One);
 
                 if (gamePadState.IsConnected && gamePadState.ThumbSticks.Right != Vector2.Zero)
                 {
                     Position.X += (int)(ControllerSensativity * gamePadState.ThumbSticks.Right.X);
                     Position.Y -= (int)(ControllerSensativity * gamePadState.ThumbSticks.Right.Y);
+
+                    _isWarpingMouse = true;
                     SDL.SDL_WarpMouseInWindow(Client.Game.Window.Handle, Position.X, Position.Y);
+                    _isWarpingMouse = false;
                 }
             }
 
-            // Scale the mouse coordinates for the faux-backbuffer
-            Position.X = (int)((double)Position.X * Client.Game.GraphicManager.PreferredBackBufferWidth / Client.Game.Window.ClientBounds.Width);
+            Position.X = (int)(((double)Position.X * Client.Game.GraphicManager.PreferredBackBufferWidth / Client.Game.Window.ClientBounds.Width) / Client.Game.RenderScale);
 
-            Position.Y = (int)((double)Position.Y * Client.Game.GraphicManager.PreferredBackBufferHeight / Client.Game.Window.ClientBounds.Height);
+            Position.Y = (int)(((double)Position.Y * Client.Game.GraphicManager.PreferredBackBufferHeight / Client.Game.Window.ClientBounds.Height) / Client.Game.RenderScale);
 
             IsDragging = LButtonPressed || RButtonPressed || MButtonPressed;
+
+            // Check for null first;
+            // While a point comparison is not a 'heavy' operation, a null check should generally be quicker.
+            if (Moved != null && previous != Position)
+                Moved?.Invoke(null, new MouseMovedEventArgs(previous, Position));
         }
     }
 }

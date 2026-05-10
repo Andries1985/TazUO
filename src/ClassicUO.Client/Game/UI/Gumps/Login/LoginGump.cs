@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.Managers;
@@ -40,12 +10,13 @@ using ClassicUO.Renderer;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
-using SDL2;
+using SDL3;
 using System.Collections.Generic;
+using System.IO;
 
 namespace ClassicUO.Game.UI.Gumps.Login
 {
-    internal class LoginGump : Gump
+    public class LoginGump : Gump
     {
         private readonly ushort _buttonNormal;
         private readonly ushort _buttonOver;
@@ -57,8 +28,13 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
         private float _time;
 
-        public LoginGump(LoginScene scene) : base(0, 0)
+        public static LoginGump Instance { get; private set; }
+
+        public LoginGump(World world, LoginScene scene) : base(world, 0, 0)
         {
+            Instance?.Dispose();
+            Instance = this;
+
             CanCloseWithRightClick = false;
 
             AcceptKeyboardInput = false;
@@ -67,13 +43,13 @@ namespace ClassicUO.Game.UI.Gumps.Login
             byte font;
             ushort hue;
 
-            if (Client.Version < ClientVersion.CV_706400)
+            if (Client.Game.UO.Version < ClientVersion.CV_706400)
             {
                 _buttonNormal = 0x15A4;
                 _buttonOver = 0x15A5;
                 const ushort HUE = 0x0386;
 
-                if (Client.Version >= ClientVersion.CV_500A)
+                if (Client.Game.UO.Version >= ClientVersion.CV_500A)
                 {
                     Add(new GumpPic(0, 0, 0x2329, 0));
                 }
@@ -104,7 +80,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     }
                 );
 
-                if (Client.Version < ClientVersion.CV_500A)
+                if (Client.Game.UO.Version < ClientVersion.CV_500A)
                 {
                     Add(new GumpPic(286, 45, 0x058A, 0));
                 }
@@ -282,6 +258,17 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     }
                 );
 
+                if (Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine)
+                {
+                    Add
+                    (
+                        new Label("Eventine Shard Detected!", false, 0xFFFF, font: 9)
+                        {
+                            X = 242,
+                            Y = 5
+                        }
+                    );
+                }
 
                 Add
                 (
@@ -363,7 +350,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     X = offsetX,
                     Y = offsetY,
                     Width = 190,
-                    Height = 25
+                    Height = 25,
+                    PlaceHolderText="Account Name"
                 }
             );
 
@@ -390,13 +378,21 @@ namespace ClassicUO.Game.UI.Gumps.Login
             string[] accts = SimpleAccountManager.GetAccounts();
             if (accts.Length > 0)
             {
-                _textboxAccount.ContextMenu = new ContextMenuControl();
+                _textboxAccount.ContextMenu = new ContextMenuControl(this);
                 foreach (string acct in accts)
                 {
                     _textboxAccount.ContextMenu.Add(new ContextMenuItemEntry(acct, () => { _textboxAccount.SetText(acct); }));
                 }
                 _textboxAccount.SetTooltip("Right click to select another account.");
-                _textboxAccount.MouseUp += (s, e) => { if (e.Button == MouseButtonType.Right) _textboxAccount.ContextMenu.Show(); };
+                _textboxAccount.MouseUp += (s, e) =>
+                {
+                    if (e.Button == MouseButtonType.Right)
+                    {
+                        _textboxAccount.ContextMenu.Show();
+                        UIManager.ContextMenu.X = _textboxAccount.X + _textboxAccount.Width;
+                        UIManager.ContextMenu.Y = _textboxAccount.Y + _textboxAccount.Height;
+                    }
+                };
             }
 
             _passwordFake.RealText = Crypter.Decrypt(Settings.GlobalSettings.Password);
@@ -436,7 +432,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     false,
                     false,
                     false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://www.classicuo.eu\">Website",
+                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://www.classicuo.eu\">CUO Website",
                     0x32,
                     true,
                     isunicode: true,
@@ -455,7 +451,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     false,
                     false,
                     false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://discord.gg/VdyCpjQ\">Join Discord",
+                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://discord.gg/VdyCpjQ\">CUO Discord",
                     0x32,
                     true,
                     isunicode: true,
@@ -465,21 +461,29 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             TextBox _;
             HitBox _hit;
-            Add(_ = new TextBox("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, 200, Color.Orange, strokeEffect: false) { X = 30, Y = 420, AcceptMouseInput = true });
+            var options = TextBox.RTLOptions.Default();
+            options.Width = 200;
+            Add(_ = TextBox.GetOne("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
+            _.X = 30;
+            _.Y = 420;
+            _.AcceptMouseInput = true;
             Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
             _hit.MouseUp += (s, e) =>
             {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/bittiez/ClassicUO/wiki");
+                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/PlayTazUO/TazUO/wiki");
             };
 
-            Add(_ = new TextBox("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, 200, Color.Orange, strokeEffect: false) { X = 30, Y = 440, AcceptMouseInput = true });
+            Add(_ = TextBox.GetOne("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
+            _.X = 30;
+            _.Y = 440;
+            _.AcceptMouseInput = true;
             Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
             _hit.MouseUp += (s, e) =>
             {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/SqwtB5g95H");
+                Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/QvqzkB95G4");
             };
 
-            Checkbox loginmusic_checkbox = new Checkbox
+            var loginmusic_checkbox = new Checkbox
             (
                 0x00D2,
                 0x00D3,
@@ -496,7 +500,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             Add(loginmusic_checkbox);
 
-            HSliderBar login_music = new HSliderBar
+            var login_music = new HSliderBar
             (
                 loginmusic_checkbox.X + loginmusic_checkbox.Width + 10,
                 loginmusic_checkbox.Y + 4,
@@ -537,39 +541,12 @@ namespace ClassicUO.Game.UI.Gumps.Login
             {
                 _textboxAccount.SetKeyboardFocus();
             }
-
-            _ = new TextBox("A new version of TazUO is available!\n Click to open the download page.", TrueTypeLoader.EMBEDDED_FONT, 20, 300, Color.Yellow, strokeEffect: false) { X = 10, Y = 10, AcceptMouseInput = false };
-            Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
-            _hit.MouseUp += (s, e) =>
-            {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/bittiez/TazUO/releases/latest");
-            };
-            _hit.Add(new AlphaBlendControl() { Width = _hit.Width, Height = _hit.Height });
-            Add(_);
-            if (!UpdateManager.HasUpdate)
-            {
-                _.IsVisible = false;
-                _hit.IsVisible = false;
-            }
-
-            if (!UpdateManager.SkipUpdateCheck)
-            {
-                UpdateManager.UpdateStatusChanged += (s, e) =>
-                {
-                    if (UpdateManager.HasUpdate)
-                    {
-                        _.IsVisible = true;
-                        _hit.IsVisible = true;
-                    }
-                };
-            }
-
         }
 
-        protected override void OnControllerButtonUp(SDL.SDL_GameControllerButton button)
+        protected override void OnControllerButtonUp(SDL.SDL_GamepadButton button)
         {
             base.OnControllerButtonUp(button);
-            if(button == SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A)
+            if (button == SDL.SDL_GamepadButton.SDL_GAMEPAD_BUTTON_SOUTH)
             {
                 SaveCheckboxStatus();
                 LoginScene ls = Client.Game.GetScene<LoginScene>();
@@ -602,6 +579,12 @@ namespace ClassicUO.Game.UI.Gumps.Login
         {
             if (IsDisposed)
             {
+                return;
+            }
+
+            if (World.Instance != null && World.Instance.InGame)
+            {
+                Dispose();
                 return;
             }
 
@@ -659,7 +642,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     break;
 
                 case Buttons.Credits:
-                    UIManager.Add(new CreditsGump());
+                    UIManager.Add(new CreditsGump(World));
 
                     break;
             }
@@ -746,7 +729,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 }
             }
 
-            protected override void OnMouseDown(int x, int y, MouseButtonType button)
+            public override void OnMouseDown(int x, int y, MouseButtonType button)
             {
                 base.OnMouseDown(x, y, button);
 
@@ -756,7 +739,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 }
             }
 
-            protected override void OnKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
+            public override void OnKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
             {
                 base.OnKeyDown(key, mod);
                 UpdateCaretScreenPosition();
@@ -770,10 +753,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 base.Dispose();
             }
 
-            protected override void OnTextInput(string c)
-            {
-                base.OnTextInput(c);
-            }
+            protected override void OnTextInput(string c) => base.OnTextInput(c);
 
             protected override void OnTextChanged()
             {
@@ -790,17 +770,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 UpdateCaretScreenPosition();
             }
 
-            internal override void OnFocusEnter()
+            public override void OnFocusEnter()
             {
                 base.OnFocusEnter();
                 CaretIndex = Text?.Length ?? 0;
                 UpdateCaretScreenPosition();
             }
 
-            private new void UpdateCaretScreenPosition()
-            {
-                _caretScreenPosition = _rendererText.GetCaretPosition(Stb.CursorIndex);
-            }
+            private new void UpdateCaretScreenPosition() => _caretScreenPosition = _rendererText.GetCaretPosition(Stb.CursorIndex);
 
             public override bool Draw(UltimaBatcher2D batcher, int x, int y)
             {

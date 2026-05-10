@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
@@ -79,11 +49,11 @@ namespace ClassicUO.Renderer
         internal List<char> CharacterMap { get; }
 
 
-        public Vector2 MeasureString(string text)
+        public Vector2 MeasureString(ReadOnlySpan<char> text)
         {
-            if (text == null)
+            if (text.IsEmpty)
             {
-                throw new ArgumentNullException("text");
+                throw new ArgumentNullException(nameof(text));
             }
 
             if (text.Length == 0)
@@ -211,7 +181,7 @@ namespace ClassicUO.Renderer
                 int typeReaderIndex = reader.Read7BitEncodedInt();
                 reader.Read7BitEncodedInt();
 
-                SurfaceFormat format = (SurfaceFormat) reader.ReadInt32();
+                var format = (SurfaceFormat) reader.ReadInt32();
                 int width = reader.ReadInt32();
                 int height = reader.ReadInt32();
                 int levelCount = reader.ReadInt32();
@@ -229,7 +199,7 @@ namespace ClassicUO.Renderer
                     levelDataSizeInBytes = levelData.Length;
                 }
 
-                Texture2D texture = new Texture2D
+                var texture = new Texture2D
                 (
                     device,
                     width,
@@ -241,12 +211,12 @@ namespace ClassicUO.Renderer
                 unsafe
                 {
                     fixed (byte* ptr = levelData)
-                        texture.SetDataPointerEXT(0, null, (IntPtr)ptr, width * height * sizeof(byte));
+                        texture.SetDataPointerEXT(0, null, (IntPtr)ptr, levelDataSizeInBytes);
                 }
 
                 reader.Read7BitEncodedInt();
                 int glyphCount = reader.ReadInt32();
-                List<Rectangle> glyphs = new List<Rectangle>(glyphCount);
+                var glyphs = new List<Rectangle>(glyphCount);
 
                 for (int i = 0; i < glyphCount; i++)
                 {
@@ -260,7 +230,7 @@ namespace ClassicUO.Renderer
 
                 reader.Read7BitEncodedInt();
                 int croppingCount = reader.ReadInt32();
-                List<Rectangle> croppings = new List<Rectangle>(croppingCount);
+                var croppings = new List<Rectangle>(croppingCount);
 
                 for (int i = 0; i < croppingCount; i++)
                 {
@@ -274,7 +244,7 @@ namespace ClassicUO.Renderer
 
                 reader.Read7BitEncodedInt();
                 int charCount = reader.ReadInt32();
-                List<char> charMap = new List<char>(charCount);
+                var charMap = new List<char>(charCount);
 
                 for (int i = 0; i < charCount; i++)
                 {
@@ -286,7 +256,7 @@ namespace ClassicUO.Renderer
 
                 reader.Read7BitEncodedInt();
                 int kerningCount = reader.ReadInt32();
-                List<Vector3> kernings = new List<Vector3>(croppingCount);
+                var kernings = new List<Vector3>(croppingCount);
 
                 for (int i = 0; i < kerningCount; i++)
                 {
@@ -321,7 +291,7 @@ namespace ClassicUO.Renderer
 
         private static byte[] DecompressDxt3(byte[] imageData, int width, int height)
         {
-            using (MemoryStream imageStream = new MemoryStream(imageData))
+            using (var imageStream = new MemoryStream(imageData))
             {
                 return DecompressDxt3(imageStream, width, height);
             }
@@ -331,7 +301,7 @@ namespace ClassicUO.Renderer
         {
             byte[] imageData = new byte[width * height * 4];
 
-            using (BinaryReader imageReader = new BinaryReader(imageStream))
+            using (var imageReader = new BinaryReader(imageStream))
             {
                 int blockCountX = (width + 3) >> 2;
                 int blockCountY = (height + 3) >> 2;
@@ -551,10 +521,7 @@ namespace ClassicUO.Renderer
             {
             }
 
-            public new int Read7BitEncodedInt()
-            {
-                return base.Read7BitEncodedInt();
-            }
+            public new int Read7BitEncodedInt() => base.Read7BitEncodedInt();
         }
     }
 }

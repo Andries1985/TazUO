@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Runtime.InteropServices;
@@ -40,11 +10,23 @@ namespace ClassicUO.Utility
     {
         // thanks ServUO :)
 
-        private static readonly ICompressor _compressor;
+        private static ICompressor _compressor;
+
+        public static bool ManagedZlibForced { get; private set; } =
+#if DEBUG
+            true;
+#else
+            false;
+#endif
 
         static ZLib()
         {
-            if(Environment.Is64BitProcess) 
+            SetupCompressor();
+        }
+
+        private static void SetupCompressor()
+        {
+            if (Environment.Is64BitProcess && !ManagedZlibForced)
             {
                 if(PlatformHelper.IsWindows)
                 {
@@ -61,15 +43,15 @@ namespace ClassicUO.Utility
             }
         }
 
-        public static ZLibError Decompress(byte[] source, int offset, byte[] dest, int length)
+        public static void SetForceManagedZlib(bool enabled)
         {
-            return _compressor.Decompress(dest, ref length, source, source.Length - offset);
+            ManagedZlibForced = enabled;
+            SetupCompressor();
         }
 
-        public static ZLibError Decompress(IntPtr source, int sourceLength, int offset, IntPtr dest, int length)
-        {
-            return _compressor.Decompress(dest, ref length, source, sourceLength - offset);
-        }
+        public static ZLibError Decompress(byte[] source, int offset, byte[] dest, int length) => _compressor.Decompress(dest, ref length, source, source.Length - offset);
+
+        public static ZLibError Decompress(IntPtr source, int sourceLength, int offset, IntPtr dest, int length) => _compressor.Decompress(dest, ref length, source, sourceLength - offset);
 
         public static unsafe ZLibError Decompress(ReadOnlySpan<byte> source, Span<byte> dest)
         {
@@ -97,7 +79,7 @@ namespace ClassicUO.Utility
             StreamError = -2,
             FileError = -1,
 
-            Okay = 0,
+            Ok = 0,
 
             StreamEnd = 1,
             NeedDictionary = 2
@@ -120,14 +102,9 @@ namespace ClassicUO.Utility
         {
             public string Version => SafeNativeMethods.zlibVersion();
 
-            public ZLibError Compress(byte[] dest, ref int destLength, byte[] source, int sourceLength)
-            {
-                return SafeNativeMethods.compress(dest, ref destLength, source, sourceLength);
-            }
+            public ZLibError Compress(byte[] dest, ref int destLength, byte[] source, int sourceLength) => SafeNativeMethods.compress(dest, ref destLength, source, sourceLength);
 
-            public ZLibError Compress(byte[] dest, ref int destLength, byte[] source, int sourceLength, ZLibQuality quality)
-            {
-                return SafeNativeMethods.compress2
+            public ZLibError Compress(byte[] dest, ref int destLength, byte[] source, int sourceLength, ZLibQuality quality) => SafeNativeMethods.compress2
                 (
                     dest,
                     ref destLength,
@@ -135,17 +112,10 @@ namespace ClassicUO.Utility
                     sourceLength,
                     quality
                 );
-            }
 
-            public ZLibError Decompress(byte[] dest, ref int destLength, byte[] source, int sourceLength)
-            {
-                return SafeNativeMethods.uncompress(dest, ref destLength, source, sourceLength);
-            }
+            public ZLibError Decompress(byte[] dest, ref int destLength, byte[] source, int sourceLength) => SafeNativeMethods.uncompress(dest, ref destLength, source, sourceLength);
 
-            public ZLibError Decompress(IntPtr dest, ref int destLength, IntPtr source, int sourceLength)
-            {
-                return SafeNativeMethods.uncompress(dest, ref destLength, source, sourceLength);
-            }
+            public ZLibError Decompress(IntPtr dest, ref int destLength, IntPtr source, int sourceLength) => SafeNativeMethods.uncompress(dest, ref destLength, source, sourceLength);
 
             private class SafeNativeMethods
             {
@@ -206,10 +176,7 @@ namespace ClassicUO.Utility
                 return z;
             }
 
-            public ZLibError Decompress(IntPtr dest, ref int destLength, IntPtr source, int sourceLength)
-            {
-                return SafeNativeMethods.uncompress(dest, ref destLength, source, sourceLength);
-            }
+            public ZLibError Decompress(IntPtr dest, ref int destLength, IntPtr source, int sourceLength) => SafeNativeMethods.uncompress(dest, ref destLength, source, sourceLength);
 
             private class SafeNativeMethods
             {
@@ -238,13 +205,10 @@ namespace ClassicUO.Utility
             {
                 ZLibManaged.Compress(dest, ref destLength, source);
 
-                return ZLibError.Okay;
+                return ZLibError.Ok;
             }
 
-            public ZLibError Compress(byte[] dest, ref int destLength, byte[] source, int sourceLength, ZLibQuality quality)
-            {
-                return Compress(dest, ref destLength, source, sourceLength);
-            }
+            public ZLibError Compress(byte[] dest, ref int destLength, byte[] source, int sourceLength, ZLibQuality quality) => Compress(dest, ref destLength, source, sourceLength);
 
             public ZLibError Decompress(byte[] dest, ref int destLength, byte[] source, int sourceLength)
             {
@@ -258,7 +222,7 @@ namespace ClassicUO.Utility
                     destLength
                 );
 
-                return ZLibError.Okay;
+                return ZLibError.Ok;
             }
 
             public ZLibError Decompress(IntPtr dest, ref int destLength, IntPtr source, int sourceLength)
@@ -272,7 +236,7 @@ namespace ClassicUO.Utility
                     destLength
                 );
 
-                return ZLibError.Okay;
+                return ZLibError.Ok;
             }
         }
     }

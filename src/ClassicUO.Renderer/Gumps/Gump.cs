@@ -7,12 +7,16 @@ namespace ClassicUO.Renderer.Gumps
     {
         private readonly TextureAtlas _atlas;
         private readonly SpriteInfo[] _spriteInfos;
-        private readonly PixelPicker _picker = new PixelPicker();
+        private readonly PixelPicker _picker = new PixelPicker(true);
+        private readonly GumpsLoader _gumpsLoader;
 
-        public Gump(GraphicsDevice device)
+        public GumpsLoader GetGumpsLoader => _gumpsLoader;
+
+        public Gump(GumpsLoader gumpsLoader, GraphicsDevice device)
         {
+            _gumpsLoader = gumpsLoader;
             _atlas = new TextureAtlas(device, 4096, 4096, SurfaceFormat.Color);
-            _spriteInfos = new SpriteInfo[GumpsLoader.Instance.Entries.Length];
+            _spriteInfos = new SpriteInfo[gumpsLoader.File.Entries.Length];
         }
 
         public ref readonly SpriteInfo GetGump(uint idx)
@@ -20,15 +24,16 @@ namespace ClassicUO.Renderer.Gumps
             if (idx >= _spriteInfos.Length)
                 return ref SpriteInfo.Empty;
 
-            ref var spriteInfo = ref _spriteInfos[idx];
+            ref SpriteInfo spriteInfo = ref _spriteInfos[idx];
 
             if (spriteInfo.Texture == null)
             {
-                var gumpInfo = PNGLoader.Instance.LoadGumpTexture(idx);
+                GumpInfo gumpInfo = PNGLoader.Instance.LoadGumpTexture(idx);
+                bool loadedFromPNG = gumpInfo.Pixels != null && !gumpInfo.Pixels.IsEmpty;
 
-                if (gumpInfo.Pixels == null || gumpInfo.Pixels.IsEmpty)
+                if (gumpInfo.Pixels.IsEmpty)
                 {
-                    gumpInfo = GumpsLoader.Instance.GetGump(idx);
+                    gumpInfo = _gumpsLoader.GetGump(idx);
                 }
                 if (!gumpInfo.Pixels.IsEmpty)
                 {
@@ -40,6 +45,12 @@ namespace ClassicUO.Renderer.Gumps
                     );
 
                     _picker.Set(idx, gumpInfo.Width, gumpInfo.Height, gumpInfo.Pixels);
+
+                    // Clear the pixel cache from PNG Loader since it's now in the atlas
+                    if (loadedFromPNG)
+                    {
+                        PNGLoader.Instance.ClearGumpPixelCache(idx);
+                    }
                 }
             }
 

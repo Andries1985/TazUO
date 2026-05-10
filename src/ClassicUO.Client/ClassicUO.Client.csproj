@@ -3,22 +3,33 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <ApplicationIcon>cuoicon.ico</ApplicationIcon>
-    <AssemblyName>ClassicUO</AssemblyName>
+    <AssemblyName>TazUO</AssemblyName>
     <RootNamespace>ClassicUO</RootNamespace>
-    <AssemblyVersion>3.25.2</AssemblyVersion>
-    <FileVersion>3.25.2</FileVersion>
-    <PackageProjectUrl>https://github.com/bittiez/TazUO</PackageProjectUrl>
+    <AssemblyVersion>5.1.0</AssemblyVersion>
+    <FileVersion>5.1.0</FileVersion>
+    <PackageProjectUrl>https://github.com/PlayTazUO/TazUO</PackageProjectUrl>
+    <PublishAot>false</PublishAot>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Forces generated sources (incl. source generators) to be written to disk -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <OutputPath>$(ProjectDir)..\..\bin\Release\</OutputPath>
     <PublishDir>$(ProjectDir)..\..\bin\dist\</PublishDir>
     <Optimize>true</Optimize>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <OutputPath>$(ProjectDir)..\..\bin\Debug\</OutputPath>
     <DefineConstants>$(DefineConstants)TRACE</DefineConstants>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IS_DEV_BUILD)' == 'true'">
@@ -31,19 +42,16 @@
     </AssemblyAttribute>
   </ItemGroup>
 
-  <ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
-    <Reference Include="System.IO.Compression" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\external\FNA\FNA.Core.csproj" />
     <ProjectReference Include="..\ClassicUO.Assets\ClassicUO.Assets.csproj" />
     <ProjectReference Include="..\ClassicUO.Renderer\ClassicUO.Renderer.csproj" />
     <ProjectReference Include="..\ClassicUO.Utility\ClassicUO.Utility.csproj" />
+    <ProjectReference Include="..\ClassicUO.CUOAPI\ClassicUO.CUOAPI.csproj" />
+    <ProjectReference Include="..\..\tools\EventGenerator\EventGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\ClassicUO.SourceGenerators\ClassicUO.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Async.IRC\Async.IRC.csproj" />
+    <ProjectReference Include="..\..\external\Myra\src\Myra\Myra.FNA.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -80,50 +88,103 @@
   </ItemGroup>
 
   <ItemGroup>
+    <DataFiles_iplib Include="$(ProjectDir)..\..\external\iplib\**\*.*" />
     <DataFiles_x64 Include="$(ProjectDir)..\..\external\x64\*.*" />
+    <DataFiles_win-arm Include="$(ProjectDir)..\..\external\win-arm\*.*" />
     <DataFiles_lib64 Include="$(ProjectDir)..\..\external\lib64\*.*" />
     <DataFiles_osx Include="$(ProjectDir)..\..\external\osx\*.*" />
+    <DataFiles_osx-arm Include="$(ProjectDir)..\..\external\osx-arm\*.*" />
     <DataFiles_vulkan Include="$(ProjectDir)..\..\external\vulkan\icd.d\*.*" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeDom.Providers.DotNetCompilerPlatform" Version="4.1.0" />
+    <EmbeddedResource Include="Game\Managers\DefaultSpellIndicatorConfig.json" />
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="cuoapi">
-      <HintPath>..\..\external\cuoapi\cuoapi.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Net.Http">
-      <HintPath>..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\System.Net.Http.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Windows.Forms">
-      <HintPath>..\..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2\System.Windows.Forms.dll</HintPath>
-    </Reference>
+    <PackageReference Include="IronPython" Version="3.4.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.12.0" />
+    <PackageReference Include="Vosk" Version="0.3.38" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Windows: use RuntimeIdentifier if set, otherwise fall back -->
+    <_IsWindows Condition="
+    ('$([System.String]::IsNullOrEmpty($(RuntimeIdentifier)))' == 'true' AND
+     '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true')
+    OR
+    ('$([System.String]::IsNullOrEmpty($(RuntimeIdentifier)))' == 'false' AND
+     $(RuntimeIdentifier.StartsWith('win')) )
+  ">true</_IsWindows>
+
+    <!-- MacOS -->
+    <_IsMacOS Condition="
+    ('$([System.String]::IsNullOrEmpty($(RuntimeIdentifier)))' == 'true' AND
+     '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true')
+    OR
+    ('$([System.String]::IsNullOrEmpty($(RuntimeIdentifier)))' == 'false' AND
+     $(RuntimeIdentifier.StartsWith('osx')) )
+  ">true</_IsMacOS>
+
+    <!-- Linux -->
+    <_IsLinux Condition="
+    ('$([System.String]::IsNullOrEmpty($(RuntimeIdentifier)))' == 'true' AND
+     '$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true')
+    OR
+    ('$([System.String]::IsNullOrEmpty($(RuntimeIdentifier)))' == 'false' AND
+     $(RuntimeIdentifier.StartsWith('linux')) )
+  ">true</_IsLinux>
+  </PropertyGroup>
+
+  <Target Name="IncludeGeneratedFiles" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <None Include="$(BaseIntermediateOutputPath)/generated/EventGenerator/**/*.Api.Decl.g.cs" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
-    <PackageReference Update="System.Text.Json" Version="8.0.5" />
+    <DocSourceFiles Include="$(ProjectDir)/LegionScripting/ApiClasses/*.cs" />
+    <DocSourceFiles Include="LegionScripting\LegionAPI.cs" />
+    <DocSourceFiles Include="$(BaseIntermediateOutputPath)/generated/EventGenerator/**/*.Api.Decl.g.cs" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Create a string of quoted paths -->
+    <DocFileArgs>@(DocSourceFiles->'"%(FullPath)"', ' ')</DocFileArgs>
+  </PropertyGroup>
+
+  <Target Name="GenerateDocs" AfterTargets="Build">
+    <Message Text="Running: dotnet run --project ../APIToMarkdown/APIToMarkdown.csproj $(DocFileArgs)" />
+    <Exec Command='dotnet run --project ../APIToMarkdown/APIToMarkdown.csproj "$(ProjectDir)/LegionScripting/docs" $(DocFileArgs)' />
+  </Target>
+
+  <Target Name="CreateVersionFile" AfterTargets="Build">
+    <WriteLinesToFile File="$(TargetDir)v.txt" Lines="$(AssemblyVersion)" Overwrite="true" />
+  </Target>
 
   <Target Name="CopyExternalDeps_build" AfterTargets="Build">
+    <Copy SourceFiles="@(DataFiles_iplib)" DestinationFiles="@(DataFiles_iplib -> '$(TargetDir)\iplib\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_x64)" DestinationFolder="$(TargetDir)\x64\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(DataFiles_win-arm)" DestinationFolder="$(TargetDir)\win-arm\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_lib64)" DestinationFolder="$(TargetDir)\lib64\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_osx)" DestinationFolder="$(TargetDir)\osx\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(DataFiles_osx-arm)" DestinationFolder="$(TargetDir)\osx-arm\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_vulkan)" DestinationFolder="$(TargetDir)\vulkan\icd.d\" SkipUnchangedFiles="true" />
   </Target>
 
-  <Target Name="CopyExternalDeps_publish" AfterTargets="Publish">
-    <ItemGroup>
-      <MonockickstartPath Include="$(ProjectDir)..\..\tools\monokickstart\*.*" />
-    </ItemGroup>
+  <Target Name="CreateVersionFile_publish" AfterTargets="Publish">
+    <WriteLinesToFile File="$(PublishDir)v.txt" Lines="$(AssemblyVersion)" Overwrite="true" />
+  </Target>
 
+  <Target Name="CopyExternalDeps_publish" AfterTargets="Publish">
+    <Copy SourceFiles="@(DataFiles_iplib)" DestinationFiles="@(DataFiles_iplib -> '$(PublishDir)\iplib\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_x64)" DestinationFolder="$(PublishDir)\x64\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(DataFiles_win-arm)" DestinationFolder="$(PublishDir)\win-arm\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_lib64)" DestinationFolder="$(PublishDir)\lib64\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_osx)" DestinationFolder="$(PublishDir)\osx\" SkipUnchangedFiles="true" />
     <Copy SourceFiles="@(DataFiles_vulkan)" DestinationFolder="$(PublishDir)\vulkan\icd.d\" SkipUnchangedFiles="true" />
-
-    <Copy SourceFiles="@(MonockickstartPath)" DestinationFolder="$(PublishDir)\" SkipUnchangedFiles="true" Condition="$(TargetFramework.StartsWith('net4'))" />
-
+    <Copy SourceFiles="@(DataFiles_osx-arm)" DestinationFolder="$(PublishDir)\osx-arm\" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

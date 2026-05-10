@@ -4,15 +4,15 @@ using ClassicUO.Game.UI.Controls;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal sealed class MacroGump : Gump
+    public sealed class MacroGump : Gump
     {
-        public MacroGump(string name) : base(0, 0)
+        public MacroGump(World world, string name) : base(world, 0, 0)
         {
             CanMove = true;
             CanCloseWithRightClick = true;
-            var camera = Client.Game.Scene.Camera;
+            Renderer.Camera camera = Client.Game.Scene.Camera;
 
-            AlphaBlendControl macroGumpBackground = new AlphaBlendControl
+            var macroGumpBackground = new AlphaBlendControl
             {
                 Width = 360,
                 Height = 200,
@@ -21,7 +21,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Alpha = 0.8f
             };
 
-            Label text = new Label($"Edit macro: {name}", true, 15)
+            var text = new Label($"Edit macro: {name}", true, 15)
             {
                 X = camera.Bounds.Width / 2 - 105,
                 Y = macroGumpBackground.Y + 2
@@ -32,7 +32,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add
             (
-                new MacroControl(name, true)
+                new MacroControl(this, name, true)
                 {
                     X = macroGumpBackground.X + 20,
                     Y = macroGumpBackground.Y + 20,

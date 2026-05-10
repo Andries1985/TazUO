@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -39,16 +9,16 @@ using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
-using ClassicUO.IO;
 using ClassicUO.Assets;
-using ClassicUO.Renderer;
+using ClassicUO.Network.PacketHandlers;
 using ClassicUO.Renderer.Batching;
 using ClassicUO.Utility.Logging;
 using ClassicUO.Utility.Platforms;
 using CUO_API;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SDL2;
+using SDL3;
+using ArtInfo = CUO_API.ArtInfo;
 
 namespace ClassicUO.Network
 {
@@ -147,12 +117,19 @@ namespace ClassicUO.Network
 
         public bool IsValid { get; private set; }
 
+        public static bool Enabled = false;
+
         [DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool DeleteFile(string name);
 
         public static Plugin Create(string path)
         {
+            if (string.IsNullOrEmpty(path))
+            {
+                return null;
+            }
+
             path = Path.GetFullPath(
                 Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Plugins", path)
             );
@@ -166,7 +143,7 @@ namespace ClassicUO.Network
 
             Log.Trace($"Loading plugin: {path}");
 
-            Plugin p = new Plugin(path);
+            var p = new Plugin(path);
             p.Load();
 
             if (!p.IsValid)
@@ -178,6 +155,7 @@ namespace ClassicUO.Network
 
             Log.Trace($"Plugin: {path} loaded.");
             Plugins.Add(p);
+            Enabled = true;
 
             return p;
         }
@@ -188,7 +166,7 @@ namespace ClassicUO.Network
             _send = OnPluginSend;
             _recv_new = OnPluginRecv_new;
             _send_new = OnPluginSend_new;
-            _getPacketLength = PacketsTable.GetPacketLength;
+            _getPacketLength = OnGetPacketLength;
             _getPlayerPosition = GetPlayerPosition;
             _castSpell = GameActions.CastSpell;
             _getStaticImage = GetStaticImage;
@@ -199,20 +177,11 @@ namespace ClassicUO.Network
             _get_tile_data = GetTileData;
             _get_cliloc = GetCliloc;
 
-            SDL.SDL_SysWMinfo info = new SDL.SDL_SysWMinfo();
-            SDL.SDL_VERSION(out info.version);
-            SDL.SDL_GetWindowWMInfo(Client.Game.Window.Handle, ref info);
-
             IntPtr hwnd = IntPtr.Zero;
 
-            if (info.subsystem == SDL.SDL_SYSWM_TYPE.SDL_SYSWM_WINDOWS)
+            var header = new PluginHeader
             {
-                hwnd = info.info.win.window;
-            }
-
-            PluginHeader header = new PluginHeader
-            {
-                ClientVersion = (int)Client.Version,
+                ClientVersion = (int)Client.Game.UO.Version,
                 Recv = Marshal.GetFunctionPointerForDelegate(_recv),
                 Send = Marshal.GetFunctionPointerForDelegate(_send),
                 GetPacketLength = Marshal.GetFunctionPointerForDelegate(_getPacketLength),
@@ -243,23 +212,26 @@ namespace ClassicUO.Network
 
             try
             {
-                IntPtr assptr = Native.LoadLibrary(PluginPath);
+                nint assptr = Native.LoadLibrary(PluginPath);
 
                 Log.Trace($"assembly: {assptr}");
 
                 if (assptr == IntPtr.Zero)
                 {
+                    string err = Marshal.GetLastWin32Error().ToString();
                     throw new Exception("Invalid Assembly, Attempting managed load.");
                 }
 
                 Log.Trace($"Searching for 'Install' entry point  -  {assptr}");
 
-                IntPtr installPtr = Native.GetProcessAddress(assptr, "Install");
+                nint installPtr = Native.GetProcessAddress(assptr, "Install");
 
                 Log.Trace($"Entry point: {installPtr}");
 
                 if (installPtr == IntPtr.Zero)
                 {
+                    Native.FreeLibrary(assptr);
+                    Console.WriteLine("free lib done");
                     throw new Exception("Invalid Entry Point, Attempting managed load.");
                 }
 
@@ -271,7 +243,14 @@ namespace ClassicUO.Network
             {
                 try
                 {
-                    Assembly asm = Assembly.LoadFile(PluginPath);
+                    Client.Game.PluginHost?.LoadPlugin(PluginPath);
+
+                    //Client.Game.AssistantHost.OnSocketConnected += (o, e) => {
+                    //    Client.Game.AssistantHost.PluginInitialize(PluginPath);
+                    //};
+                    //Client.Game.AssistantHost.Connect("127.0.0.1", 7777);
+
+                    var asm = Assembly.LoadFile(PluginPath);
                     Type type = asm.GetType("Assistant.Engine");
 
                     if (type == null)
@@ -420,15 +399,9 @@ namespace ClassicUO.Network
             }
         }
 
-        private static string GetUOFilePath()
-        {
-            return Settings.GlobalSettings.UltimaOnlineDirectory;
-        }
+        private static string GetUOFilePath() => Settings.GlobalSettings.UltimaOnlineDirectory;
 
-        private static void SetWindowTitle(string str)
-        {
-            Client.Game.SetWindowTitle(str);
-        }
+        private static void SetWindowTitle(string str) => Client.Game.SetWindowTitle(str);
 
         private static bool GetStaticData(
             int index,
@@ -444,7 +417,7 @@ namespace ClassicUO.Network
         {
             if (index >= 0 && index < ArtLoader.MAX_STATIC_DATA_INDEX_COUNT)
             {
-                ref StaticTiles st = ref TileDataLoader.Instance.StaticData[index];
+                ref StaticTiles st = ref Client.Game.UO.FileManager.TileData.StaticData[index];
 
                 flags = (ulong)st.Flags;
                 weight = st.Weight;
@@ -470,7 +443,7 @@ namespace ClassicUO.Network
         {
             if (index >= 0 && index < ArtLoader.MAX_STATIC_DATA_INDEX_COUNT)
             {
-                ref LandTiles st = ref TileDataLoader.Instance.LandData[index];
+                ref LandTiles st = ref Client.Game.UO.FileManager.TileData.LandData[index];
 
                 flags = (ulong)st.Flags;
                 textid = st.TexID;
@@ -484,31 +457,28 @@ namespace ClassicUO.Network
 
         private static bool GetCliloc(int cliloc, string args, bool capitalize, out string buffer)
         {
-            buffer = ClilocLoader.Instance.Translate(cliloc, args, capitalize);
+            buffer = Client.Game.UO.FileManager.Clilocs.Translate(cliloc, args, capitalize);
 
             return buffer != null;
         }
 
-        private static void GetStaticImage(ushort g, ref CUO_API.ArtInfo info)
+        private static void GetStaticImage(ushort g, ref ArtInfo info)
         {
-            //ArtLoader.Instance.TryGetEntryInfo(g, out long address, out long size, out long compressedsize);
+            //Client.Game.UO.FileManager.Arts.TryGetEntryInfo(g, out long address, out long size, out long compressedsize);
             //info.Address = address;
             //info.Size = size;
             //info.CompressedSize = compressedsize;
         }
 
-        private static bool RequestMove(int dir, bool run)
-        {
-            return World.Player.Walk((Direction)dir, run);
-        }
+        internal static bool RequestMove(int dir, bool run) => Client.Game.UO.World.Player.Walk((Direction)dir, run);
 
-        private static bool GetPlayerPosition(out int x, out int y, out int z)
+        internal static bool GetPlayerPosition(out int x, out int y, out int z)
         {
-            if (World.Player != null)
+            if (Client.Game.UO.World.Player != null)
             {
-                x = World.Player.X;
-                y = World.Player.Y;
-                z = World.Player.Z;
+                x = Client.Game.UO.World.Player.X;
+                y = Client.Game.UO.World.Player.Y;
+                z = Client.Game.UO.World.Player.Z;
 
                 return true;
             }
@@ -520,6 +490,10 @@ namespace ClassicUO.Network
 
         internal static void Tick()
         {
+            if (!Enabled) return;
+
+            Client.Game.PluginHost?.Tick();
+
             foreach (Plugin t in Plugins)
             {
                 if (t._tick != null)
@@ -531,7 +505,9 @@ namespace ClassicUO.Network
 
         internal static bool ProcessRecvPacket(byte[] data, ref int length)
         {
-            bool result = true;
+            if (!Enabled) return true;
+
+            bool result = Client.Game.PluginHost?.PacketIn(new ArraySegment<byte>(data, 0, length)) ?? true;
 
             foreach (Plugin plugin in Plugins)
             {
@@ -566,14 +542,16 @@ namespace ClassicUO.Network
 
         internal static bool ProcessSendPacket(ref Span<byte> message)
         {
-            bool result = true;
+            if (!Enabled) return true;
+
+            bool result = Client.Game.PluginHost?.PacketOut(message) ?? true;
 
             foreach (Plugin plugin in Plugins)
             {
                 if (plugin._onSend_new != null)
                 {
-                    var tmp = message.ToArray();
-                    var length = tmp.Length;
+                    byte[] tmp = message.ToArray();
+                    int length = tmp.Length;
 
                     if (!plugin._onSend_new(tmp, ref length))
                     {
@@ -585,8 +563,8 @@ namespace ClassicUO.Network
                 }
                 else if (plugin._onSend != null)
                 {
-                    var tmp = message.ToArray();
-                    var length = tmp.Length;
+                    byte[] tmp = message.ToArray();
+                    int length = tmp.Length;
 
                     if (!plugin._onSend(ref tmp, ref length))
                     {
@@ -603,6 +581,10 @@ namespace ClassicUO.Network
 
         internal static void OnClosing()
         {
+            if (!Enabled) return;
+
+            Client.Game.PluginHost?.Closing();
+
             for (int i = 0; i < Plugins.Count; i++)
             {
                 if (Plugins[i]._onClientClose != null)
@@ -616,6 +598,10 @@ namespace ClassicUO.Network
 
         internal static void OnFocusGained()
         {
+            if (!Enabled) return;
+
+            Client.Game.PluginHost?.FocusGained();
+
             foreach (Plugin t in Plugins)
             {
                 if (t._onFocusGained != null)
@@ -627,6 +613,10 @@ namespace ClassicUO.Network
 
         internal static void OnFocusLost()
         {
+            if (!Enabled) return;
+
+            Client.Game.PluginHost?.FocusLost();
+
             foreach (Plugin t in Plugins)
             {
                 if (t._onFocusLost != null)
@@ -638,6 +628,10 @@ namespace ClassicUO.Network
 
         internal static void OnConnected()
         {
+            if (!Enabled) return;
+
+            Client.Game.PluginHost?.Connected();
+
             foreach (Plugin t in Plugins)
             {
                 if (t._onConnected != null)
@@ -649,6 +643,10 @@ namespace ClassicUO.Network
 
         internal static void OnDisconnected()
         {
+            if (!Enabled) return;
+
+            Client.Game.PluginHost?.Disconnected();
+
             foreach (Plugin t in Plugins)
             {
                 if (t._onDisconnected != null)
@@ -660,10 +658,9 @@ namespace ClassicUO.Network
 
         internal static bool ProcessHotkeys(int key, int mod, bool ispressed)
         {
-            if (
-                !World.InGame
-                || UIManager.SystemChat != null
-                    && (
+            if (!Enabled) return true;
+
+            if ((!Client.Game.UO.World?.InGame ?? false) || UIManager.SystemChat != null && (
                         ProfileManager.CurrentProfile != null
                             && ProfileManager.CurrentProfile.ActivateChatAfterEnter
                             && UIManager.SystemChat.IsActive
@@ -674,7 +671,9 @@ namespace ClassicUO.Network
                 return true;
             }
 
-            bool result = true;
+            bool? ok = Client.Game.PluginHost?.Hotkey(key, mod, ispressed);
+
+            bool result = ok ?? true;
 
             foreach (Plugin plugin in Plugins)
             {
@@ -691,6 +690,10 @@ namespace ClassicUO.Network
 
         internal static void ProcessMouse(int button, int wheel)
         {
+            if (!Enabled) return;
+
+            Client.Game.PluginHost?.Mouse(button, wheel);
+
             foreach (Plugin plugin in Plugins)
             {
                 plugin._onMouse?.Invoke(button, wheel);
@@ -699,16 +702,26 @@ namespace ClassicUO.Network
 
         internal static void ProcessDrawCmdList(GraphicsDevice device)
         {
+            if (!Enabled) return;
+
+            IntPtr cmdList = IntPtr.Zero;
+            int len = 0;
+            Client.Game.PluginHost?.GetCommandList(out cmdList, out len);
+            if (Client.Game.PluginHost != null && len != 0 && cmdList != IntPtr.Zero)
+            {
+                HandleCmdList(device, cmdList, len, Client.Game.PluginHost.GfxResources);
+            }
+
             foreach (Plugin plugin in Plugins)
             {
                 if (plugin._draw_cmd_list != null)
                 {
-                    int cmd_count = 0;
-                    plugin._draw_cmd_list.Invoke(out IntPtr cmdlist, ref cmd_count);
+                    len = 0;
+                    plugin._draw_cmd_list.Invoke(out cmdList, ref len);
 
-                    if (cmd_count != 0 && cmdlist != IntPtr.Zero)
+                    if (len != 0 && cmdList != IntPtr.Zero)
                     {
-                        plugin.HandleCmdList(device, cmdlist, cmd_count, plugin._resources);
+                        HandleCmdList(device, cmdList, len, plugin._resources);
                     }
                 }
             }
@@ -716,7 +729,9 @@ namespace ClassicUO.Network
 
         internal static int ProcessWndProc(SDL.SDL_Event* e)
         {
-            int result = 0;
+            if (!Enabled) return 0;
+
+            int result = Client.Game.PluginHost?.SdlEvent(e) ?? 0;
 
             foreach (Plugin plugin in Plugins)
             {
@@ -731,6 +746,10 @@ namespace ClassicUO.Network
 
         internal static void UpdatePlayerPosition(int x, int y, int z)
         {
+            if (!Enabled) return;
+
+            Client.Game.PluginHost?.UpdatePlayerPosition(x, y, z);
+
             foreach (Plugin plugin in Plugins)
             {
                 try
@@ -750,44 +769,54 @@ namespace ClassicUO.Network
             }
         }
 
-        private static bool OnPluginRecv(ref byte[] data, ref int length)
+        internal static short OnGetPacketLength(int id) => AsyncNetClient.PacketsTable.GetPacketLength(id);
+
+        internal static bool OnPluginRecv(ref byte[] data, ref int length)
         {
-            lock (PacketHandlers.Handler)
+            if (!Enabled) return true;
+
+            lock (PacketParser.Instance)
             {
-                PacketHandlers.Handler.Append(data.AsSpan(0, length), true);
+                PacketParser.Instance.Append(data.AsSpan(0, length), true);
             }
 
             return true;
         }
 
-        private static bool OnPluginSend(ref byte[] data, ref int length)
+        internal static bool OnPluginSend(ref byte[] data, ref int length)
         {
-            if (NetClient.Socket.IsConnected)
+            if (!Enabled) return true;
+
+            if (AsyncNetClient.Socket.IsConnected)
             {
-                NetClient.Socket.Send(data.AsSpan(0, length), true);
+                AsyncNetClient.Socket.Send(data.AsSpan(0, length), true);
             }
 
             return true;
         }
 
-        private static bool OnPluginRecv_new(IntPtr buffer, ref int length)
+        internal static bool OnPluginRecv_new(IntPtr buffer, ref int length)
         {
+            if (!Enabled) return true;
+
             if (buffer != IntPtr.Zero && length > 0)
             {
-                lock (PacketHandlers.Handler)
+                lock (PacketParser.Instance)
                 {
-                    PacketHandlers.Handler.Append(new Span<byte>(buffer.ToPointer(), length), true);
+                    PacketParser.Instance.Append(new Span<byte>(buffer.ToPointer(), length), true);
                 }
             }
 
             return true;
         }
 
-        private static bool OnPluginSend_new(IntPtr buffer, ref int length)
+        internal static bool OnPluginSend_new(IntPtr buffer, ref int length)
         {
+            if (!Enabled) return true;
+
             if (buffer != IntPtr.Zero && length > 0)
             {
-                NetClient.Socket.Send(new Span<byte>((void*)buffer, length), true);
+                AsyncNetClient.Socket.Send(new Span<byte>((void*)buffer, length), true);
             }
 
             return true;
@@ -813,12 +842,9 @@ namespace ClassicUO.Network
             }
         }
 
-        private static bool UnblockFile(string fileName)
-        {
-            return DeleteFile(fileName + ":Zone.Identifier");
-        }
+        private static bool UnblockFile(string fileName) => DeleteFile(fileName + ":Zone.Identifier");
 
-        private void HandleCmdList(
+        private static void HandleCmdList(
             GraphicsDevice device,
             IntPtr ptr,
             int length,
@@ -1061,7 +1087,7 @@ namespace ClassicUO.Network
                         ref SetVertexDataCommand setVertexDataCommand =
                             ref command.SetVertexDataCommand;
 
-                        VertexBuffer vertex_buffer =
+                        var vertex_buffer =
                             resources[setVertexDataCommand.id] as VertexBuffer;
 
                         vertex_buffer?.SetDataPointerEXT(
@@ -1078,7 +1104,7 @@ namespace ClassicUO.Network
                         ref SetIndexDataCommand setIndexDataCommand =
                             ref command.SetIndexDataCommand;
 
-                        IndexBuffer index_buffer = resources[setIndexDataCommand.id] as IndexBuffer;
+                        var index_buffer = resources[setIndexDataCommand.id] as IndexBuffer;
 
                         index_buffer?.SetDataPointerEXT(
                             0,
@@ -1094,7 +1120,7 @@ namespace ClassicUO.Network
                         ref CreateVertexBufferCommand createVertexBufferCommand =
                             ref command.CreateVertexBufferCommand;
 
-                        VertexElement[] elements = new VertexElement[
+                        var elements = new VertexElement[
                             createVertexBufferCommand.DeclarationCount
                         ];
 
@@ -1192,7 +1218,7 @@ namespace ClassicUO.Network
                         }
                         else
                         {
-                            BasicEffect be = res as BasicEffect;
+                            var be = res as BasicEffect;
                             be.World = createBasicEffectCommand.world;
                             be.View = createBasicEffectCommand.view;
                             be.Projection = createBasicEffectCommand.projection;

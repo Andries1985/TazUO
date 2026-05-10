@@ -1,37 +1,7 @@
-#region license
+// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
-
-using ClassicUO.Assets;
-using ClassicUO.Configuration;
+using System;
+using System.Runtime.CompilerServices;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.Scenes;
@@ -40,10 +10,34 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.GameObjects
 {
-    internal sealed partial class Static
+    public sealed partial class Static
     {
+        private const int MAX_Z_DIFFERENCE_FOR_DISPLAY_RADIUS = 11;
+        private const int LIGHT_OFFSET = 22;
+
         private int _canBeTransparent;
 
+        /// <summary>
+        /// Gets the display graphic for this static, applying tree-to-stump replacement if enabled.
+        /// </summary>
+        /// <param name="graphic">The base graphic to process.</param>
+        /// <returns>The graphic to display, either the original or replacement graphic.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private ushort GetDisplayGraphic(ushort graphic)
+        {
+            if (StaticFilters.IsTree(graphic, out _) && _profile?.TreeToStumps == true)
+            {
+                return Constants.TREE_REPLACE_GRAPHIC;
+            }
+            return graphic;
+        }
+
+        /// <summary>
+        /// Determines whether this static object should be rendered with transparency
+        /// based on its height relative to the specified Z coordinate.
+        /// </summary>
+        /// <param name="z">The Z coordinate to test against.</param>
+        /// <returns>True if the object should be transparent, false otherwise.</returns>
         public override bool TransparentTest(int z)
         {
             bool r = true;
@@ -60,6 +54,14 @@ namespace ClassicUO.Game.GameObjects
             return r;
         }
 
+        /// <summary>
+        /// Renders the static object to the screen.
+        /// </summary>
+        /// <param name="batcher">The rendering batch manager.</param>
+        /// <param name="posX">The X screen position.</param>
+        /// <param name="posY">The Y screen position.</param>
+        /// <param name="depth">The rendering depth for sorting.</param>
+        /// <returns>True if the object was rendered, false if skipped.</returns>
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
             if (!AllowedToDraw || IsDestroyed)
@@ -70,27 +72,28 @@ namespace ClassicUO.Game.GameObjects
             ushort graphic = Graphic;
             ushort hue = Hue;
             bool partial = ItemData.IsPartialHue;
+            bool isSelected = SelectedObject.Object == this;
 
-            if (ProfileManager.CurrentProfile.HighlightGameObjects && SelectedObject.Object == this)
+            if (isSelected && _profile.HighlightGameObjects)
             {
                 hue = Constants.HIGHLIGHT_CURRENT_OBJECT_HUE;
                 partial = false;
             }
             else if (
-                ProfileManager.CurrentProfile.NoColorObjectsOutOfRange
+                _profile.NoColorObjectsOutOfRange
                 && Distance > World.ClientViewRange
             )
             {
                 hue = Constants.OUT_RANGE_COLOR;
                 partial = false;
             }
-            else if (World.Player.IsDead && ProfileManager.CurrentProfile.EnableBlackWhiteEffect)
+            else if (World.Player != null && World.Player.IsDead && _profile.EnableBlackWhiteEffect)
             {
                 hue = Constants.DEAD_RANGE_COLOR;
                 partial = false;
             }
 
-            if (SelectedObject.Object == this)
+            if (isSelected)
             {
                 SpellVisualRangeManager.Instance.LastCursorTileLoc = new Vector2(X, Y);
             }
@@ -100,20 +103,18 @@ namespace ClassicUO.Game.GameObjects
                 hue = SpellVisualRangeManager.Instance.ProcessHueForTile(hue, this);
             }
 
-            if (TileMarkerManager.Instance.IsTileMarked(X, Y, World.Map.Index, out var nhue))
-                hue = nhue;
-
-            if (ProfileManager.CurrentProfile.DisplayRadius && Distance == ProfileManager.CurrentProfile.DisplayRadiusDistance && System.Math.Abs(Z - World.Player.Z) < 11)
-                hue = ProfileManager.CurrentProfile.DisplayRadiusHue;
+            if (_profile.DisplayRadius &&
+                Distance == _profile.DisplayRadiusDistance &&
+                World.Player != null &&
+                Math.Abs(Z - World.Player.Z) < MAX_Z_DIFFERENCE_FOR_DISPLAY_RADIUS)
+            {
+                hue = _profile.DisplayRadiusHue;
+            }
 
             Vector3 hueVec = ShaderHueTranslator.GetHueVector(hue, partial, AlphaHue / 255f);
 
-            bool isTree = StaticFilters.IsTree(graphic, out _);
-
-            if (isTree && ProfileManager.CurrentProfile.TreeToStumps)
-            {
-                graphic = Constants.TREE_REPLACE_GRAPHIC;
-            }
+            graphic = GetDisplayGraphic(graphic);
+            bool isTree = graphic == Constants.TREE_REPLACE_GRAPHIC;
 
             DrawStaticAnimated(
                 batcher,
@@ -121,54 +122,55 @@ namespace ClassicUO.Game.GameObjects
                 posX,
                 posY,
                 hueVec,
-                ProfileManager.CurrentProfile.ShadowsEnabled
-                    && ProfileManager.CurrentProfile.ShadowsStatics
+                _profile.ShadowsEnabled
+                    && _profile.ShadowsStatics
                     && (isTree || ItemData.IsFoliage || StaticFilters.IsRock(graphic)),
                 depth,
-                ProfileManager.CurrentProfile.AnimatedWaterEffect && ItemData.IsWet
+                _profile.AnimatedWaterEffect && ItemData.IsWet,
+                OutlineColor
             );
 
-            if (ItemData.IsLight)
+            if (_isLight && GameScene.Instance != null)
             {
-                Client.Game.GetScene<GameScene>().AddLight(this, this, posX + 22, posY + 22);
+                GameScene.Instance.AddLight(this, this, posX + LIGHT_OFFSET, posY + LIGHT_OFFSET);
             }
 
             return true;
         }
 
+        /// <summary>
+        /// Checks if the mouse cursor is over this static object using pixel-perfect collision detection.
+        /// </summary>
+        /// <returns>True if the mouse is over a non-transparent pixel of the object, false otherwise.</returns>
         public override bool CheckMouseSelection()
         {
-            if (
-                !(
-                    SelectedObject.Object == this
-                    || FoliageIndex != -1
-                        && Client.Game.GetScene<GameScene>().FoliageIndex == FoliageIndex
-                )
-            )
+            // Early return if already selected
+            if (SelectedObject.Object == this)
             {
-                ushort graphic = Graphic;
-
-                bool isTree = StaticFilters.IsTree(graphic, out _);
-
-                if (isTree && ProfileManager.CurrentProfile.TreeToStumps)
-                {
-                    graphic = Constants.TREE_REPLACE_GRAPHIC;
-                }
-
-                ref var index = ref ArtLoader.Instance.GetValidRefEntry(graphic + 0x4000);
-
-                Point position = RealScreenPosition;
-                position.X -= index.Width;
-                position.Y -= index.Height;
-
-                return Client.Game.Arts.PixelCheck(
-                    graphic,
-                    SelectedObject.TranslatedMousePositionByViewport.X - position.X,
-                    SelectedObject.TranslatedMousePositionByViewport.Y - position.Y
-                );
+                return false;
             }
 
-            return false;
+            // Early return if this is foliage and matches the current foliage index
+            GameScene scene = Client.Game.GetScene<GameScene>();
+            if (FoliageIndex != -1 && scene != null && scene.FoliageIndex == FoliageIndex)
+            {
+                return false;
+            }
+
+            // Get the display graphic (with tree-to-stump replacement if needed)
+            ushort graphic = GetDisplayGraphic(Graphic);
+
+            ref IO.UOFileIndex index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + 0x4000);
+
+            Point position = RealScreenPosition;
+            position.X -= index.Width;
+            position.Y -= index.Height;
+
+            return Client.Game.UO.Arts.PixelCheck(
+                graphic,
+                SelectedObject.TranslatedMousePositionByViewport.X - position.X,
+                SelectedObject.TranslatedMousePositionByViewport.Y - position.Y
+            );
         }
     }
 }

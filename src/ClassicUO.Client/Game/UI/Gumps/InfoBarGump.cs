@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System.Collections.Generic;
 using System.Linq;
@@ -36,14 +6,13 @@ using System.Xml;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
-using ClassicUO.Game.Scenes;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class InfoBarGump : ResizableGump
+    public class InfoBarGump : ResizableGump
     {
         private readonly AlphaBlendControl _background;
 
@@ -52,7 +21,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override bool IsLocked => _isLocked;
 
-        public InfoBarGump() : base(ProfileManager.CurrentProfile.InfoBarSize.X, ProfileManager.CurrentProfile.InfoBarSize.Y, 50, 20, 0, 0)
+        public InfoBarGump(World world) : base(world, ProfileManager.CurrentProfile.InfoBarSize.X, ProfileManager.CurrentProfile.InfoBarSize.Y, 50, 20, 0, 0)
         {
             CanBeLocked = true; //For base gump locking, resizable uses a special locking procedure
             CanMove = true;
@@ -81,29 +50,20 @@ namespace ClassicUO.Game.UI.Gumps
 
             _infobarControls.Clear();
 
-            List<InfoBarItem> infoBarItems = Client.Game.GetScene<GameScene>().InfoBars.GetInfoBars();
+            List<InfoBarItem> infoBarItems = World.InfoBars.GetInfoBars();
 
             for (int i = 0; i < infoBarItems.Count; i++)
             {
-                InfoBarControl info = new InfoBarControl(infoBarItems[i].label, infoBarItems[i].var, infoBarItems[i].hue);
+                var info = new InfoBarControl(this, infoBarItems[i].label, infoBarItems[i].var, infoBarItems[i].hue);
 
                 _infobarControls.Add(info);
                 Add(info);
             }
         }
 
-        public void UpdateOptions()
-        {
-            ResetItems();
-        }
+        public void UpdateOptions() => ResetItems();
 
-        public static void UpdateAllOptions()
-        {
-            foreach(InfoBarGump g in UIManager.Gumps.OfType<InfoBarGump>())
-            {
-                g.UpdateOptions();
-            }
-        }
+        public static void UpdateAllOptions() => UIManager.ForEach<InfoBarGump>(c => c.UpdateOptions());
 
         public override void Update()
         {
@@ -155,28 +115,24 @@ namespace ClassicUO.Game.UI.Gumps
     }
 
 
-    internal class InfoBarControl : Control
+    public class InfoBarControl : Control
     {
-        private readonly TextBox _data;
+        private readonly InfoBarGump _gump;
+        private TextBox _data;
         private readonly TextBox _label;
         private readonly ResizableStaticPic _pic;
         private ushort _warningLinesHue;
 
-        public InfoBarControl(string label, InfoBarVars var, ushort hue)
+        public InfoBarControl(InfoBarGump gump, string label, InfoBarVars var, ushort hue)
         {
+            _gump = gump;
             AcceptMouseInput = false;
             WantUpdateSize = true;
             CanMove = false;
             Hue = hue;
 
-            _label = new TextBox(
-                label,
-                ProfileManager.CurrentProfile.InfoBarFont,
-                ProfileManager.CurrentProfile.InfoBarFontSize,
-                null,
-                hue,
-                strokeEffect: false
-                );
+            _label = TextBox.GetOne(label, ProfileManager.CurrentProfile.InfoBarFont, ProfileManager.CurrentProfile.InfoBarFontSize, hue, TextBox.RTLOptions.Default());
+
             if (label.StartsWith(@"\"))
             {
                 if (ushort.TryParse(label.Substring(1), out ushort gphc))
@@ -187,16 +143,8 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             Var = var;
-
-            _data = new TextBox(
-                "",
-                ProfileManager.CurrentProfile.InfoBarFont,
-                ProfileManager.CurrentProfile.InfoBarFontSize,
-                null,
-                0x0481,
-                strokeEffect: false
-                )
-            { X = _label.IsVisible ? _label.Width + 3 : _pic.Width };
+            _data = TextBox.GetOne(string.Empty, ProfileManager.CurrentProfile.InfoBarFont, ProfileManager.CurrentProfile.InfoBarFontSize, 0x0481, TextBox.RTLOptions.Default());
+            _data.X = _label.IsVisible ? _label.Width + 3 : _pic.Width;
 
             Add(_label);
             Add(_data);
@@ -207,6 +155,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         public ushort Hue { get; }
         protected long _refreshTime = (long)Time.Ticks - 1;
+
+        private void BuildDataLabel()
+        {
+            _data?.Dispose();
+            _data = TextBox.GetOne(string.Empty, ProfileManager.CurrentProfile.InfoBarFont, ProfileManager.CurrentProfile.InfoBarFontSize, 0x0481, TextBox.RTLOptions.Default());
+            _data.X = _label.IsVisible ? _label.Width + 3 : _pic.Width;
+        }
 
         public override void Update()
         {
@@ -219,10 +174,13 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 _refreshTime = (long)Time.Ticks + 250;
 
+                if(_data == null || _data.IsDisposed)
+                    BuildDataLabel();
+
                 string newData = GetVarData(Var) ?? string.Empty;
                 if (!newData.Equals(_data.Text))
                 {
-                    _data.UpdateText(newData);
+                    _data.SetText(newData);
                     _data.WantUpdateSize = true;
                     WantUpdateSize = true;
                 }
@@ -290,55 +248,55 @@ namespace ClassicUO.Game.UI.Gumps
         {
             switch (var)
             {
-                case InfoBarVars.HP: return $"{World.Player.Hits}/{World.Player.HitsMax}";
+                case InfoBarVars.HP: return $"{_gump.World.Player.Hits}/{_gump.World.Player.HitsMax}";
 
-                case InfoBarVars.Mana: return $"{World.Player.Mana}/{World.Player.ManaMax}";
+                case InfoBarVars.Mana: return $"{_gump.World.Player.Mana}/{_gump.World.Player.ManaMax}";
 
-                case InfoBarVars.Stamina: return $"{World.Player.Stamina}/{World.Player.StaminaMax}";
+                case InfoBarVars.Stamina: return $"{_gump.World.Player.Stamina}/{_gump.World.Player.StaminaMax}";
 
-                case InfoBarVars.Weight: return $"{World.Player.Weight}/{World.Player.WeightMax}";
+                case InfoBarVars.Weight: return $"{_gump.World.Player.Weight}/{_gump.World.Player.WeightMax}";
 
-                case InfoBarVars.Followers: return $"{World.Player.Followers}/{World.Player.FollowersMax}";
+                case InfoBarVars.Followers: return $"{_gump.World.Player.Followers}/{_gump.World.Player.FollowersMax}";
 
-                case InfoBarVars.Gold: return World.Player.Gold.ToString();
+                case InfoBarVars.Gold: return _gump.World.Player.Gold.ToString();
 
-                case InfoBarVars.Damage: return $"{World.Player.DamageMin}-{World.Player.DamageMax}";
+                case InfoBarVars.Damage: return $"{_gump.World.Player.DamageMin}-{_gump.World.Player.DamageMax}";
 
-                case InfoBarVars.Armor: return World.Player.PhysicalResistance.ToString();
+                case InfoBarVars.Armor: return _gump.World.Player.PhysicalResistance.ToString();
 
-                case InfoBarVars.Luck: return World.Player.Luck.ToString();
+                case InfoBarVars.Luck: return _gump.World.Player.Luck.ToString();
 
-                case InfoBarVars.FireResist: return World.Player.FireResistance.ToString();
+                case InfoBarVars.FireResist: return _gump.World.Player.FireResistance.ToString();
 
-                case InfoBarVars.ColdResist: return World.Player.ColdResistance.ToString();
+                case InfoBarVars.ColdResist: return _gump.World.Player.ColdResistance.ToString();
 
-                case InfoBarVars.PoisonResist: return World.Player.PoisonResistance.ToString();
+                case InfoBarVars.PoisonResist: return _gump.World.Player.PoisonResistance.ToString();
 
-                case InfoBarVars.EnergyResist: return World.Player.EnergyResistance.ToString();
+                case InfoBarVars.EnergyResist: return _gump.World.Player.EnergyResistance.ToString();
 
-                case InfoBarVars.LowerReagentCost: return World.Player.LowerReagentCost.ToString();
+                case InfoBarVars.LowerReagentCost: return _gump.World.Player.LowerReagentCost.ToString();
 
-                case InfoBarVars.SpellDamageInc: return World.Player.SpellDamageIncrease.ToString();
+                case InfoBarVars.SpellDamageInc: return _gump.World.Player.SpellDamageIncrease.ToString();
 
-                case InfoBarVars.FasterCasting: return World.Player.FasterCasting.ToString();
+                case InfoBarVars.FasterCasting: return _gump.World.Player.FasterCasting.ToString();
 
-                case InfoBarVars.FasterCastRecovery: return World.Player.FasterCastRecovery.ToString();
+                case InfoBarVars.FasterCastRecovery: return _gump.World.Player.FasterCastRecovery.ToString();
 
-                case InfoBarVars.HitChanceInc: return World.Player.HitChanceIncrease.ToString();
+                case InfoBarVars.HitChanceInc: return _gump.World.Player.HitChanceIncrease.ToString();
 
-                case InfoBarVars.DefenseChanceInc: return World.Player.DefenseChanceIncrease.ToString();
+                case InfoBarVars.DefenseChanceInc: return _gump.World.Player.DefenseChanceIncrease.ToString();
 
-                case InfoBarVars.LowerManaCost: return World.Player.LowerManaCost.ToString();
+                case InfoBarVars.LowerManaCost: return _gump.World.Player.LowerManaCost.ToString();
 
-                case InfoBarVars.DamageChanceInc: return World.Player.DamageIncrease.ToString();
+                case InfoBarVars.DamageChanceInc: return _gump.World.Player.DamageIncrease.ToString();
 
-                case InfoBarVars.SwingSpeedInc: return World.Player.SwingSpeedIncrease.ToString();
+                case InfoBarVars.SwingSpeedInc: return _gump.World.Player.SwingSpeedIncrease.ToString();
 
-                case InfoBarVars.StatsCap: return World.Player.StatsCap.ToString();
+                case InfoBarVars.StatsCap: return _gump.World.Player.StatsCap.ToString();
 
-                case InfoBarVars.NameNotoriety: return World.Player.Name;
+                case InfoBarVars.NameNotoriety: return _gump.World.Player.Name;
 
-                case InfoBarVars.TithingPoints: return World.Player.TithingPoints.ToString();
+                case InfoBarVars.TithingPoints: return _gump.World.Player.TithingPoints.ToString();
 
                 default: return "";
             }
@@ -351,7 +309,7 @@ namespace ClassicUO.Game.UI.Gumps
             switch (var)
             {
                 case InfoBarVars.HP:
-                    percent = World.Player.Hits / (float)World.Player.HitsMax;
+                    percent = _gump.World.Player.Hits / (float) _gump.World.Player.HitsMax;
 
                     if (percent <= 0.25)
                     {
@@ -371,7 +329,7 @@ namespace ClassicUO.Game.UI.Gumps
                     }
 
                 case InfoBarVars.Mana:
-                    percent = World.Player.Mana / (float)World.Player.ManaMax;
+                    percent = _gump.World.Player.Mana / (float) _gump.World.Player.ManaMax;
 
                     if (percent <= 0.25)
                     {
@@ -391,7 +349,7 @@ namespace ClassicUO.Game.UI.Gumps
                     }
 
                 case InfoBarVars.Stamina:
-                    percent = World.Player.Stamina / (float)World.Player.StaminaMax;
+                    percent = _gump.World.Player.Stamina / (float)_gump.World.Player.StaminaMax;
 
                     if (percent <= 0.25)
                     {
@@ -411,7 +369,7 @@ namespace ClassicUO.Game.UI.Gumps
                     }
 
                 case InfoBarVars.Weight:
-                    percent = World.Player.Weight / (float)World.Player.WeightMax;
+                    percent = _gump.World.Player.Weight / (float)_gump.World.Player.WeightMax;
 
                     if (percent >= 1)
                     {
@@ -430,7 +388,7 @@ namespace ClassicUO.Game.UI.Gumps
                         return 0x0481;
                     }
 
-                case InfoBarVars.NameNotoriety: return Notoriety.GetHue(World.Player.NotorietyFlag);
+                case InfoBarVars.NameNotoriety: return Notoriety.GetHue(_gump.World.Player.NotorietyFlag);
 
                 default: return 0x0481;
             }

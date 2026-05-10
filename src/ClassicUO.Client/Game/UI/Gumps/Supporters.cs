@@ -1,15 +1,13 @@
 ﻿using ClassicUO.Assets;
-using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System.IO;
-using System.Linq;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class Supporters : Gump
+    public class Supporters : Gump
     {
         private const int WIDTH = 512;
         private const int HEIGHT = 512;
@@ -34,7 +32,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private double offset = 0.0;
 
-        public Supporters() : base(0, 0)
+        public Supporters(World world) : base(world, 0, 0)
         {
             Width = WIDTH;
             Height = HEIGHT;
@@ -53,7 +51,7 @@ namespace ClassicUO.Game.UI.Gumps
             _background.Y = 1;
             Add(_background);
 
-            Label title = new Label("TazUO supporters and honorable mentions<br>And a special thanks to all the ClassicUO devs that made this possible!", true, 0xffff, WIDTH, 255, FontStyle.BlackBorder, Assets.TEXT_ALIGN_TYPE.TS_CENTER, true);
+            var title = new Label("TazUO supporters and honorable mentions<br>And a special thanks to all the ClassicUO devs that made this possible!", true, 0xffff, WIDTH, 255, FontStyle.BlackBorder, Assets.TEXT_ALIGN_TYPE.TS_CENTER, true);
             title.Y = 1;
             Add(title);
 
@@ -63,7 +61,7 @@ namespace ClassicUO.Game.UI.Gumps
             int y = line.Y + line.Height + 1, count = 0;
             foreach (string SUPPORTER in SUPPORTERS)
             {
-                Label l = new Label(SUPPORTER, true, 0xffff, WIDTH, 255, FontStyle.BlackBorder, Assets.TEXT_ALIGN_TYPE.TS_CENTER, true);
+                var l = new Label(SUPPORTER, true, 0xffff, WIDTH, 255, FontStyle.BlackBorder, Assets.TEXT_ALIGN_TYPE.TS_CENTER, true);
                 l.Y = y;
                 y += l.Height + 1;
                 Add(l);

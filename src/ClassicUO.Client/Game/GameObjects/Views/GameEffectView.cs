@@ -1,12 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Scenes;
-using ClassicUO.Assets;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -19,7 +13,7 @@ namespace ClassicUO.Game.GameObjects
         (
             () =>
             {
-                BlendState state = new BlendState
+                var state = new BlendState
                 {
                     ColorSourceBlend = Microsoft.Xna.Framework.Graphics.Blend.Zero,
                     ColorDestinationBlend = Microsoft.Xna.Framework.Graphics.Blend.SourceColor
@@ -33,7 +27,7 @@ namespace ClassicUO.Game.GameObjects
         (
             () =>
             {
-                BlendState state = new BlendState
+                var state = new BlendState
                 {
                     ColorSourceBlend = Microsoft.Xna.Framework.Graphics.Blend.One,
                     ColorDestinationBlend = Microsoft.Xna.Framework.Graphics.Blend.One
@@ -47,7 +41,7 @@ namespace ClassicUO.Game.GameObjects
         (
             () =>
             {
-                BlendState state = new BlendState
+                var state = new BlendState
                 {
                     ColorSourceBlend = Microsoft.Xna.Framework.Graphics.Blend.DestinationColor,
                     ColorDestinationBlend = Microsoft.Xna.Framework.Graphics.Blend.InverseSourceAlpha
@@ -61,7 +55,7 @@ namespace ClassicUO.Game.GameObjects
         (
             () =>
             {
-                BlendState state = new BlendState
+                var state = new BlendState
                 {
                     ColorSourceBlend = Microsoft.Xna.Framework.Graphics.Blend.DestinationColor,
                     ColorDestinationBlend = Microsoft.Xna.Framework.Graphics.Blend.SourceColor
@@ -75,7 +69,7 @@ namespace ClassicUO.Game.GameObjects
         (
             () =>
             {
-                BlendState state = new BlendState
+                var state = new BlendState
                 {
                     ColorSourceBlend = Microsoft.Xna.Framework.Graphics.Blend.SourceColor,
                     ColorDestinationBlend = Microsoft.Xna.Framework.Graphics.Blend.InverseSourceColor,
@@ -86,7 +80,7 @@ namespace ClassicUO.Game.GameObjects
             }
         );
 
-
+        private const int HALF_TILE = 22; //UO Tiles are 44x44
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
             if (IsDestroyed || !AllowedToDraw)
@@ -99,164 +93,90 @@ namespace ClassicUO.Game.GameObjects
                 return false;
             }
 
-            ref StaticTiles data = ref TileDataLoader.Instance.StaticData[Graphic];
-
             posX += (int)Offset.X;
             posY += (int)(Offset.Z + Offset.Y);
 
             ushort hue = Hue;
 
-            if (ProfileManager.CurrentProfile.NoColorObjectsOutOfRange && Distance > World.ClientViewRange)
+            if (_profile.NoColorObjectsOutOfRange && Distance > World.ClientViewRange)
             {
                 hue = Constants.OUT_RANGE_COLOR;
             }
-            else if (World.Player.IsDead && ProfileManager.CurrentProfile.EnableBlackWhiteEffect)
+            else if (World?.Player?.IsDead == true && _profile.EnableBlackWhiteEffect)
             {
                 hue = Constants.DEAD_RANGE_COLOR;
             }
 
-            Vector3 hueVec = ShaderHueTranslator.GetHueVector(hue, data.IsPartialHue, data.IsTranslucent ? .5f : 1f, effect: true);
+            Vector3 hueVec = ShaderHueTranslator.GetHueVector(hue, IsPartialHue, IsTranslucent ? .5f : 1f, effect: true);
 
             if (Source != null)
             {
                 depth = Source.CalculateDepthZ() + 1f;
             }
 
+            bool blendStateStarted =  false;
+
             switch (Blend)
             {
                 case GraphicEffectBlendMode.Multiply:
                     batcher.SetBlendState(_multiplyBlendState.Value);
-
-                    DrawStaticRotated
-                    (
-                        batcher,
-                        AnimationGraphic,
-                        posX,
-                        posY,
-                        AngleToTarget,
-                        hueVec,
-                        depth
-                    );
-
-                    batcher.SetBlendState(null);
+                    blendStateStarted = true;
 
                     break;
 
                 case GraphicEffectBlendMode.Screen:
                 case GraphicEffectBlendMode.ScreenMore:
                     batcher.SetBlendState(_screenBlendState.Value);
-
-                    DrawStaticRotated
-                    (
-                        batcher,
-                        AnimationGraphic,
-                        posX,
-                        posY,
-                        AngleToTarget,
-                        hueVec,
-                        depth
-                    );
-
-                    batcher.SetBlendState(null);
+                    blendStateStarted = true;
 
                     break;
 
                 case GraphicEffectBlendMode.ScreenLess:
                     batcher.SetBlendState(_screenLessBlendState.Value);
-
-                    DrawStaticRotated
-                    (
-                        batcher,
-                        AnimationGraphic,
-                        posX,
-                        posY,
-                        AngleToTarget,
-                        hueVec,
-                        depth
-                    );
-
-                    batcher.SetBlendState(null);
+                    blendStateStarted = true;
 
                     break;
 
                 case GraphicEffectBlendMode.NormalHalfTransparent:
                     batcher.SetBlendState(_normalHalfBlendState.Value);
-
-                    DrawStaticRotated
-                    (
-                        batcher,
-                        AnimationGraphic,
-                        posX,
-                        posY,
-                        AngleToTarget,
-                        hueVec,
-                        depth
-                    );
-
-                    batcher.SetBlendState(null);
+                    blendStateStarted = true;
 
                     break;
 
                 case GraphicEffectBlendMode.ShadowBlue:
                     batcher.SetBlendState(_shadowBlueBlendState.Value);
-
-                    DrawStaticRotated
-                    (
-                        batcher,
-                        AnimationGraphic,
-                        posX,
-                        posY,
-                        AngleToTarget,
-                        hueVec,
-                        depth
-                    );
-
-                    batcher.SetBlendState(null);
+                    blendStateStarted = true;
 
                     break;
-
+                case GraphicEffectBlendMode.Normal: //No blend mode for normal
+                    break;
+                case GraphicEffectBlendMode.ScreenRed: //Unused as far as I can tell
+                    break;
                 default:
-                    //if (Graphic == 0x36BD)
-                    //{
-                    //    hueVector = ShaderHueTranslator.GetHueVector(0);
-                    //    HueVector.X = 0;
-                    //    HueVector.Y = ShaderHueTranslator.SHADER_LIGHTS;
-                    //    HueVector.Z = 0;
-                    //    batcher.SetBlendState(BlendState.Additive);
-                    //    base.Draw(batcher, posX, posY);
-                    //    batcher.SetBlendState(null);
-                    //}
-                    //else
-
-                    DrawStaticRotated
-                    (
-                        batcher,
-                        AnimationGraphic,
-                        posX,
-                        posY,
-                        AngleToTarget,
-                        hueVec,
-                        depth
-                    );
-
                     break;
             }
 
-            //Engine.DebugInfo.EffectsRendered++;
+            DrawStaticRotated
+            (
+                batcher,
+                AnimationGraphic,
+                posX,
+                posY,
+                AngleToTarget,
+                hueVec,
+                depth
+            );
 
+            if(blendStateStarted)
+                batcher.SetBlendState(null);
 
-            if (data.IsLight && Source != null)
-            {
-                Client.Game.GetScene<GameScene>().AddLight(Source, Source, posX + 22, posY + 22);
-            }
+            if (IsLight && Source != null)
+                GameScene.Instance?.AddLight(Source, Source, posX + HALF_TILE, posY + HALF_TILE);
 
             return true;
         }
 
-        public override bool CheckMouseSelection()
-        {
-            return false;
-        }
+        public override bool CheckMouseSelection() => false;
 
     }
 }

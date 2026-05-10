@@ -1,45 +1,15 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using ClassicUO.Input;
 using ClassicUO.Assets;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Game.UI.Controls
 {
-    internal class HotkeyBox : Control
+    public class HotkeyBox : Control
     {
         private bool _actived;
         private readonly Button _buttonOK, _buttonCancel;
@@ -115,7 +85,7 @@ namespace ClassicUO.Game.UI.Controls
         }
 
         public SDL.SDL_Keycode Key { get; private set; }
-        public SDL.SDL_GameControllerButton[] Buttons { get; private set; }
+        public SDL.SDL_GamepadButton[] Buttons { get; private set; }
         public MouseButtonType MouseButton { get; private set; }
         public bool WheelScroll { get; private set; }
         public bool WheelUp { get; private set; }
@@ -144,7 +114,7 @@ namespace ClassicUO.Game.UI.Controls
         public event EventHandler HotkeyChanged, HotkeyCancelled;
 
 
-        protected override void OnControllerButtonDown(SDL.SDL_GameControllerButton button)
+        protected override void OnControllerButtonDown(SDL.SDL_GamepadButton button)
         {
             if(IsActive)
             {
@@ -152,7 +122,7 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        protected override void OnKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
+        public override void OnKeyDown(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
         {
             if (IsActive)
             {
@@ -160,7 +130,7 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        public void SetButtons(SDL.SDL_GameControllerButton[] buttons)
+        public void SetButtons(SDL.SDL_GamepadButton[] buttons)
         {
             ResetBinding();
             Buttons = buttons;
@@ -169,7 +139,7 @@ namespace ClassicUO.Game.UI.Controls
 
         public void SetKey(SDL.SDL_Keycode key, SDL.SDL_Keymod mod)
         {
-            if (key == SDL.SDL_Keycode.SDLK_UNKNOWN && mod == SDL.SDL_Keymod.KMOD_NONE)
+            if (key == SDL.SDL_Keycode.SDLK_UNKNOWN && mod == SDL.SDL_Keymod.SDL_KMOD_NONE)
             {
                 ResetBinding();
 
@@ -191,25 +161,25 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        protected override void OnMouseDown(int x, int y, MouseButtonType button)
+        public override void OnMouseDown(int x, int y, MouseButtonType button)
         {
             if (button == MouseButtonType.Middle || button == MouseButtonType.XButton1 || button == MouseButtonType.XButton2)
             {
-                SDL.SDL_Keymod mod = SDL.SDL_Keymod.KMOD_NONE;
+                SDL.SDL_Keymod mod = SDL.SDL_Keymod.SDL_KMOD_NONE;
 
                 if (Keyboard.Alt)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_ALT;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_ALT;
                 }
 
                 if (Keyboard.Shift)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_SHIFT;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_SHIFT;
                 }
 
                 if (Keyboard.Ctrl)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_CTRL;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_CTRL;
                 }
 
                 SetMouseButton(button, mod);
@@ -230,23 +200,23 @@ namespace ClassicUO.Game.UI.Controls
             }
         }
 
-        protected override void OnMouseWheel(MouseEventType delta)
+        public override void OnMouseWheel(MouseEventType delta)
         {
-            SDL.SDL_Keymod mod = SDL.SDL_Keymod.KMOD_NONE;
+            SDL.SDL_Keymod mod = SDL.SDL_Keymod.SDL_KMOD_NONE;
 
             if (Keyboard.Alt)
             {
-                mod |= SDL.SDL_Keymod.KMOD_ALT;
+                mod |= SDL.SDL_Keymod.SDL_KMOD_ALT;
             }
 
             if (Keyboard.Shift)
             {
-                mod |= SDL.SDL_Keymod.KMOD_SHIFT;
+                mod |= SDL.SDL_Keymod.SDL_KMOD_SHIFT;
             }
 
             if (Keyboard.Ctrl)
             {
-                mod |= SDL.SDL_Keymod.KMOD_CTRL;
+                mod |= SDL.SDL_Keymod.SDL_KMOD_CTRL;
             }
 
             if (delta == MouseEventType.WheelScrollUp)
@@ -306,7 +276,7 @@ namespace ClassicUO.Game.UI.Controls
                     HotkeyCancelled.Raise(this);
 
                     Key = SDL.SDL_Keycode.SDLK_UNKNOWN;
-                    Mod = SDL.SDL_Keymod.KMOD_NONE;
+                    Mod = SDL.SDL_Keymod.SDL_KMOD_NONE;
 
                     break;
             }

@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections;
@@ -147,7 +117,7 @@ namespace ClassicUO.Utility.Collections
                 }
 
                 // Create the new _buffer and copy our existing range.
-                T[] newBuffer = new T[value];
+                var newBuffer = new T[value];
                 CopyToArray(newBuffer);
 
                 // Set up to use the new _buffer.
@@ -176,30 +146,21 @@ namespace ClassicUO.Utility.Collections
         /// </summary>
         /// <param name="index">The deque index.</param>
         /// <returns>The buffer index.</returns>
-        private int DequeIndexToBufferIndex(int index)
-        {
-            return (index + _offset) % Capacity;
-        }
+        private int DequeIndexToBufferIndex(int index) => (index + _offset) % Capacity;
 
         /// <summary>
         ///     Gets an element at the specified view index.
         /// </summary>
         /// <param name="index">The zero-based view index of the element to get. This index is guaranteed to be valid.</param>
         /// <returns>The element at the specified index.</returns>
-        private ref T DoGetItem(int index)
-        {
-            return ref _buffer[DequeIndexToBufferIndex(index)];
-        }
+        private ref T DoGetItem(int index) => ref _buffer[DequeIndexToBufferIndex(index)];
 
         /// <summary>
         ///     Sets an element at the specified view index.
         /// </summary>
         /// <param name="index">The zero-based view index of the element to get. This index is guaranteed to be valid.</param>
         /// <param name="item">The element to store in the list.</param>
-        private void DoSetItem(int index, T item)
-        {
-            _buffer[DequeIndexToBufferIndex(index)] = item;
-        }
+        private void DoSetItem(int index, T item) => _buffer[DequeIndexToBufferIndex(index)] = item;
 
         /// <summary>
         ///     Inserts an element at the specified view index.
@@ -577,7 +538,7 @@ namespace ClassicUO.Utility.Collections
         /// </summary>
         public T[] ToArray()
         {
-            T[] result = new T[Count];
+            var result = new T[Count];
             ((ICollection<T>) this).CopyTo(result, 0);
 
             return result;
@@ -627,20 +588,11 @@ namespace ClassicUO.Utility.Collections
             }
         }
 
-        public ref T GetAt(int index)
-        {
-            return ref _buffer[DequeIndexToBufferIndex(index)];
-        }
+        public ref T GetAt(int index) => ref _buffer[DequeIndexToBufferIndex(index)];
 
-        public ref T Front()
-        {
-            return ref DoGetItem(0);
-        }
+        public ref T Front() => ref DoGetItem(0);
 
-        public ref T Back()
-        {
-            return ref DoGetItem(Count - 1);
-        }
+        public ref T Back() => ref DoGetItem(Count - 1);
 
         /// <summary>
         ///     Inserts an item to this list at the specified index.
@@ -705,10 +657,7 @@ namespace ClassicUO.Utility.Collections
         /// <exception cref="T:System.NotSupportedException">
         ///     This list is read-only.
         /// </exception>
-        void ICollection<T>.Add(T item)
-        {
-            DoInsert(Count, item);
-        }
+        void ICollection<T>.Add(T item) => DoInsert(Count, item);
 
         /// <summary>
         ///     Determines whether this list contains a specific value.
@@ -861,10 +810,7 @@ namespace ClassicUO.Utility.Collections
         /// <returns>
         ///     An <see cref="T:System.Collections.IEnumerator" /> object that can be used to iterate through the collection.
         /// </returns>
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
         #endregion
 
@@ -902,15 +848,9 @@ namespace ClassicUO.Utility.Collections
             return Count - 1;
         }
 
-        bool IList.Contains(object value)
-        {
-            return IsT(value) && ((ICollection<T>) this).Contains((T) value);
-        }
+        bool IList.Contains(object value) => IsT(value) && ((ICollection<T>)this).Contains((T)value);
 
-        int IList.IndexOf(object value)
-        {
-            return IsT(value) ? IndexOf((T) value) : -1;
-        }
+        int IList.IndexOf(object value) => IsT(value) ? IndexOf((T)value) : -1;
 
         void IList.Insert(int index, object value)
         {

@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -43,11 +13,11 @@ using ClassicUO.Utility;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class BulletinBoardGump : Gump
+    public class BulletinBoardGump : Gump
     {
         private readonly DataBox _databox;
 
-        public BulletinBoardGump(uint serial, int x, int y, string name) : base(serial, 0)
+        public BulletinBoardGump(World world, uint serial, int x, int y, string name) : base(world, serial, 0)
         {
             X = x;
             Y = y;
@@ -56,7 +26,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(new GumpPic(0, 0, 0x087A, 0));
 
-            Label label = new Label
+            var label = new Label
             (
                 name,
                 true,
@@ -72,7 +42,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(label);
 
-            HitBox hitbox = new HitBox(15, 170, 80, 80)
+            var hitbox = new HitBox(15, 170, 80, 80)
             {
                 Alpha = 0f
             };
@@ -85,6 +55,7 @@ namespace ClassicUO.Game.UI.Gumps
                 (
                     new BulletinBoardItem
                     (
+                        world,
                         LocalSerial,
                         0,
                         World.Player.Name,
@@ -98,12 +69,12 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(hitbox);
 
-            ScrollArea area = new ScrollArea
+            var area = new ScrollArea
             (
                 127,
                 159,
                 241,
-                195,
+                BulletinBoardObject.ITEM_HEIGHT * 9,
                 false
             );
 
@@ -121,20 +92,14 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override void Dispose()
         {
-            for (LinkedListNode<Gump> g = UIManager.Gumps.Last; g != null; g = g.Previous)
-            {
-                if (g.Value is BulletinBoardItem)
-                {
-                    g.Value.Dispose();
-                }
-            }
+            UIManager.ForEach<BulletinBoardGump>(g => g.Dispose()); //Not 100% certain closing all bulletin board gumps is intentional..
 
             base.Dispose();
         }
 
         public void RemoveBulletinObject(uint serial)
         {
-            foreach (Control child in _databox.Children)
+            foreach (IGui child in _databox.Children)
             {
                 if (child.LocalSerial == serial)
                 {
@@ -150,7 +115,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public void AddBulletinObject(uint serial, string msg)
         {
-            foreach (Control c in _databox.Children)
+            foreach (IGui c in _databox.Children)
             {
                 if (c.LocalSerial == serial)
                 {
@@ -160,7 +125,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
-            BulletinBoardObject obj = new BulletinBoardObject(serial, msg);
+            var obj = new BulletinBoardObject(serial, msg);
             _databox.Add(obj);
 
             _databox.WantUpdateSize = true;
@@ -168,7 +133,7 @@ namespace ClassicUO.Game.UI.Gumps
         }
     }
 
-    internal class BulletinBoardItem : Gump
+    public class BulletinBoardItem : Gump
     {
         private readonly ExpandableScroll _articleContainer;
         private readonly Button _buttonPost;
@@ -182,6 +147,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public BulletinBoardItem
         (
+            World world,
             uint serial,
             uint msgSerial,
             string poster,
@@ -189,7 +155,7 @@ namespace ClassicUO.Game.UI.Gumps
             string datatime,
             string data,
             byte variant
-        ) : base(serial, 0)
+        ) : base(world, serial, 0)
         {
             _msgSerial = msgSerial;
             AcceptKeyboardInput = true;
@@ -205,7 +171,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(_articleContainer);
 
-            ScrollArea area = new ScrollArea
+            var area = new ScrollArea
             (
                 0,
                 120,
@@ -219,7 +185,7 @@ namespace ClassicUO.Game.UI.Gumps
             _databox = new DataBox(0, 0, 1, 1);
             area.Add(_databox);
 
-            bool useUnicode = Client.Version >= ClientVersion.CV_305D;
+            bool useUnicode = Client.Game.UO.Version >= ClientVersion.CV_305D;
             byte unicodeFontIndex = 1;
             int unicodeFontHeightOffset = 0;
 
@@ -231,7 +197,7 @@ namespace ClassicUO.Game.UI.Gumps
                 textColor = 0;
             }
 
-            Label text = new Label(ResGumps.Author, useUnicode, textColor, font: useUnicode ? unicodeFontIndex : (byte) 6)
+            var text = new Label(ResGumps.Author, useUnicode, textColor, font: useUnicode ? unicodeFontIndex : (byte) 6)
             {
                 X = 30,
                 Y = 40
@@ -384,7 +350,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             _textBox.Height = Math.Max
             (
-                FontsLoader.Instance.GetHeightUnicode
+                Client.Game.UO.FileManager.Fonts.GetHeightUnicode
                 (
                     1,
                     _textBox.Text,
@@ -423,7 +389,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             //if (!_textBox.IsDisposed && _textBox.IsChanged)
             //{
-            //    _textBox.Height = System.Math.Max(FontsLoader.Instance.GetHeightUnicode(1, _textBox.TxEntry.Text, 220, TEXT_ALIGN_TYPE.TS_LEFT, 0x0) + 20, 40);
+            //    _textBox.Height = System.Math.Max(Client.Game.UO.FileManager.Fonts.GetHeightUnicode(1, _textBox.TxEntry.Text, 220, TEXT_ALIGN_TYPE.TS_LEFT, 0x0) + 20, 40);
 
             //    foreach (Control c in _scrollArea.Children)
             //    {
@@ -447,7 +413,7 @@ namespace ClassicUO.Game.UI.Gumps
             switch ((ButtonType) buttonID)
             {
                 case ButtonType.Post:
-                    NetClient.Socket.Send_BulletinBoardPostMessage(LocalSerial, _msgSerial, _subjectTextbox.Text, _textBox.Text);
+                    AsyncNetClient.Socket.Send_BulletinBoardPostMessage(LocalSerial, _msgSerial, _subjectTextbox.Text, _textBox.Text);
 
                     Dispose();
 
@@ -458,6 +424,7 @@ namespace ClassicUO.Game.UI.Gumps
                     (
                         new BulletinBoardItem
                         (
+                            World,
                             LocalSerial,
                             _msgSerial,
                             World.Player.Name,
@@ -473,7 +440,7 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
 
                 case ButtonType.Remove:
-                    NetClient.Socket.Send_BulletinBoardRemoveMessage(LocalSerial, _msgSerial);
+                    AsyncNetClient.Socket.Send_BulletinBoardRemoveMessage(LocalSerial, _msgSerial);
                     Dispose();
 
                     break;
@@ -509,18 +476,20 @@ namespace ClassicUO.Game.UI.Gumps
         }
     }
 
-    internal class BulletinBoardObject : Control
+    public class BulletinBoardObject : Control
     {
+        public const int ITEM_HEIGHT = 18;
+
         public BulletinBoardObject(uint serial, string text)
         {
             LocalSerial = serial; //board
             CanMove = true;
             Width = 230;
-            Height = 18;
+            Height = ITEM_HEIGHT;
 
             Add(new GumpPic(0, 0, 0x1523, 0));
 
-            if (Client.Version >= ClientVersion.CV_305D)
+            if (Client.Game.UO.Version >= ClientVersion.CV_305D)
             {
                 Add
                 (
@@ -562,18 +531,18 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
 
-        protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
+        public override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
         {
             if (button != MouseButtonType.Left)
             {
                 return false;
             }
 
-            Control root = RootParent;
+            IGui root = RootParent;
 
             if (root != null)
             {
-                NetClient.Socket.Send_BulletinBoardRequestMessage(root.LocalSerial, LocalSerial);
+                AsyncNetClient.Socket.Send_BulletinBoardRequestMessage(root.LocalSerial, LocalSerial);
             }
 
             return true;

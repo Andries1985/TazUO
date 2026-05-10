@@ -1,13 +1,13 @@
 ﻿using ClassicUO.Assets;
 using ClassicUO.Game.UI.Controls;
+using Microsoft.Xna.Framework;
 using System;
-using static ClassicUO.Game.UI.Gumps.OptionsGump;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class InputRequest : Gump
+    public class InputRequest : Gump
     {
-        public InputRequest(string message, string buttonText, string button2Text, Action<Result, string> result, string defaultInputValue = "") : base(0, 0)
+        public InputRequest(World world, string message, string buttonText, string button2Text, Action<Result, string> result, string defaultInputValue = "") : base(world, 0, 0)
         {
             Width = 400;
             Height = 0;
@@ -16,10 +16,12 @@ namespace ClassicUO.Game.UI.Gumps
             Add(bg = new AlphaBlendControl(0.75f));
 
             Control _;
-            Add(_ = new TextBox(message, TrueTypeLoader.EMBEDDED_FONT, 25, Width, Microsoft.Xna.Framework.Color.White, FontStashSharp.RichText.TextHorizontalAlignment.Center, false));
+            var options = TextBox.RTLOptions.DefaultCentered();
+            options.Width = Width;
+            Add(_ = TextBox.GetOne(message, TrueTypeLoader.EMBEDDED_FONT, 25, Color.White, options));
             Height += _.Height;
 
-            InputField input = new InputField
+            var input = new InputField
             (
                 0x0BB8,
                 0xFF,

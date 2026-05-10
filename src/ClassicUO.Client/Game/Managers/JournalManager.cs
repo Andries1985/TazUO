@@ -1,37 +1,8 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Utility;
@@ -40,15 +11,18 @@ using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.Managers
 {
-    public class JournalManager
+    public sealed class JournalManager
     {
         private StreamWriter _fileWriter;
         private bool _writerHasException;
 
-        public static Deque<JournalEntry> Entries { get; } = new Deque<JournalEntry>(Constants.MAX_JOURNAL_HISTORY_COUNT);
+        public static Deque<JournalEntry> Entries { get; } = new(Constants.MAX_JOURNAL_HISTORY_COUNT);
 
         public void Add(string text, ushort hue, string name, TextType type, bool isunicode = true, MessageType messageType = MessageType.Regular)
         {
+            if (JournalFilterManager.Instance.IgnoreMessage(text))
+                return;
+
             JournalEntry entry = Entries.Count >= Constants.MAX_JOURNAL_HISTORY_COUNT ? Entries.RemoveFromFront() : new JournalEntry();
 
             byte font = (byte) (isunicode ? 0 : 9);
@@ -84,11 +58,14 @@ namespace ClassicUO.Game.Managers
                 CreateWriter();
             }
 
-            string output = $"[{timeNow:G}]  {name}: {text}";
-
+            string output;
             if (string.IsNullOrWhiteSpace(name))
             {
                 output = $"[{timeNow:G}]  {text}";
+            }
+            else
+            {
+                output = $"[{timeNow:G}]  {name}: {text}";
             }
 
             _fileWriter?.WriteLine(output);
@@ -102,7 +79,15 @@ namespace ClassicUO.Game.Managers
                 {
                     string path = FileSystemHelper.CreateFolderIfNotExists(Path.Combine(CUOEnviroment.ExecutablePath, "Data"), "Client", "JournalLogs");
 
-                    _fileWriter = new StreamWriter(File.Open(Path.Combine(path, $"{DateTime.Now:yyyy_MM_dd_HH_mm_ss}_journal.txt"), FileMode.Create, FileAccess.Write, FileShare.Read))
+                    //Prevent use if world or player aren't created yet
+                    if (World.Instance == null || World.Instance.Player == null) return;
+
+                    // Get character name and sanitize it for use in filename
+                    string characterName = World.Instance.Player?.Name ?? "Unknown";
+                    characterName = SanitizeFilename(characterName);
+
+                    string filename = $"{DateTime.Now:yyyy_MM_dd_HH_mm_ss}_{characterName}_journal.txt";
+                    _fileWriter = new StreamWriter(File.Open(Path.Combine(path, filename), FileMode.Create, FileAccess.Write, FileShare.Read))
                     {
                         AutoFlush = true
                     };
@@ -131,6 +116,14 @@ namespace ClassicUO.Game.Managers
             }
         }
 
+        private static string SanitizeFilename(string filename)
+        {
+            // Replace invalid filename characters with underscore
+            string invalid = new string(Path.GetInvalidFileNameChars());
+            string pattern = $"[{Regex.Escape(invalid)}]";
+            return Regex.Replace(filename, pattern, "_");
+        }
+
         public void CloseWriter()
         {
             _fileWriter?.Flush();
@@ -138,11 +131,9 @@ namespace ClassicUO.Game.Managers
             _fileWriter = null;
         }
 
-        public void Clear()
-        {
+        public void Clear() =>
             //Entries.Clear();
             CloseWriter();
-        }
     }
 
     public class JournalEntry

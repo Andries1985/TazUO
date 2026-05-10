@@ -1,48 +1,16 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
-using ClassicUO.Game.UI.Controls;
 using ClassicUO.IO;
 using ClassicUO.Assets;
 using ClassicUO.Utility;
@@ -51,11 +19,11 @@ namespace ClassicUO.Network
 {
     internal static class NetClientExt
     {
-        public static void Send_ACKTalk(this NetClient socket)
+        public static void Send_ACKTalk(this AsyncNetClient socket)
         {
             const byte ID = 0x03;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -106,7 +74,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -118,11 +86,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_Ping(this NetClient socket, byte idx)
+        public static void Send_Ping(this AsyncNetClient socket, byte idx)
         {
             const byte ID = 0x73;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -137,7 +105,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -149,11 +117,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_DoubleClick(this NetClient socket, uint serial)
+        public static void Send_DoubleClick(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0x06;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -168,7 +136,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -182,7 +150,7 @@ namespace ClassicUO.Network
 
         public static void Send_Seed
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             uint v,
             byte major,
             byte minor,
@@ -192,7 +160,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0xEF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -211,7 +179,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -223,7 +191,7 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_Seed_Old(this NetClient socket, uint v)
+        public static void Send_Seed_Old(this AsyncNetClient socket, uint v)
         {
             var writer = new StackDataWriter(4);
             writer.WriteUInt32BE(v);
@@ -233,11 +201,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_FirstLogin(this NetClient socket, string user, string psw)
+        public static void Send_FirstLogin(this AsyncNetClient socket, string user, string psw)
         {
             const byte ID = 0x80;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -254,7 +222,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -266,11 +234,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_SelectServer(this NetClient socket, byte index)
+        public static void Send_SelectServer(this AsyncNetClient socket, byte index)
         {
             const byte ID = 0xA0;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -286,7 +254,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -298,11 +266,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_SecondLogin(this NetClient socket, string user, string psw, uint seed)
+        public static void Send_SecondLogin(this AsyncNetClient socket, string user, string psw, uint seed)
         {
             const byte ID = 0x91;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -319,7 +287,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -333,7 +301,7 @@ namespace ClassicUO.Network
 
         public static void Send_CreateCharacter
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             PlayerMobile character,
             int cityIndex,
             uint clientIP,
@@ -348,13 +316,13 @@ namespace ClassicUO.Network
             byte id = ID;
             int skillcount = 3;
 
-            if (Client.Version >= ClientVersion.CV_70160)
+            if (Client.Game.UO.Version >= ClientVersion.CV_70160)
             {
                 id = ID_NEW;
                 ++skillcount;
             }
 
-            int length = PacketsTable.GetPacketLength(id);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(id);
@@ -370,7 +338,7 @@ namespace ClassicUO.Network
             writer.WriteASCII(character.Name, 30);
             writer.WriteZero(2);
 
-            writer.WriteUInt32BE((uint) Client.Protocol);
+            writer.WriteUInt32BE((uint)Client.Game.UO.Protocol);
             writer.WriteUInt32BE(0x01);
             writer.WriteUInt32BE(0x00);
             writer.WriteUInt8(profession);
@@ -378,33 +346,33 @@ namespace ClassicUO.Network
 
             byte val;
 
-            if (Client.Version < ClientVersion.CV_4011D)
+            if (Client.Game.UO.Version < ClientVersion.CV_4011D)
             {
-                val = (byte) (character.Flags.HasFlag(Flags.Female) ? 0x01 : 0x00);
+                val = (byte)(character.Flags.HasFlag(Flags.Female) ? 0x01 : 0x00);
             }
             else
             {
-                val = (byte) character.Race;
+                val = (byte)character.Race;
 
-                if (Client.Version < ClientVersion.CV_7000)
+                if (Client.Game.UO.Version < ClientVersion.CV_7000)
                 {
                     val--;
                 }
 
-                val = (byte) (val * 2 + (byte) (character.Flags.HasFlag(Flags.Female) ? 0x01 : 0x00));
+                val = (byte)(val * 2 + (byte)(character.Flags.HasFlag(Flags.Female) ? 0x01 : 0x00));
             }
 
             writer.WriteUInt8(val);
-            writer.WriteUInt8((byte) character.Strength);
-            writer.WriteUInt8((byte) character.Dexterity);
-            writer.WriteUInt8((byte) character.Intelligence);
+            writer.WriteUInt8((byte)character.Strength);
+            writer.WriteUInt8((byte)character.Dexterity);
+            writer.WriteUInt8((byte)character.Intelligence);
 
-            List<Skill> skills = character.Skills.OrderByDescending(o => o.Value).Take(skillcount).ToList();
+            var skills = character.Skills.OrderByDescending(o => o.Value).Take(skillcount).ToList();
 
             foreach (Skill skill in skills)
             {
-                writer.WriteUInt8((byte) skill.Index);
-                writer.WriteUInt8((byte) skill.ValueFixed);
+                writer.WriteUInt8((byte)skill.Index);
+                writer.WriteUInt8((byte)skill.ValueFixed);
             }
 
             writer.WriteUInt16BE(character.Hue);
@@ -433,9 +401,9 @@ namespace ClassicUO.Network
                 writer.WriteZero(2 * 2);
             }
 
-            writer.WriteUInt16BE((ushort) cityIndex);
+            writer.WriteUInt16BE((ushort)cityIndex);
             writer.WriteZero(2);
-            writer.WriteUInt16BE((ushort) slot);
+            writer.WriteUInt16BE((ushort)slot);
             writer.WriteUInt32BE(clientIP);
 
             Item shirt = character.FindItemByLayer(Layer.Shirt);
@@ -463,7 +431,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -475,11 +443,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_DeleteCharacter(this NetClient socket, byte index, uint ipclient)
+        public static void Send_DeleteCharacter(this AsyncNetClient socket, byte index, uint ipclient)
         {
             const byte ID = 0x83;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -496,7 +464,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -508,11 +476,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_SelectCharacter(this NetClient socket, uint index, string name, uint ipclient)
+        public static void Send_SelectCharacter(this AsyncNetClient socket, uint index, string name, uint ipclient)
         {
             const byte ID = 0x5D;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -525,7 +493,7 @@ namespace ClassicUO.Network
             writer.WriteUInt32BE(0xEDEDEDED);
             writer.WriteASCII(name, 30);
             writer.WriteZero(2);
-            writer.WriteUInt32BE((uint) Client.Protocol);
+            writer.WriteUInt32BE((uint)Client.Game.UO.Protocol);
             writer.WriteZero(24);
             writer.WriteUInt32BE(index);
             writer.WriteUInt32BE(ipclient);
@@ -533,7 +501,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -545,11 +513,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_PickUpRequest(this NetClient socket, uint serial, ushort count)
+        public static void Send_PickUpRequest(this AsyncNetClient socket, uint serial, ushort count)
         {
             const byte ID = 0x07;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -565,7 +533,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -578,7 +546,7 @@ namespace ClassicUO.Network
 
         public static void Send_DropRequest_Old
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             uint serial,
             ushort x,
             ushort y,
@@ -588,7 +556,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0x08;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -607,7 +575,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -620,7 +588,7 @@ namespace ClassicUO.Network
 
         public static void Send_DropRequest
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             uint serial,
             ushort x,
             ushort y,
@@ -631,7 +599,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0x08;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -651,7 +619,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -662,11 +630,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_EquipRequest(this NetClient socket, uint serial, Layer layer, uint container)
+        public static void Send_EquipRequest(this AsyncNetClient socket, uint serial, Layer layer, uint container)
         {
             const byte ID = 0x13;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -677,13 +645,13 @@ namespace ClassicUO.Network
             }
 
             writer.WriteUInt32BE(serial);
-            writer.WriteUInt8((byte) layer);
+            writer.WriteUInt8((byte)layer);
             writer.WriteUInt32BE(container);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -694,11 +662,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ChangeWarMode(this NetClient socket, bool state)
+        public static void Send_ChangeWarMode(this AsyncNetClient socket, bool state)
         {
             const byte ID = 0x72;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -715,7 +683,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -726,11 +694,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_HelpRequest(this NetClient socket)
+        public static void Send_HelpRequest(this AsyncNetClient socket)
         {
             const byte ID = 0x9B;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -745,7 +713,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -756,11 +724,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_StatusRequest(this NetClient socket, uint serial)
+        public static void Send_StatusRequest(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0x34;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -777,7 +745,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -788,11 +756,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_SkillsRequest(this NetClient socket, uint serial)
+        public static void Send_SkillsRequest(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0x34;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -809,7 +777,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -820,11 +788,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_SkillsStatusRequest(this NetClient socket, ushort skillIndex, byte lockState)
+        public static void Send_SkillsStatusRequest(this AsyncNetClient socket, ushort skillIndex, byte lockState)
         {
             const byte ID = 0x3A;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -840,7 +808,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -851,11 +819,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ClickRequest(this NetClient socket, uint serial)
+        public static void Send_ClickRequest(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0x09;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
             writer.WriteUInt8(ID);
@@ -870,7 +838,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -881,11 +849,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_AttackRequest(this NetClient socket, uint serial)
+        public static void Send_AttackRequest(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0x05;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -901,7 +869,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -912,11 +880,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ClientVersion(this NetClient socket, string version)
+        public static void Send_ClientVersion(this AsyncNetClient socket, string version)
         {
             const byte ID = 0xBD;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -932,7 +900,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -943,11 +911,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ASCIISpeechRequest(this NetClient socket, string text, MessageType type, byte font, ushort hue)
+        public static void Send_ASCIISpeechRequest(this AsyncNetClient socket, string text, MessageType type, byte font, ushort hue)
         {
             const byte ID = 0x03;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -958,7 +926,7 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            List<SpeechEntry> entries = SpeechesLoader.Instance.GetKeywords(text);
+            List<SpeechEntry> entries = Client.Game.UO.FileManager.Speeches.GetKeywords(text);
             bool encoded = entries != null && entries.Count != 0;
 
             if (encoded)
@@ -966,7 +934,7 @@ namespace ClassicUO.Network
                 type |= MessageType.Encoded;
             }
 
-            writer.WriteUInt8((byte) type);
+            writer.WriteUInt8((byte)type);
             writer.WriteUInt16BE(hue);
             writer.WriteUInt16BE(font);
             writer.WriteASCII(text);
@@ -974,7 +942,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -987,7 +955,7 @@ namespace ClassicUO.Network
 
         public static void Send_UnicodeSpeechRequest
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             string text,
             MessageType type,
             byte font,
@@ -997,7 +965,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0xAD;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1008,7 +976,7 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            List<SpeechEntry> entries = SpeechesLoader.Instance.GetKeywords(text);
+            List<SpeechEntry> entries = Client.Game.UO.FileManager.Speeches.GetKeywords(text);
             bool encoded = entries != null && entries.Count != 0;
 
             if (encoded)
@@ -1016,17 +984,17 @@ namespace ClassicUO.Network
                 type |= MessageType.Encoded;
             }
 
-            writer.WriteUInt8((byte) type);
+            writer.WriteUInt8((byte)type);
             writer.WriteUInt16BE(hue);
             writer.WriteUInt16BE(font);
             writer.WriteASCII(lang, 4);
 
             if (encoded)
             {
-                List<byte> codeBytes = new List<byte>();
+                var codeBytes = new List<byte>();
                 byte[] utf8 = Encoding.UTF8.GetBytes(text);
                 int len = entries.Count;
-                codeBytes.Add((byte) (len >> 4));
+                codeBytes.Add((byte)(len >> 4));
                 int num3 = len & 15;
                 bool flag = false;
                 int index = 0;
@@ -1037,13 +1005,13 @@ namespace ClassicUO.Network
 
                     if (flag)
                     {
-                        codeBytes.Add((byte) (keywordID >> 4));
+                        codeBytes.Add((byte)(keywordID >> 4));
                         num3 = keywordID & 15;
                     }
                     else
                     {
-                        codeBytes.Add((byte) ((num3 << 4) | ((keywordID >> 8) & 15)));
-                        codeBytes.Add((byte) keywordID);
+                        codeBytes.Add((byte)((num3 << 4) | ((keywordID >> 8) & 15)));
+                        codeBytes.Add((byte)keywordID);
                     }
 
                     index++;
@@ -1052,7 +1020,7 @@ namespace ClassicUO.Network
 
                 if (!flag)
                 {
-                    codeBytes.Add((byte) (num3 << 4));
+                    codeBytes.Add((byte)(num3 << 4));
                 }
 
                 for (int i = 0; i < codeBytes.Count; ++i)
@@ -1071,7 +1039,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1082,19 +1050,19 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CastSpell(this NetClient socket, int idx)
+        public static void Send_CastSpell(this AsyncNetClient socket, int idx)
         {
             const byte ID = 0xBF;
             const byte ID_OLD = 0x12;
 
             byte id = ID;
 
-            if (Client.Version < ClientVersion.CV_60142)
+            if (Client.Game.UO.Version < ClientVersion.CV_60142)
             {
                 id = ID_OLD;
             }
 
-            int length = PacketsTable.GetPacketLength(id);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1105,11 +1073,11 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            if (Client.Version >= ClientVersion.CV_60142)
+            if (Client.Game.UO.Version >= ClientVersion.CV_60142)
             {
                 writer.WriteUInt16BE(0x1C);
                 writer.WriteUInt16BE(0x02);
-                writer.WriteUInt16BE((ushort) idx);
+                writer.WriteUInt16BE((ushort)idx);
             }
             else
             {
@@ -1120,7 +1088,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1131,11 +1099,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CastSpellFromBook(this NetClient socket, int idx, uint serial)
+        public static void Send_CastSpellFromBook(this AsyncNetClient socket, int idx, uint serial)
         {
             const byte ID = 0x12;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1152,7 +1120,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1163,11 +1131,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_UseSkill(this NetClient socket, int idx)
+        public static void Send_UseSkill(this AsyncNetClient socket, int idx)
         {
             const byte ID = 0x12;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1184,7 +1152,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1195,11 +1163,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_OpenDoor(this NetClient socket)
+        public static void Send_OpenDoor(this AsyncNetClient socket)
         {
             const byte ID = 0x12;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1216,7 +1184,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1227,11 +1195,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_OpenSpellBook(this NetClient socket, byte type)
+        public static void Send_OpenSpellBook(this AsyncNetClient socket, byte type)
         {
             const byte ID = 0x12;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1248,7 +1216,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1259,11 +1227,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_EmoteAction(this NetClient socket, string action)
+        public static void Send_EmoteAction(this AsyncNetClient socket, string action)
         {
             const byte ID = 0x12;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1280,7 +1248,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1293,7 +1261,8 @@ namespace ClassicUO.Network
 
         public static void Send_GumpResponse
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
+            World world,
             uint local,
             uint server,
             int button,
@@ -1303,7 +1272,14 @@ namespace ClassicUO.Network
         {
             const byte ID = 0xB1;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            // Switches are "what radios and checkboxes are checked?"
+            switches ??= [];
+
+            // Entries are responses for text inputs, from the user,
+            // i.e., a user input some arbitrary string into a gump
+            entries ??= [];
+
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1316,30 +1292,30 @@ namespace ClassicUO.Network
 
             writer.WriteUInt32BE(local);
             writer.WriteUInt32BE(server);
-            writer.WriteUInt32BE((uint) button);
+            writer.WriteUInt32BE((uint)button);
 
-            writer.WriteUInt32BE((uint) switches.Length);
+            writer.WriteUInt32BE((uint)switches.Length);
 
             for (int i = 0; i < switches.Length; ++i)
             {
                 writer.WriteUInt32BE(switches[i]);
             }
 
-            writer.WriteUInt32BE((uint) entries.Length);
+            writer.WriteUInt32BE((uint)entries.Length);
 
             for (int i = 0; i < entries.Length; ++i)
             {
                 int len = Math.Min(239, entries[i].Item2.Length);
 
                 writer.WriteUInt16BE(entries[i].Item1);
-                writer.WriteUInt16BE((ushort) len);
+                writer.WriteUInt16BE((ushort)len);
                 writer.WriteUnicodeBE(entries[i].Item2, len);
             }
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1348,16 +1324,13 @@ namespace ClassicUO.Network
 
             socket.Send(writer.BufferWritten);
             writer.Dispose();
-
-            if (World.Player != null)            
-                World.Player.HasGump = false;            
         }
 
-        public static void Send_VirtueGumpResponse(this NetClient socket, uint serial, uint code)
+        public static void Send_VirtueGumpResponse(this AsyncNetClient socket, uint serial, uint code)
         {
             const byte ID = 0xB1;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1375,7 +1348,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1388,7 +1361,7 @@ namespace ClassicUO.Network
 
         public static void Send_MenuResponse
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             uint serial,
             ushort graphic,
             int code,
@@ -1398,7 +1371,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0x7D;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1414,7 +1387,7 @@ namespace ClassicUO.Network
 
             if (code != 0)
             {
-                writer.WriteUInt16BE((ushort) code);
+                writer.WriteUInt16BE((ushort)code);
                 writer.WriteUInt16BE(itemGraphic);
                 writer.WriteUInt16BE(itemHue);
             }
@@ -1422,7 +1395,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1434,11 +1407,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_GrayMenuResponse(this NetClient socket, uint serial, ushort graphic, ushort code)
+        public static void Send_GrayMenuResponse(this AsyncNetClient socket, uint serial, ushort graphic, ushort code)
         {
             const byte ID = 0x7D;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1456,7 +1429,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1467,11 +1440,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_TradeResponse(this NetClient socket, uint serial, int code, bool state)
+        public static void Send_TradeResponse(this AsyncNetClient socket, uint serial, int code, bool state)
         {
             const byte ID = 0x6F;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1491,7 +1464,7 @@ namespace ClassicUO.Network
             {
                 writer.WriteUInt8(0x02);
                 writer.WriteUInt32BE(serial);
-                writer.WriteUInt32BE((uint) (state ? 1 : 0));
+                writer.WriteUInt32BE((uint)(state ? 1 : 0));
             }
             else
             {
@@ -1503,7 +1476,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1514,11 +1487,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_TradeUpdateGold(this NetClient socket, uint serial, uint gold, uint platinum)
+        public static void Send_TradeUpdateGold(this AsyncNetClient socket, uint serial, uint gold, uint platinum)
         {
             const byte ID = 0x6F;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1537,7 +1510,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1548,11 +1521,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_LogoutNotification(this NetClient socket)
+        public static void Send_LogoutNotification(this AsyncNetClient socket)
         {
             const byte ID = 0xD1;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1568,7 +1541,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1581,7 +1554,7 @@ namespace ClassicUO.Network
 
         public static void Send_TextEntryDialogResponse
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             uint serial,
             byte parentID,
             byte button,
@@ -1591,7 +1564,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0xAC;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1606,13 +1579,13 @@ namespace ClassicUO.Network
             writer.WriteUInt8(parentID);
             writer.WriteUInt8(button);
             writer.WriteBool(code);
-            writer.WriteUInt16BE((ushort) (text.Length + 1));
+            writer.WriteUInt16BE((ushort)(text.Length + 1));
             writer.WriteASCII(text, text.Length + 1);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1623,11 +1596,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_RenameRequest(this NetClient socket, uint serial, string name)
+        public static void Send_RenameRequest(this AsyncNetClient socket, uint serial, string name)
         {
             const byte ID = 0x75;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1644,7 +1617,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1655,11 +1628,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_NameRequest(this NetClient socket, uint serial)
+        public static void Send_NameRequest(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0x98;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1675,7 +1648,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1686,11 +1659,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_TipRequest(this NetClient socket, ushort id, byte flag)
+        public static void Send_TipRequest(this AsyncNetClient socket, ushort id, byte flag)
         {
             const byte ID = 0xA7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1707,7 +1680,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1720,7 +1693,7 @@ namespace ClassicUO.Network
 
         public static void Send_TargetObject
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             uint entity,
             ushort graphic,
             ushort x,
@@ -1732,7 +1705,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0x6C;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1749,13 +1722,13 @@ namespace ClassicUO.Network
             writer.WriteUInt32BE(entity);
             writer.WriteUInt16BE(x);
             writer.WriteUInt16BE(y);
-            writer.WriteUInt16BE((ushort) z);
+            writer.WriteUInt16BE((ushort)z);
             writer.WriteUInt16BE(graphic);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1764,11 +1737,14 @@ namespace ClassicUO.Network
 
             socket.Send(writer.BufferWritten);
             writer.Dispose();
+
+            if (CUOEnviroment.Debug)
+                GameActions.Print(Client.Game.UO.World, $"Target: Object {entity} at ({x}, {y}, {z})");
         }
 
         public static void Send_TargetXYZ
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             ushort graphic,
             ushort x,
             ushort y,
@@ -1779,7 +1755,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0x6C;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1796,13 +1772,13 @@ namespace ClassicUO.Network
             writer.WriteUInt32BE(0x00);
             writer.WriteUInt16BE(x);
             writer.WriteUInt16BE(y);
-            writer.WriteUInt16BE((ushort) z);
+            writer.WriteUInt16BE((ushort)z);
             writer.WriteUInt16BE(graphic);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1811,13 +1787,25 @@ namespace ClassicUO.Network
 
             socket.Send(writer.BufferWritten);
             writer.Dispose();
+
+            if (CUOEnviroment.Debug)
+            {
+                if (graphic == 0)
+                {
+                    GameActions.Print(Client.Game.UO.World, $"Target: Land at ({x}, {y}, {z})");
+                }
+                else
+                {
+                    GameActions.Print(Client.Game.UO.World, $"Target: Static {graphic} at ({x}, {y}, {z})");
+                }
+            }
         }
 
-        public static void Send_TargetCancel(this NetClient socket, CursorTarget type, uint cursorID, byte cursorType)
+        public static void Send_TargetCancel(this AsyncNetClient socket, CursorTarget type, uint cursorID, byte cursorType)
         {
             const byte ID = 0x6C;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1828,7 +1816,7 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt8((byte) type);
+            writer.WriteUInt8((byte)type);
             writer.WriteUInt32BE(cursorID);
             writer.WriteUInt8(cursorType);
             writer.WriteUInt32BE(0x00);
@@ -1838,7 +1826,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1849,11 +1837,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ASCIIPromptResponse(this NetClient socket, string text, bool cancel)
+        public static void Send_ASCIIPromptResponse(this AsyncNetClient socket, World world, string text, bool cancel)
         {
             const byte ID = 0x9A;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1864,14 +1852,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt64BE(MessageManager.PromptData.Data);
-            writer.WriteUInt32BE((uint) (cancel ? 0 : 1));
+            writer.WriteUInt64BE(world.MessageManager.PromptData.Data);
+            writer.WriteUInt32BE((uint)(cancel ? 0 : 1));
             writer.WriteASCII(text);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1882,11 +1870,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_UnicodePromptResponse(this NetClient socket, string text, string lang, bool cancel)
+        public static void Send_UnicodePromptResponse(this AsyncNetClient socket, World world, string text, string lang, bool cancel)
         {
             const byte ID = 0xC2;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1897,8 +1885,8 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt64BE(MessageManager.PromptData.Data);
-            writer.WriteUInt32BE((uint) (cancel ? 0 : 1));
+            writer.WriteUInt64BE(world.MessageManager.PromptData.Data);
+            writer.WriteUInt32BE((uint)(cancel ? 0 : 1));
             writer.WriteASCII(lang, 3);
             writer.WriteUInt8(0x00);
             writer.WriteUnicodeLE(text, text.Length);
@@ -1906,7 +1894,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1917,11 +1905,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_DyeDataResponse(this NetClient socket, uint serial, ushort graphic, ushort hue)
+        public static void Send_DyeDataResponse(this AsyncNetClient socket, uint serial, ushort graphic, ushort hue)
         {
             const byte ID = 0x95;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1939,7 +1927,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1950,11 +1938,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ProfileRequest(this NetClient socket, uint serial)
+        public static void Send_ProfileRequest(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0xB8;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -1971,7 +1959,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -1982,11 +1970,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ProfileUpdate(this NetClient socket, uint serial, string text)
+        public static void Send_ProfileUpdate(this AsyncNetClient socket, uint serial, string text)
         {
             const byte ID = 0xB8;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2000,13 +1988,13 @@ namespace ClassicUO.Network
             writer.WriteUInt8(0x01);
             writer.WriteUInt32BE(serial);
             writer.WriteUInt16BE(0x01);
-            writer.WriteUInt16BE((ushort) text.Length);
+            writer.WriteUInt16BE((ushort)text.Length);
             writer.WriteUnicodeBE(text, text.Length);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2017,11 +2005,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ClickQuestArrow(this NetClient socket, bool righClick)
+        public static void Send_ClickQuestArrow(this AsyncNetClient socket, bool righClick)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2038,7 +2026,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2049,11 +2037,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CloseStatusBarGump(this NetClient socket, uint serial)
+        public static void Send_CloseStatusBarGump(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2070,7 +2058,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2081,11 +2069,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_PartyInviteRequest(this NetClient socket)
+        public static void Send_PartyInviteRequest(this AsyncNetClient socket)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2103,7 +2091,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2114,11 +2102,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_PartyRemoveRequest(this NetClient socket, uint serial)
+        public static void Send_PartyRemoveRequest(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2136,7 +2124,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2147,11 +2135,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_PartyChangeLootTypeRequest(this NetClient socket, bool type)
+        public static void Send_PartyChangeLootTypeRequest(this AsyncNetClient socket, bool type)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2169,7 +2157,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2180,11 +2168,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_PartyAccept(this NetClient socket, uint serial)
+        public static void Send_PartyAccept(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2202,7 +2190,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2213,11 +2201,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_PartyDecline(this NetClient socket, uint serial)
+        public static void Send_PartyDecline(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2235,7 +2223,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2247,11 +2235,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_PartyMessage(this NetClient socket, string text, uint serial)
+        public static void Send_PartyMessage(this AsyncNetClient socket, string text, uint serial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2280,7 +2268,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2291,11 +2279,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_GameWindowSize(this NetClient socket, uint w, uint h)
+        public static void Send_GameWindowSize(this AsyncNetClient socket, uint w, uint h)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2313,7 +2301,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2324,11 +2312,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BulletinBoardRequestMessage(this NetClient socket, uint serial, uint msgSerial)
+        public static void Send_BulletinBoardRequestMessage(this AsyncNetClient socket, uint serial, uint msgSerial)
         {
             const byte ID = 0x71;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2346,7 +2334,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2357,11 +2345,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BulletinBoardRequestMessageSummary(this NetClient socket, uint serial, uint msgSerial)
+        public static void Send_BulletinBoardRequestMessageSummary(this AsyncNetClient socket, uint serial, uint msgSerial)
         {
             const byte ID = 0x71;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2379,7 +2367,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2390,11 +2378,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BulletinBoardPostMessage(this NetClient socket, uint serial, uint msgSerial, string subject, string text)
+        public static void Send_BulletinBoardPostMessage(this AsyncNetClient socket, uint serial, uint msgSerial, string subject, string text)
         {
             const byte ID = 0x71;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2412,21 +2400,21 @@ namespace ClassicUO.Network
             writer.WriteUInt8(0x05);
             writer.WriteUInt32BE(serial);
             writer.WriteUInt32BE(msgSerial);
-            writer.WriteUInt8((byte) (subject.Length + 1));
+            writer.WriteUInt8((byte)(subject.Length + 1));
 
             byte[] title = Encoding.UTF8.GetBytes(subject);
             writer.Write(title);
             writer.WriteUInt8(0x00);
 
-            var lines = text.Split('\n');
+            string[] lines = text.Split('\n');
 
             if (lines.Length > 0)
             {
                 writer.WriteUInt8((byte)lines.Length);
 
-                foreach (var line in lines)
+                foreach (string line in lines)
                 {
-                    var bytes = Encoding.UTF8.GetBytes(line);
+                    byte[] bytes = Encoding.UTF8.GetBytes(line);
                     writer.WriteUInt8((byte)(bytes.Length + 1));
                     writer.Write(bytes.AsSpan());
                     writer.WriteUInt8(0x00);
@@ -2435,7 +2423,7 @@ namespace ClassicUO.Network
             else
             {
                 writer.WriteUInt8(0x01);
-                var bytes = Encoding.UTF8.GetBytes(text);
+                byte[] bytes = Encoding.UTF8.GetBytes(text);
                 writer.WriteUInt8((byte)(bytes.Length + 1));
                 writer.Write(bytes.AsSpan());
                 writer.WriteUInt8(0x00);
@@ -2445,7 +2433,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2457,11 +2445,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BulletinBoardRemoveMessage(this NetClient socket, uint serial, uint msgSerial)
+        public static void Send_BulletinBoardRemoveMessage(this AsyncNetClient socket, uint serial, uint msgSerial)
         {
             const byte ID = 0x71;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2479,7 +2467,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2491,11 +2479,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_RazorACK(this NetClient socket)
+        public static void Send_RazorACK(this AsyncNetClient socket)
         {
             const byte ID = 0xF0;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2511,7 +2499,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2522,11 +2510,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_QueryGuildPosition(this NetClient socket)
+        public static void Send_QueryGuildPosition(this AsyncNetClient socket)
         {
             const byte ID = 0xF0;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2543,7 +2531,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2554,11 +2542,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_QueryPartyPosition(this NetClient socket)
+        public static void Send_QueryPartyPosition(this AsyncNetClient socket)
         {
             const byte ID = 0xF0;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2574,7 +2562,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2585,11 +2573,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_Language(this NetClient socket, string lang)
+        public static void Send_Language(this AsyncNetClient socket, string lang)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2607,7 +2595,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2618,11 +2606,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ClientType(this NetClient socket)
+        public static void Send_ClientType(this AsyncNetClient socket)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2638,9 +2626,9 @@ namespace ClassicUO.Network
 
             uint clientFlag = 0;
 
-            for (int i = 0; i < (uint) Client.Protocol; ++i)
+            for (int i = 0; i < (uint)Client.Game.UO.Protocol; ++i)
             {
-                clientFlag |= (uint) (1 << i);
+                clientFlag |= (uint)(1 << i);
             }
 
 
@@ -2649,7 +2637,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2661,11 +2649,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_RequestPopupMenu(this NetClient socket, uint serial)
+        public static void Send_RequestPopupMenu(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2682,7 +2670,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2693,11 +2681,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_PopupMenuSelection(this NetClient socket, uint serial, ushort menuid)
+        public static void Send_PopupMenuSelection(this AsyncNetClient socket, uint serial, ushort menuid)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2715,7 +2703,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2726,11 +2714,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ChatJoinCommand(this NetClient socket, string name, string password = null)
+        public static void Send_ChatJoinCommand(this AsyncNetClient socket, string name, string password = null)
         {
             const byte ID = 0xB3;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2756,7 +2744,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2768,11 +2756,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ChatCreateChannelCommand(this NetClient socket, string name, string password = null)
+        public static void Send_ChatCreateChannelCommand(this AsyncNetClient socket, string name, string password = null)
         {
             const byte ID = 0xB3;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2797,7 +2785,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2808,11 +2796,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ChatLeaveChannelCommand(this NetClient socket)
+        public static void Send_ChatLeaveChannelCommand(this AsyncNetClient socket)
         {
             const byte ID = 0xB3;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2829,7 +2817,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2840,11 +2828,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ChatMessageCommand(this NetClient socket, string msg)
+        public static void Send_ChatMessageCommand(this AsyncNetClient socket, string msg)
         {
             const byte ID = 0xB3;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2862,7 +2850,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2874,11 +2862,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_OpenChat(this NetClient socket, string name)
+        public static void Send_OpenChat(this AsyncNetClient socket, string name)
         {
             const byte ID = 0xB5;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2901,7 +2889,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2914,7 +2902,7 @@ namespace ClassicUO.Network
 
         public static void Send_MapMessage
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             uint serial,
             byte action,
             byte pin,
@@ -2924,7 +2912,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0x56;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2944,7 +2932,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2955,11 +2943,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_GuildMenuRequest(this NetClient socket)
+        public static void Send_GuildMenuRequest(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -2970,14 +2958,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x28);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -2988,11 +2976,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_QuestMenuRequest(this NetClient socket)
+        public static void Send_QuestMenuRequest(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3003,14 +2991,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x32);
             writer.WriteUInt8(0x00);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3021,11 +3009,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_EquipLastWeapon(this NetClient socket)
+        public static void Send_EquipLastWeapon(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3036,14 +3024,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x1E);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3054,11 +3042,24 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_InvokeVirtueRequest(this NetClient socket, byte id)
+        public static void Send_InvokeVirtueRequest(this AsyncNetClient socket, byte id)
         {
             const byte ID = 0x12;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            switch (id)
+            {
+                case 0x01:
+                    ClassicUO.LegionScripting.ScriptRecorder.Instance.RecordVirtue("honor");
+                    break;
+                case 0x02:
+                    ClassicUO.LegionScripting.ScriptRecorder.Instance.RecordVirtue("sacrifice");
+                    break;
+                case 0x03:
+                    ClassicUO.LegionScripting.ScriptRecorder.Instance.RecordVirtue("valor");
+                    break;
+            }
+
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3076,7 +3077,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3087,11 +3088,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_MegaClilocRequest_Old(this NetClient socket, uint serial)
+        public static void Send_MegaClilocRequest_Old(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3108,7 +3109,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3119,11 +3120,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_MegaClilocRequest(this NetClient socket, ref List<uint> serials)
+        public static void Send_MegaClilocRequest(this AsyncNetClient socket, List<uint> serials)
         {
             const byte ID = 0xD6;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3146,7 +3147,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3157,11 +3158,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_StatLockStateRequest(this NetClient socket, byte stat, Lock state)
+        public static void Send_StatLockStateRequest(this AsyncNetClient socket, byte stat, Lock state)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3174,12 +3175,12 @@ namespace ClassicUO.Network
 
             writer.WriteUInt16BE(0x1A);
             writer.WriteUInt8(stat);
-            writer.WriteUInt8((byte) state);
+            writer.WriteUInt8((byte)state);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3191,11 +3192,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_SkillStatusChangeRequest(this NetClient socket, ushort skillindex, byte lockstate)
+        public static void Send_SkillStatusChangeRequest(this AsyncNetClient socket, ushort skillindex, byte lockstate)
         {
             const byte ID = 0x3A;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3212,7 +3213,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3223,11 +3224,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BookHeaderChanged_Old(this NetClient socket, uint serial, string title, string author)
+        public static void Send_BookHeaderChanged_Old(this AsyncNetClient socket, uint serial, string title, string author)
         {
             const byte ID = 0x93;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3248,7 +3249,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3260,11 +3261,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BookHeaderChanged(this NetClient socket, uint serial, string title, string author)
+        public static void Send_BookHeaderChanged(this AsyncNetClient socket, uint serial, string title, string author)
         {
             const byte ID = 0xD4;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3280,16 +3281,16 @@ namespace ClassicUO.Network
             writer.WriteUInt8(0x00);
             writer.WriteUInt16BE(0);
             int titleLength = Encoding.UTF8.GetByteCount(title);
-            writer.WriteUInt16BE((ushort) titleLength);
+            writer.WriteUInt16BE((ushort)titleLength);
             writer.WriteUTF8(title, titleLength);
             int authorLength = Encoding.UTF8.GetByteCount(author);
-            writer.WriteUInt16BE((ushort) authorLength);
+            writer.WriteUInt16BE((ushort)authorLength);
             writer.WriteUTF8(author, authorLength);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3301,11 +3302,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BookPageData(this NetClient socket, uint serial, string[] text, int page)
+        public static void Send_BookPageData(this AsyncNetClient socket, uint serial, string[] text, int page)
         {
             const byte ID = 0x66;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3318,8 +3319,8 @@ namespace ClassicUO.Network
 
             writer.WriteUInt32BE(serial);
             writer.WriteUInt16BE(0x01);
-            writer.WriteUInt16BE((ushort) page);
-            writer.WriteUInt16BE((ushort) text.Length);
+            writer.WriteUInt16BE((ushort)page);
+            writer.WriteUInt16BE((ushort)text.Length);
 
             for (int i = 0; i < text.Length; ++i)
             {
@@ -3359,7 +3360,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3371,11 +3372,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BookPageDataRequest(this NetClient socket, uint serial, ushort page)
+        public static void Send_BookPageDataRequest(this AsyncNetClient socket, uint serial, ushort page)
         {
             const byte ID = 0x66;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3394,7 +3395,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3406,11 +3407,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_BuyRequest(this NetClient socket, uint serial, Tuple<uint, ushort>[] items)
+        public static void Send_BuyRequest(this AsyncNetClient socket, uint serial, Tuple<uint, ushort>[] items)
         {
             const byte ID = 0x3B;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3443,7 +3444,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3455,11 +3456,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_SellRequest(this NetClient socket, uint serial, Tuple<uint, ushort>[] items)
+        public static void Send_SellRequest(this AsyncNetClient socket, uint serial, Tuple<uint, ushort>[] items)
         {
             const byte ID = 0x9F;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3471,7 +3472,7 @@ namespace ClassicUO.Network
             }
 
             writer.WriteUInt32BE(serial);
-            writer.WriteUInt16BE((ushort) items.Length);
+            writer.WriteUInt16BE((ushort)items.Length);
 
             for (int i = 0; i < items.Length; ++i)
             {
@@ -3483,7 +3484,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3494,11 +3495,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_UseCombatAbility(this NetClient socket, byte idx)
+        public static void Send_UseCombatAbility(this AsyncNetClient socket, World world, byte idx)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3509,7 +3510,7 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x19);
             writer.WriteUInt32BE(0);
             writer.WriteUInt8(idx);
@@ -3530,11 +3531,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_TargetSelectedObject(this NetClient socket, uint serial, uint targetSerial)
+        public static void Send_TargetSelectedObject(this AsyncNetClient socket, uint serial, uint targetSerial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3552,7 +3553,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3562,13 +3563,16 @@ namespace ClassicUO.Network
 
             socket.Send(writer.BufferWritten);
             writer.Dispose();
+
+            if (CUOEnviroment.Debug)
+                GameActions.Print(Client.Game.UO.World, $"Target: Using object {serial} on target {targetSerial}");
         }
 
-        public static void Send_ToggleGargoyleFlying(this NetClient socket)
+        public static void Send_ToggleGargoyleFlying(this AsyncNetClient socket)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3586,7 +3590,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3597,11 +3601,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseDataRequest(this NetClient socket, uint serial)
+        public static void Send_CustomHouseDataRequest(this AsyncNetClient socket, uint serial)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3618,7 +3622,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3629,11 +3633,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_StunRequest(this NetClient socket)
+        public static void Send_StunRequest(this AsyncNetClient socket)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3649,7 +3653,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3660,11 +3664,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_DisarmRequest(this NetClient socket)
+        public static void Send_DisarmRequest(this AsyncNetClient socket)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3680,7 +3684,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3693,7 +3697,7 @@ namespace ClassicUO.Network
 
         public static void Send_ChangeRaceRequest
         (
-            this NetClient socket,
+            this AsyncNetClient socket,
             ushort skinHue,
             ushort hairStyle,
             ushort hairHue,
@@ -3703,7 +3707,7 @@ namespace ClassicUO.Network
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3724,7 +3728,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3735,11 +3739,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_MultiBoatMoveRequest(this NetClient socket, uint serial, Direction dir, byte speed)
+        public static void Send_MultiBoatMoveRequest(this AsyncNetClient socket, uint serial, Direction dir, byte speed)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3752,14 +3756,14 @@ namespace ClassicUO.Network
 
             writer.WriteUInt16BE(0x33);
             writer.WriteUInt32BE(serial);
-            writer.WriteUInt8((byte) dir);
-            writer.WriteUInt8((byte) dir);
+            writer.WriteUInt8((byte)dir);
+            writer.WriteUInt8((byte)dir);
             writer.WriteUInt8(speed);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3770,11 +3774,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_Resync(this NetClient socket)
+        public static void Send_Resync(this AsyncNetClient socket)
         {
             const byte ID = 0x22;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3789,7 +3793,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3801,11 +3805,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_WalkRequest(this NetClient socket, Direction direction, byte seq, bool run, uint fastWalk)
+        public static void Send_WalkRequest(this AsyncNetClient socket, Direction direction, byte seq, bool run, uint fastWalk)
         {
             const byte ID = 0x02;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3821,14 +3825,14 @@ namespace ClassicUO.Network
                 direction |= Direction.Running;
             }
 
-            writer.WriteUInt8((byte) direction);
+            writer.WriteUInt8((byte)direction);
             writer.WriteUInt8(seq);
             writer.WriteUInt32BE(fastWalk);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3839,11 +3843,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseBackup(this NetClient socket)
+        public static void Send_CustomHouseBackup(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3854,14 +3858,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x02);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3873,11 +3877,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseRestore(this NetClient socket)
+        public static void Send_CustomHouseRestore(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3888,14 +3892,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x03);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3907,11 +3911,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseCommit(this NetClient socket)
+        public static void Send_CustomHouseCommit(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3922,14 +3926,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x04);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3941,11 +3945,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseBuildingExit(this NetClient socket)
+        public static void Send_CustomHouseBuildingExit(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3956,14 +3960,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x0C);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -3974,11 +3978,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseGoToFloor(this NetClient socket, byte floor)
+        public static void Send_CustomHouseGoToFloor(this AsyncNetClient socket, World world, byte floor)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -3989,7 +3993,7 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x12);
             writer.WriteUInt32BE(0);
             writer.WriteUInt8(floor);
@@ -3998,7 +4002,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4010,11 +4014,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseSync(this NetClient socket)
+        public static void Send_CustomHouseSync(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4025,14 +4029,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x0E);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4044,11 +4048,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseClear(this NetClient socket)
+        public static void Send_CustomHouseClear(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4059,14 +4063,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x10);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4078,11 +4082,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseRevert(this NetClient socket)
+        public static void Send_CustomHouseRevert(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4093,14 +4097,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x1A);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4111,11 +4115,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseResponse(this NetClient socket)
+        public static void Send_CustomHouseResponse(this AsyncNetClient socket, World world)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4126,14 +4130,14 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x0A);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4144,11 +4148,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseAddItem(this NetClient socket, ushort graphic, int x, int y)
+        public static void Send_CustomHouseAddItem(this AsyncNetClient socket, World world, ushort graphic, int x, int y)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4159,20 +4163,20 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x06);
             writer.WriteUInt8(0x00);
             writer.WriteUInt32BE(graphic);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) x);
+            writer.WriteUInt32BE((uint)x);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) y);
+            writer.WriteUInt32BE((uint)y);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4183,11 +4187,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseDeleteItem(this NetClient socket, ushort graphic, int x, int y, int z)
+        public static void Send_CustomHouseDeleteItem(this AsyncNetClient socket, World world, ushort graphic, int x, int y, int z)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4198,22 +4202,22 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x05);
             writer.WriteUInt8(0x00);
             writer.WriteUInt32BE(graphic);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) x);
+            writer.WriteUInt32BE((uint)x);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) y);
+            writer.WriteUInt32BE((uint)y);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) z);
+            writer.WriteUInt32BE((uint)z);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4224,11 +4228,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseAddRoof(this NetClient socket, ushort graphic, int x, int y, int z)
+        public static void Send_CustomHouseAddRoof(this AsyncNetClient socket, World world, ushort graphic, int x, int y, int z)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4239,22 +4243,22 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x13);
             writer.WriteUInt8(0x00);
             writer.WriteUInt32BE(graphic);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) x);
+            writer.WriteUInt32BE((uint)x);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) y);
+            writer.WriteUInt32BE((uint)y);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) z);
+            writer.WriteUInt32BE((uint)z);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4265,11 +4269,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseDeleteRoof(this NetClient socket, ushort graphic, int x, int y, int z)
+        public static void Send_CustomHouseDeleteRoof(this AsyncNetClient socket, World world, ushort graphic, int x, int y, int z)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4280,22 +4284,22 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x14);
             writer.WriteUInt8(0x00);
             writer.WriteUInt32BE(graphic);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) x);
+            writer.WriteUInt32BE((uint)x);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) y);
+            writer.WriteUInt32BE((uint)y);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) z);
+            writer.WriteUInt32BE((uint)z);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4306,11 +4310,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_CustomHouseAddStair(this NetClient socket, ushort graphic, int x, int y)
+        public static void Send_CustomHouseAddStair(this AsyncNetClient socket, World world, ushort graphic, int x, int y)
         {
             const byte ID = 0xD7;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4321,20 +4325,20 @@ namespace ClassicUO.Network
                 writer.WriteZero(2);
             }
 
-            writer.WriteUInt32BE(World.Player.Serial);
+            writer.WriteUInt32BE(world.Player.Serial);
             writer.WriteUInt16BE(0x0D);
             writer.WriteUInt8(0x00);
             writer.WriteUInt32BE(graphic);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) x);
+            writer.WriteUInt32BE((uint)x);
             writer.WriteUInt8(0x00);
-            writer.WriteUInt32BE((uint) y);
+            writer.WriteUInt32BE((uint)y);
             writer.WriteUInt8(0x0A);
 
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4345,11 +4349,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ClientViewRange(this NetClient socket, byte range)
+        public static void Send_ClientViewRange(this AsyncNetClient socket, byte range)
         {
             const byte ID = 0xC8;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4374,7 +4378,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4385,11 +4389,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_OpenUOStore(this NetClient socket)
+        public static void Send_OpenUOStore(this AsyncNetClient socket)
         {
             const byte ID = 0xFA;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4403,7 +4407,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4414,11 +4418,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ShowPublicHouseContent(this NetClient socket, bool show)
+        public static void Send_ShowPublicHouseContent(this AsyncNetClient socket, bool show)
         {
             const byte ID = 0xFB;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4434,7 +4438,7 @@ namespace ClassicUO.Network
             if (length < 0)
             {
                 writer.Seek(1, SeekOrigin.Begin);
-                writer.WriteUInt16BE((ushort) writer.BytesWritten);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
             }
             else
             {
@@ -4445,11 +4449,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_DeathScreen(this NetClient socket)
+        public static void Send_DeathScreen(this AsyncNetClient socket)
         {
             const byte ID = 0x2C;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4476,12 +4480,78 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
+        public static void Send_EquipMacroKR(this AsyncNetClient socket, ReadOnlySpan<uint> serials)
+        {
+            const byte ID = 0xEC;
 
-        public static void Send_UOLive_HashResponse(this NetClient socket, uint block, byte mapIndex, Span<ushort> checksums)
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
+
+            var writer = new StackDataWriter(length < 0 ? 64 : length);
+
+            writer.WriteUInt8(ID);
+
+            if (length < 0)
+            {
+                writer.WriteZero(2);
+            }
+
+            writer.WriteUInt8((byte)serials.Length);
+            foreach (ref readonly uint serial in serials)
+                writer.WriteUInt32BE(serial);
+
+            if (length < 0)
+            {
+                writer.Seek(1, SeekOrigin.Begin);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
+            }
+            else
+            {
+                writer.WriteZero(length - writer.BytesWritten);
+            }
+
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
+
+
+        public static void Send_UnequipMacroKR(this AsyncNetClient socket, ReadOnlySpan<Layer> layers)
+        {
+            const byte ID = 0xED;
+
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
+
+            var writer = new StackDataWriter(length < 0 ? 64 : length);
+
+            writer.WriteUInt8(ID);
+
+            if (length < 0)
+            {
+                writer.WriteZero(2);
+            }
+
+            writer.WriteUInt8((byte)layers.Length);
+            foreach (ref readonly Layer layer in layers)
+                writer.WriteUInt16BE((byte)layer);
+
+            if (length < 0)
+            {
+                writer.Seek(1, SeekOrigin.Begin);
+                writer.WriteUInt16BE((ushort)writer.BytesWritten);
+            }
+            else
+            {
+                writer.WriteZero(length - writer.BytesWritten);
+            }
+
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
+
+        public static void Send_UOLive_HashResponse(this AsyncNetClient socket, uint block, byte mapIndex, Span<ushort> checksums)
         {
             const byte ID = 0x3F;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4517,11 +4587,11 @@ namespace ClassicUO.Network
         }
 
 
-        public static void Send_ToPlugins_AllSpells(this NetClient socket)
+        public static void Send_ToPlugins_AllSpells(this AsyncNetClient socket)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4594,11 +4664,11 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
-        public static void Send_ToPlugins_AllSkills(this NetClient socket)
+        public static void Send_ToPlugins_AllSkills(this AsyncNetClient socket)
         {
             const byte ID = 0xBF;
 
-            int length = PacketsTable.GetPacketLength(ID);
+            int length = AsyncNetClient.PacketsTable.GetPacketLength(ID);
 
             var writer = new StackDataWriter(length < 0 ? 64 : length);
 
@@ -4612,14 +4682,14 @@ namespace ClassicUO.Network
             writer.WriteUInt16BE(0xBEEF);
             writer.WriteUInt8(0x01);
 
-            writer.WriteUInt16BE((ushort)SkillsLoader.Instance.SortedSkills.Count);
+            writer.WriteUInt16BE((ushort)Client.Game.UO.FileManager.Skills.SortedSkills.Count);
 
-            foreach (SkillEntry s in SkillsLoader.Instance.SortedSkills)
+            foreach (SkillEntry s in Client.Game.UO.FileManager.Skills.SortedSkills)
             {
-                writer.WriteUInt16BE((ushort) s.Index);
+                writer.WriteUInt16BE((ushort)s.Index);
                 writer.WriteBool(s.HasAction);
 
-                writer.WriteUInt16BE((ushort) s.Name.Length);
+                writer.WriteUInt16BE((ushort)s.Name.Length);
                 writer.WriteUnicodeBE(s.Name, s.Name.Length);
             }
 
@@ -4636,6 +4706,19 @@ namespace ClassicUO.Network
             int len = writer.BytesWritten;
             Plugin.ProcessRecvPacket(writer.AllocatedBuffer, ref len);
             writer.Dispose();
+        }
+
+        public static void Send_TargetByResource(this AsyncNetClient socket, uint serial, uint resourceType)
+        {
+            const byte ID = 0xBF;
+
+            var writer = new StackDataWriter(11);
+
+            writer.WriteUInt8(ID);
+            writer.WriteZero(2);
+            writer.WriteUInt16BE(0x30); // command
+            writer.WriteUInt32BE(serial); // Tools
+            writer.WriteUInt16BE((ushort)resourceType); // Resource type
         }
     }
 }

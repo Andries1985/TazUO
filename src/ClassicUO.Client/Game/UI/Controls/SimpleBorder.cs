@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Controls
 {
-    internal class SimpleBorder : Control
+    public class SimpleBorder : Control
     {
         public ushort Hue
         {
@@ -22,6 +22,12 @@ namespace ClassicUO.Game.UI.Controls
         //Return 0 so this control has a 0, 0 size to not interfere with hitboxes
         public new int Width { get { return 0; } set { _width = value; } }
         public new int Height { get { return 0; } set { _height = value; } }
+
+        public override void AlphaChanged(float oldValue, float newValue)
+        {
+            base.AlphaChanged(oldValue, newValue);
+            hueVector = ShaderHueTranslator.GetHueVector(Hue, false, newValue);
+        }
 
         public override bool Draw(UltimaBatcher2D batcher, int x, int y)
         {

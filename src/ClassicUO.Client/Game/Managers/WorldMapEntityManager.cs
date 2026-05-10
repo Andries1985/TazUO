@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System.Collections.Generic;
 using ClassicUO.Configuration;
@@ -36,21 +6,22 @@ using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Network;
-using ClassicUO.Network.Encryption;
 using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.Managers
 {
     public class WMapEntity
     {
+        private static Dictionary<uint, string> _mobileNameCache = new();
+
         public WMapEntity(uint serial)
         {
             Serial = serial;
 
-            //var mob = World.Mobiles.Get(serial);
+            Mobile mob = Client.Game.UO.World.Mobiles.Get(serial);
 
-            //if (mob != null)
-            //    GetName();
+            if (mob != null)
+                GetName();
         }
 
         public bool IsGuild;
@@ -59,54 +30,50 @@ namespace ClassicUO.Game.Managers
         public readonly uint Serial;
         public int X, Y, HP, Map;
 
-        //public string GetName()
-        //{
-        //    Entity e = World.Get(Serial);
+        public string GetName()
+        {
+            Entity e = Client.Game.UO.World.Get(Serial);
 
-        //    if (e != null && !e.IsDestroyed && !string.IsNullOrEmpty(e.Name) && Name != e.Name)
-        //    {
-        //        Name = e.Name;
-        //    }
+            if (e != null && !e.IsDestroyed && !string.IsNullOrEmpty(e.Name) && Name != e.Name)
+            {
+                Name = e.Name;
+                _mobileNameCache[Serial] = Name;
+                _ = FriendliesSQLManager.Instance.AddAsync(Serial, Name);
+            }
 
-        //    return string.IsNullOrEmpty(Name) ? "<out of range>" : Name;
-        //}
+            return string.IsNullOrEmpty(Name) && !_mobileNameCache.TryGetValue(Serial, out Name) ? "<out of range>" : Name;
+        }
     }
 
-    public class WorldMapEntityManager
+    public sealed class WorldMapEntityManager
     {
         private bool _ackReceived;
         private uint _lastUpdate, _lastPacketSend, _lastPacketRecv;
         private readonly List<WMapEntity> _toRemove = new List<WMapEntity>();
         public WMapEntity _corpse;
+        private readonly World _world;
 
-        public bool Enabled
-        {
-            get
-            {
-                return ((World.ClientFeatures.Flags & CharacterListFlags.CLF_NEW_MOVEMENT_SYSTEM) == 0 || _ackReceived) &&
-                        EncryptionHelper.Type == 0 &&
-                        ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.WorldMapShowParty && 
+        public WorldMapEntityManager(World world) { _world = world; }
+
+        public bool Enabled => ((_world.ClientFeatures.Flags & CharacterListFlags.CLF_NEW_MOVEMENT_SYSTEM) == 0 || _ackReceived) &&
+                        (AsyncNetClient.Encryption == null || AsyncNetClient.Encryption.EncryptionType == 0) &&
+                        ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.WorldMapShowParty &&
                         UIManager.GetGump<WorldMapGump>() != null; // horrible, but works
-            }
-        }
 
         public readonly Dictionary<uint, WMapEntity> Entities = new Dictionary<uint, WMapEntity>();
 
-        public void SetACKReceived()
-        {
-            _ackReceived = true;
-        }
+        public void SetACKReceived() => _ackReceived = true;
 
         public void SetEnable(bool v)
         {
-            if ((World.ClientFeatures.Flags & CharacterListFlags.CLF_NEW_MOVEMENT_SYSTEM) != 0 && !_ackReceived)
+            if ((_world.ClientFeatures.Flags & CharacterListFlags.CLF_NEW_MOVEMENT_SYSTEM) != 0 && !_ackReceived)
             {
-                Log.Warn("Server support new movement system. Can't use the 0xF0 packet to query guild/party position");
+                Log.WarnDebug("Server support new movement system. Can't use the 0xF0 packet to query guild/party position");
                 v = false;
             }
-            else if (EncryptionHelper.Type != 0 && !_ackReceived)
+            else if (AsyncNetClient.Encryption?.EncryptionType != 0 && !_ackReceived)
             {
-                Log.Warn("Server has encryption. Can't use the 0xF0 packet to query guild/party position");
+                Log.WarnDebug("Server has encryption. Can't use the 0xF0 packet to query guild/party position");
                 v = false;
             }
 
@@ -144,7 +111,7 @@ namespace ClassicUO.Game.Managers
 
             if (string.IsNullOrEmpty(name))
             {
-                Entity ent = World.Get(serial);
+                Entity ent = _world.Get(serial);
 
                 if (ent != null && !string.IsNullOrEmpty(ent.Name))
                 {
@@ -177,6 +144,16 @@ namespace ClassicUO.Game.Managers
                 {
                     entity.Name = name;
                 }
+            }
+
+            if (string.IsNullOrEmpty(entity.Name))
+            {
+                FriendliesSQLManager.Instance.GetNameAsync(entity.Serial).ContinueWith((dbName) =>
+                {
+                    if (string.IsNullOrEmpty(dbName.Result)) return;
+
+                    MainThreadQueue.EnqueueAction(() => entity.Name = dbName.Result);
+                });
             }
         }
 
@@ -236,7 +213,7 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            if (World.InGame && _lastPacketSend < Time.Ticks)
+            if (_world.InGame && _lastPacketSend < Time.Ticks)
             {
                 //GameActions.Print($"SENDING PACKET! {Time.Ticks}");
 
@@ -247,19 +224,19 @@ namespace ClassicUO.Game.Managers
                 //    return;
                 //}
 
-                NetClient.Socket.Send_QueryGuildPosition();
+                AsyncNetClient.Socket.Send_QueryGuildPosition();
 
-                if (World.Party != null && World.Party.Leader != 0)
+                if (_world.Party != null && _world.Party.Leader != 0)
                 {
-                    foreach (PartyMember e in World.Party.Members)
+                    foreach (PartyMember e in _world.Party.Members)
                     {
                         if (e != null && SerialHelper.IsValid(e.Serial))
                         {
-                            Mobile mob = World.Mobiles.Get(e.Serial);
+                            Mobile mob = _world.Mobiles.Get(e.Serial);
 
-                            if (mob == null || mob.Distance > World.ClientViewRange)
+                            if (mob == null || mob.Distance > _world.ClientViewRange)
                             {
-                                NetClient.Socket.Send_QueryPartyPosition();
+                                AsyncNetClient.Socket.Send_QueryPartyPosition();
 
                                 break;
                             }

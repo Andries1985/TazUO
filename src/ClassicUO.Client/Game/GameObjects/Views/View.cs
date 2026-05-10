@@ -1,34 +1,4 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Runtime.CompilerServices;
@@ -51,10 +21,26 @@ namespace ClassicUO.Game.GameObjects
 
     public abstract partial class GameObject
     {
+        // Constants for tile positioning and depth calculations
+        private const int TILE_CENTER_OFFSET = 22;
+        private const int TILE_HEIGHT_OFFSET = 44;
+        private const int ART_STATIC_OFFSET = 0x4000;
+        private const float DEPTH_Z_SCALE = 0.01f;
+        private const int DEPTH_Z_OFFSET = 127;
+        private const float DEPTH_RENDER_OFFSET = 0.5f;
+        private const float DEPTH_WET_BASE_OFFSET = 0.49f;
+        private const float DEPTH_SHADOW_OFFSET = 0.25f;
+
+        // Water animation caching for performance
+        private static float _cachedWaterSin;
+        private static float _cachedWaterCos;
+        private static uint _lastWaterAnimTicks;
+
         public byte AlphaHue;
         public bool AllowedToDraw = true;
         public ObjectHandlesStatus ObjectHandlesStatus;
         public Rectangle FrameInfo;
+        public Color? OutlineColor = null;
         protected bool IsFlipped;
 
         public abstract bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth);
@@ -67,11 +53,12 @@ namespace ClassicUO.Game.GameObjects
             int z = PriorityZ;
 
             // Offsets are in SCREEN coordinates
-            if (Offset.X > 0 && Offset.Y < 0)
-            {
-                // North
-            }
-            else if (Offset.X > 0 && Offset.Y == 0)
+            // if (Offset.X > 0 && Offset.Y < 0)
+            // {
+            //     // North
+            // }
+            // else
+            if (Offset.X > 0 && Offset.Y == 0)
             {
                 // Northeast
                 x++;
@@ -99,33 +86,51 @@ namespace ClassicUO.Game.GameObjects
                 // Southwest
                 y++;
             }
-            else if (Offset.X < 0 && Offset.Y > 0)
-            {
-                // West
-            }
-            else if (Offset.X == 0 && Offset.Y < 0)
-            {
-                // Northwest
-            }
+            // else if (Offset.X < 0 && Offset.Y < 0)
+            // {
+            //     // West
+            // }
+            // else if (Offset.X == 0 && Offset.Y < 0)
+            // {
+            //     // Northwest
+            // }
 
-            return (x + y) + (127 + z) * 0.01f;
+            return (x + y) + (DEPTH_Z_OFFSET + z) * DEPTH_Z_SCALE;
         }
 
         public Rectangle GetOnScreenRectangle()
         {
             Rectangle prect = Rectangle.Empty;
 
-            prect.X = (int)(RealScreenPosition.X - FrameInfo.X + 22 + Offset.X);
-            prect.Y = (int)(RealScreenPosition.Y - FrameInfo.Y + 22 + (Offset.Y - Offset.Z));
+            prect.X = (int)(RealScreenPosition.X - FrameInfo.X + TILE_CENTER_OFFSET + Offset.X);
+            prect.Y = (int)(RealScreenPosition.Y - FrameInfo.Y + TILE_CENTER_OFFSET + (Offset.Y - Offset.Z));
             prect.Width = FrameInfo.Width;
             prect.Height = FrameInfo.Height;
 
             return prect;
         }
 
-        public virtual bool TransparentTest(int z)
+        /// <summary>
+        /// Tests if the object is transparent at the given Z coordinate.
+        /// Default implementation treats objects as opaque.
+        /// </summary>
+        /// <param name="z">The Z coordinate to test</param>
+        /// <returns>True if transparent at this Z level, false otherwise</returns>
+        public virtual bool TransparentTest(int z) => false;
+
+        /// <summary>
+        /// Updates cached water animation values if needed and returns the current scale.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Vector2 GetWaterAnimationScale()
         {
-            return false;
+            if (_lastWaterAnimTicks != Time.Ticks)
+            {
+                _lastWaterAnimTicks = Time.Ticks;
+                _cachedWaterSin = (float)Math.Sin(Time.Ticks / 1000f);
+                _cachedWaterCos = (float)Math.Cos(Time.Ticks / 1000f);
+            }
+            return new Vector2(1.1f + _cachedWaterSin * 0.1f, 1.1f + _cachedWaterCos * 0.5f * 0.1f);
         }
 
         protected static void DrawStatic(
@@ -135,24 +140,41 @@ namespace ClassicUO.Game.GameObjects
             int y,
             Vector3 hue,
             float depth,
-            bool isWet = false
+            bool isWet = false,
+            Color? outlineColor = null
         )
         {
-            ref readonly var artInfo = ref Client.Game.Arts.GetArt(graphic);
+            ref readonly SpriteInfo artInfo = ref Client.Game.UO.Arts.GetArt(graphic);
 
             if (artInfo.Texture != null)
             {
-                ref var index = ref ArtLoader.Instance.GetValidRefEntry(graphic + 0x4000);
-                index.Width = (short)((artInfo.UV.Width >> 1) - 22);
-                index.Height = (short)(artInfo.UV.Height - 44);
+                ref UOFileIndex index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + ART_STATIC_OFFSET);
+                index.Width = (short)((artInfo.UV.Width >> 1) - TILE_CENTER_OFFSET);
+                index.Height = (short)(artInfo.UV.Height - TILE_HEIGHT_OFFSET);
 
                 x -= index.Width;
                 y -= index.Height;
 
                 var pos = new Vector2(x, y);
-                var scale = Vector2.One;
+                float renderDepth = depth + DEPTH_RENDER_OFFSET;
+
                 if (isWet)
                 {
+                    // Draw base layer at slightly lower depth to prevent z-fighting
+                    batcher.Draw(
+                        artInfo.Texture,
+                        pos,
+                        artInfo.UV,
+                        hue,
+                        0f,
+                        Vector2.Zero,
+                        Vector2.One,
+                        SpriteEffects.None,
+                        depth + DEPTH_WET_BASE_OFFSET
+                    );
+
+                    // Draw animated water layer on top
+                    Vector2 scale = GetWaterAnimationScale();
                     batcher.Draw(
                         artInfo.Texture,
                         pos,
@@ -162,25 +184,43 @@ namespace ClassicUO.Game.GameObjects
                         Vector2.Zero,
                         scale,
                         SpriteEffects.None,
-                        depth + 0.5f
+                        renderDepth
                     );
-
-                    var sin = (float)Math.Sin(Time.Ticks / 1000f);
-                    var cos = (float)Math.Cos(Time.Ticks / 1000f);
-                    scale = new Vector2(1.1f + sin * 0.1f, 1.1f + cos * 0.5f * 0.1f);
+                }
+                else
+                {
+                    batcher.Draw(
+                        artInfo.Texture,
+                        pos,
+                        artInfo.UV,
+                        hue,
+                        0f,
+                        Vector2.Zero,
+                        Vector2.One,
+                        SpriteEffects.None,
+                        renderDepth
+                    );
                 }
 
-                batcher.Draw(
-                    artInfo.Texture,
-                    pos,
-                    artInfo.UV,
-                    hue,
-                    0f,
-                    Vector2.Zero,
-                    scale,
-                    SpriteEffects.None,
-                    depth + 0.5f
-                );
+                if (outlineColor.HasValue)
+                {
+                    Color oc = outlineColor.Value;
+                    var outlineNormal = new Vector3(oc.R / 255f, oc.G / 255f, oc.B / 255f);
+                    Vector3 outlineHue = ShaderHueTranslator.GetOutlineHueVector(hue.Z);
+
+                    batcher.DrawOutlined(
+                        artInfo.Texture,
+                        pos,
+                        artInfo.UV,
+                        outlineHue,
+                        outlineNormal,
+                        0f,
+                        Vector2.Zero,
+                        Vector2.One,
+                        SpriteEffects.None,
+                        renderDepth - 0.001f
+                    );
+                }
             }
         }
 
@@ -193,10 +233,11 @@ namespace ClassicUO.Game.GameObjects
             float depth
         )
         {
-            ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(graphic);
+            ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(graphic);
 
             if (gumpInfo.Texture != null)
             {
+                float renderDepth = depth + DEPTH_RENDER_OFFSET;
                 batcher.Draw(
                     gumpInfo.Texture,
                     new Vector2(x, y),
@@ -206,7 +247,7 @@ namespace ClassicUO.Game.GameObjects
                     Vector2.Zero,
                     1f,
                     SpriteEffects.None,
-                    depth + 0.5f
+                    renderDepth
                 );
             }
         }
@@ -218,16 +259,19 @@ namespace ClassicUO.Game.GameObjects
             int y,
             float angle,
             Vector3 hue,
-            float depth
+            float depth,
+            bool isWet = false
         )
         {
-            ref readonly var artInfo = ref Client.Game.Arts.GetArt(graphic);
+            ref readonly SpriteInfo artInfo = ref Client.Game.UO.Arts.GetArt(graphic);
 
             if (artInfo.Texture != null)
             {
-                ref var index = ref ArtLoader.Instance.GetValidRefEntry(graphic + 0x4000);
-                index.Width = (short)((artInfo.UV.Width >> 1) - 22);
-                index.Height = (short)(artInfo.UV.Height - 44);
+                ref UOFileIndex index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + ART_STATIC_OFFSET);
+                index.Width = (short)((artInfo.UV.Width >> 1) - TILE_CENTER_OFFSET);
+                index.Height = (short)(artInfo.UV.Height - TILE_HEIGHT_OFFSET);
+
+                float renderDepth = depth + DEPTH_RENDER_OFFSET;
 
                 batcher.Draw(
                     artInfo.Texture,
@@ -242,7 +286,7 @@ namespace ClassicUO.Game.GameObjects
                     angle,
                     Vector2.Zero,
                     SpriteEffects.None,
-                    depth + 0.5f
+                    renderDepth
                 );
             }
         }
@@ -255,34 +299,50 @@ namespace ClassicUO.Game.GameObjects
             Vector3 hue,
             bool shadow,
             float depth,
-            bool isWet = false
+            bool isWet = false,
+            Color? outlineColor = null
         )
         {
-            ref UOFileIndex index = ref ArtLoader.Instance.GetValidRefEntry(graphic + 0x4000);
+            ref UOFileIndex index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + ART_STATIC_OFFSET);
 
             graphic = (ushort)(graphic + index.AnimOffset);
 
-            ref readonly var artInfo = ref Client.Game.Arts.GetArt(graphic);
+            ref readonly SpriteInfo artInfo = ref Client.Game.UO.Arts.GetArt(graphic);
 
             if (artInfo.Texture != null)
             {
-                index = ref ArtLoader.Instance.GetValidRefEntry(graphic + 0x4000);
-                index.Width = (short)((artInfo.UV.Width >> 1) - 22);
-                index.Height = (short)(artInfo.UV.Height - 44);
+                index = ref Client.Game.UO.FileManager.Arts.File.GetValidRefEntry(graphic + ART_STATIC_OFFSET);
+                index.Width = (short)((artInfo.UV.Width >> 1) - TILE_CENTER_OFFSET);
+                index.Height = (short)(artInfo.UV.Height - TILE_HEIGHT_OFFSET);
 
                 x -= index.Width;
                 y -= index.Height;
 
-                Vector2 pos = new Vector2(x, y);
+                var pos = new Vector2(x, y);
+                float renderDepth = depth + DEPTH_RENDER_OFFSET;
 
                 if (shadow)
                 {
-                    batcher.DrawShadow(artInfo.Texture, pos, artInfo.UV, false, depth + 0.25f);
+                    batcher.DrawShadow(artInfo.Texture, pos, artInfo.UV, false, depth + DEPTH_SHADOW_OFFSET);
                 }
 
-                var scale = Vector2.One;
                 if (isWet)
                 {
+                    // Draw base layer at slightly lower depth to prevent z-fighting
+                    batcher.Draw(
+                        artInfo.Texture,
+                        pos,
+                        artInfo.UV,
+                        hue,
+                        0f,
+                        Vector2.Zero,
+                        Vector2.One,
+                        SpriteEffects.None,
+                        depth + DEPTH_WET_BASE_OFFSET
+                    );
+
+                    // Draw animated water layer on top
+                    Vector2 scale = GetWaterAnimationScale();
                     batcher.Draw(
                         artInfo.Texture,
                         pos,
@@ -292,25 +352,43 @@ namespace ClassicUO.Game.GameObjects
                         Vector2.Zero,
                         scale,
                         SpriteEffects.None,
-                        depth + 0.5f
+                        renderDepth
                     );
-
-                    var sin = (float)Math.Sin(Time.Ticks / 1000f);
-                    var cos = (float)Math.Cos(Time.Ticks / 1000f);
-                    scale = new Vector2(1.1f + sin * 0.1f, 1.1f + cos * 0.5f * 0.1f);
+                }
+                else
+                {
+                    batcher.Draw(
+                        artInfo.Texture,
+                        pos,
+                        artInfo.UV,
+                        hue,
+                        0f,
+                        Vector2.Zero,
+                        Vector2.One,
+                        SpriteEffects.None,
+                        renderDepth
+                    );
                 }
 
-                batcher.Draw(
-                    artInfo.Texture,
-                    pos,
-                    artInfo.UV,
-                    hue,
-                    0f,
-                    Vector2.Zero,
-                    scale,
-                    SpriteEffects.None,
-                    depth + 0.5f
-                );
+                if (outlineColor.HasValue)
+                {
+                    Color oc = outlineColor.Value;
+                    var outlineNormal = new Vector3(oc.R / 255f, oc.G / 255f, oc.B / 255f);
+                    Vector3 outlineHue = ShaderHueTranslator.GetOutlineHueVector(hue.Z);
+
+                    batcher.DrawOutlined(
+                        artInfo.Texture,
+                        pos,
+                        artInfo.UV,
+                        outlineHue,
+                        outlineNormal,
+                        0f,
+                        Vector2.Zero,
+                        Vector2.One,
+                        SpriteEffects.None,
+                        renderDepth - 0.001f
+                    );
+                }
             }
         }
     }

@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Diagnostics;
@@ -55,13 +25,25 @@ namespace ClassicUO.Utility
 
         public static void Memset(void* ptr, byte value, int count)
         {
-            long* c = (long*) ptr;
+            ulong pattern = value;
+            pattern |= pattern << 8;
+            pattern |= pattern << 16;
+            pattern |= pattern << 32;
 
-            count /= 8;
+            ulong* c = (ulong*) ptr;
+            int longCount = count / 8;
 
-            for (int i = 0; i < count; ++i)
+            for (int i = 0; i < longCount; ++i)
             {
-                *c++ = (long) value;
+                *c++ = pattern;
+            }
+
+            byte* b = (byte*) c;
+            int remainder = count % 8;
+
+            for (int i = 0; i < remainder; ++i)
+            {
+                *b++ = value;
             }
         }
 
@@ -108,7 +90,7 @@ namespace ClassicUO.Utility
 
             blockSize = ((blockSize + 7) & (-8));
 
-            UnmanagedMemoryPool pool = new UnmanagedMemoryPool();
+            var pool = new UnmanagedMemoryPool();
             pool.Free = null;
             pool.NumBlocks = numBlocks;
             pool.BlockSize = blockSize;
@@ -132,7 +114,7 @@ namespace ClassicUO.Utility
         {
             if (ptr != null)
             {
-                void** pHead = (void**) ptr;
+                var pHead = (void**) ptr;
                 *pHead = pool->Free;
                 pool->Free = pHead;
             }
@@ -142,7 +124,7 @@ namespace ClassicUO.Utility
         {
             if (ptr != null)
             {
-                void** pHead = (void**)ptr;
+                var pHead = (void**)ptr;
                 *pHead = pool.Free;
                 pool.Free = pHead;
             }
@@ -150,7 +132,7 @@ namespace ClassicUO.Utility
 
         public static void FreeAll(UnmanagedMemoryPool* pool)
         {
-            void** pCur = (void**) pool->Alloc;
+            var pCur = (void**) pool->Alloc;
             byte* pNext = pool->Alloc + pool->BlockSize;
 
             for (int i = 0, count = pool->NumBlocks - 1; i < count; ++i)

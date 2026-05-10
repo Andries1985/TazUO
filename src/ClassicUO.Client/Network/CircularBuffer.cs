@@ -1,52 +1,30 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
+using System.Buffers;
 using System.Runtime.CompilerServices;
+using ClassicUO.Utility;
+using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Network
 {
-    internal sealed class CircularBuffer
+    public sealed class CircularBuffer : IDisposable
     {
         private byte[] _buffer;
         private int _head;
         private int _tail;
+        private bool _disposed;
 
         /// <summary>
         ///     Constructs a new instance of a byte queue.
         /// </summary>
-        public CircularBuffer(int size = 4096)
+        /// <remarks>
+        ///     Default size increased to 32KB to reduce resize frequency during packet processing.
+        ///     Uses ArrayPool to reduce GC pressure.
+        /// </remarks>
+        public CircularBuffer(int size = 32768)
         {
-            _buffer = new byte[size];
+            _buffer = ArrayPool<byte>.Shared.Rent(size);
         }
 
         /// <summary>
@@ -71,24 +49,38 @@ namespace ClassicUO.Network
         /// </summary>
         private void SetCapacity(int capacity)
         {
-            byte[] newBuffer = new byte[capacity];
+            Profiler.EnterContext("BUFFER_RESIZE");
+
+            int oldCapacity = _buffer.Length;
+            if (capacity > oldCapacity * 2)
+            {
+                Log.Warn($"CircularBuffer resize from {oldCapacity} to {capacity} (large jump, may cause spike)");
+            }
+
+            byte[] oldBuffer = _buffer;
+            byte[] newBuffer = ArrayPool<byte>.Shared.Rent(capacity);
 
             if (Length > 0)
             {
                 if (_head < _tail)
                 {
-                    _buffer.AsSpan(_head, Length).CopyTo(newBuffer.AsSpan());
+                    oldBuffer.AsSpan(_head, Length).CopyTo(newBuffer.AsSpan());
                 }
                 else
                 {
-                    _buffer.AsSpan(_head, _buffer.Length - _head).CopyTo(newBuffer.AsSpan());
-                    _buffer.AsSpan(0, _tail).CopyTo(newBuffer.AsSpan(_buffer.Length - _head));
+                    oldBuffer.AsSpan(_head, oldBuffer.Length - _head).CopyTo(newBuffer.AsSpan());
+                    oldBuffer.AsSpan(0, _tail).CopyTo(newBuffer.AsSpan(oldBuffer.Length - _head));
                 }
             }
 
             _head = 0;
             _tail = Length;
             _buffer = newBuffer;
+
+            // Return old buffer to pool
+            ArrayPool<byte>.Shared.Return(oldBuffer);
+
+            Profiler.ExitContext("BUFFER_RESIZE");
         }
 
         public void Enqueue(Span<byte> buffer) => Enqueue(buffer, 0, buffer.Length);
@@ -211,6 +203,20 @@ namespace ClassicUO.Network
             }
 
             return size;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            if (_buffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(_buffer);
+                _buffer = null;
+            }
+
+            _disposed = true;
         }
     }
 }

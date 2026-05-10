@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using Microsoft.Xna.Framework.Audio;
 using System;
@@ -57,7 +27,20 @@ namespace ClassicUO.IO.Audio
             {
                 if (!IsNullOrEmpty(value))
                 {
-                    m_Name = value.Replace(".mp3", "");
+                    string[] extensions = { ".mp3", ".wav" };
+                    string result = value;
+
+                    foreach (string ext in extensions)
+                    {
+                        int index = value.IndexOf(ext, StringComparison.InvariantCultureIgnoreCase);
+                        if (index != -1)
+                        {
+                            result = value.Substring(0, index + ext.Length);
+                            break;
+                        }
+                    }
+
+                    m_Name = result;
                 }
                 else
                 {
@@ -106,10 +89,7 @@ namespace ClassicUO.IO.Audio
 
         public bool IsPlaying(uint curTime) => SoundInstance != null && SoundInstance.State == SoundState.Playing && DurationTime > curTime;
 
-        public int CompareTo(Sound other)
-        {
-            return other == null ? -1 : Index.CompareTo(other.Index);
-        }
+        public int CompareTo(Sound other) => other == null ? -1 : Index.CompareTo(other.Index);
 
         public void Dispose()
         {
@@ -133,7 +113,7 @@ namespace ClassicUO.IO.Audio
 
         protected int Frequency = 22050;
 
-        protected abstract byte[] GetBuffer();
+        protected abstract ArraySegment<byte> GetBuffer();
         protected abstract void OnBufferNeeded(object sender, EventArgs e);
 
         protected virtual void AfterStop()
@@ -167,18 +147,18 @@ namespace ClassicUO.IO.Audio
             }
 
 
-            byte[] buffer = GetBuffer();
+            ArraySegment<byte> buffer = GetBuffer();
 
-            if (buffer != null && buffer.Length > 0)
+            if (buffer.Count > 0)
             {
                 _lastPlayedTime = curTime + Delay;
 
                 SoundInstance.BufferNeeded += OnBufferNeeded;
-                SoundInstance.SubmitBuffer(buffer, 0, buffer.Length);
+                SoundInstance.SubmitBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 VolumeFactor = volumeFactor;
                 Volume = volume;
 
-                DurationTime = curTime + SoundInstance.GetSampleDuration(buffer.Length).TotalMilliseconds;
+                DurationTime = curTime + SoundInstance.GetSampleDuration(buffer.Count).TotalMilliseconds;
 
                 SoundInstance.Play();
 

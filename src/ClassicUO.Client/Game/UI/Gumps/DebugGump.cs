@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Xml;
@@ -43,7 +13,7 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class DebugGump : Gump
+    public class DebugGump : Gump
     {
         private const string DEBUG_STRING_0 = "- FPS: {0} (Min={1}, Max={2}), Zoom: {3:0.00}, Total Objs: {4}\n";
         private const string DEBUG_STRING_1 = "- Mobiles: {0}   Items: {1}   Statics: {2}   Multi: {3}   Lands: {4}   Effects: {5}\n";
@@ -58,7 +28,7 @@ namespace ClassicUO.Game.UI.Gumps
         private readonly AlphaBlendControl _alphaBlendControl;
         private string _cacheText = string.Empty;
 
-        public DebugGump(int x, int y) : base(0, 0)
+        public DebugGump(World world, int x, int y) : base(world, 0, 0)
         {
             CanMove = true;
             CanCloseWithEsc = false;
@@ -88,7 +58,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         public override GumpType GumpType => GumpType.Debug;
 
-        protected override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
+        public override bool OnMouseDoubleClick(int x, int y, MouseButtonType button)
         {
             if (button == MouseButtonType.Left)
             {
@@ -115,8 +85,8 @@ namespace ClassicUO.Game.UI.Gumps
 
                 GameScene scene = Client.Game.GetScene<GameScene>();
                 Span<char> span = stackalloc char[256];
-                ValueStringBuilder sb = new ValueStringBuilder(span);
-           
+                var sb = new ValueStringBuilder(span);
+
                 if (IsMinimized && scene != null)
                 {
                     sb.Append
@@ -139,39 +109,18 @@ namespace ClassicUO.Game.UI.Gumps
 
                     if (Profiler.Enabled)
                     {
-                        double timeDraw = Profiler.GetContext("RenderFrame").TimeInContext;
-
-                        double timeUpdate = Profiler.GetContext("Update").TimeInContext;
-
-                        double timeFixedUpdate = Profiler.GetContext("FixedUpdate").TimeInContext;
-
-                        double timeOutOfContext = Profiler.GetContext("OutOfContext").TimeInContext;
-
-                        //double timeTotalCheck = timeOutOfContext + timeDraw + timeUpdate;
                         double timeTotal = Profiler.TrackedTime;
 
-                        double avgDrawMs = Profiler.GetContext("RenderFrame").AverageTime;
-
-                        sb.Append("- Profiling\n");
-
-                        sb.Append
-                        (
-                            string.Format
-                            (
-                                "    Draw:{0:0.0}% Update:{1:0.0}% FixedUpd:{2:0.0} AvgDraw:{3:0.0}ms {4}\n",
-                                100d * (timeDraw / timeTotal),
-                                100d * (timeUpdate / timeTotal),
-                                100d * (timeFixedUpdate / timeTotal),
-                                avgDrawMs,
-                                CUOEnviroment.CurrentRefreshRate
-                            )
-                        );
+                        foreach (Profiler.ProfileData pd in Profiler.AllFrameData)
+                        {
+                            sb.Append($"\n[{pd.Context[pd.Context.Length - 1]}] [Last: {pd.LastTime:0.0}ms] [Total %: {100d * (pd.TimeInContext / timeTotal):0.00}]");
+                        }
                     }
                 }
                 else
                 {
-                    var cameraZoomCount = (int)((scene.Camera.ZoomMax - scene.Camera.ZoomMin) / scene.Camera.ZoomStep);
-                    var cameraZoomIndex = cameraZoomCount - (int)((scene.Camera.ZoomMax - scene.Camera.Zoom) / scene.Camera.ZoomStep);
+                    int cameraZoomCount = (int)((scene.Camera.ZoomMax - scene.Camera.ZoomMin) / scene.Camera.ZoomStep);
+                    int cameraZoomIndex = cameraZoomCount - (int)((scene.Camera.ZoomMax - scene.Camera.Zoom) / scene.Camera.ZoomStep);
 
                     if (scene != null && cameraZoomIndex != 5)
                     {
@@ -182,7 +131,7 @@ namespace ClassicUO.Game.UI.Gumps
                         sb.Append(string.Format(DEBUG_STRING_SMALL_NO_ZOOM, CUOEnviroment.CurrentRefreshRate));
                     }
                 }
-                
+
 
                 _cacheText = sb.ToString();
 

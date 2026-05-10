@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
@@ -41,50 +11,32 @@ using ClassicUO.Utility.Logging;
 
 namespace ClassicUO.Game.Managers
 {
-    internal class InfoBarManager
+    public sealed class InfoBarManager
     {
+        private readonly World _world;
         private readonly List<InfoBarItem> infoBarItems;
 
-        public InfoBarManager()
+        public InfoBarManager(World world)
         {
             infoBarItems = new List<InfoBarItem>();
+            _world = world;
         }
 
-        public List<InfoBarItem> GetInfoBars()
-        {
-            return infoBarItems;
-        }
+        public List<InfoBarItem> GetInfoBars() => infoBarItems;
 
-        public static string[] GetVars()
-        {
-            if (!CUOEnviroment.IsOutlands)
-            {
-                return Enum.GetNames(typeof(InfoBarVars));
-            }
+        public static string[] GetVars() => Enum.GetNames(typeof(InfoBarVars));
 
-            return Enum.GetNames(typeof(InfoBarVarsOutlands));
-        }
+        public void AddItem(InfoBarItem ibi) => infoBarItems.Add(ibi);
 
-        public void AddItem(InfoBarItem ibi)
-        {
-            infoBarItems.Add(ibi);
-        }
+        public void RemoveItem(InfoBarItem item) => infoBarItems.Remove(item);
 
-        public void RemoveItem(InfoBarItem item)
-        {
-            infoBarItems.Remove(item);
-        }
-
-        public void Clear()
-        {
-            infoBarItems.Clear();
-        }
+        public void Clear() => infoBarItems.Clear();
 
         public void Save()
         {
             string path = Path.Combine(ProfileManager.ProfilePath, "infobar.xml");
 
-            using (XmlTextWriter xml = new XmlTextWriter(path, Encoding.UTF8)
+            using (var xml = new XmlTextWriter(path, Encoding.UTF8)
             {
                 Formatting = Formatting.Indented,
                 IndentChar = '\t',
@@ -116,7 +68,7 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            XmlDocument doc = new XmlDocument();
+            var doc = new XmlDocument();
 
             try
             {
@@ -137,7 +89,7 @@ namespace ClassicUO.Game.Managers
             {
                 foreach (XmlElement xml in root.GetElementsByTagName("info"))
                 {
-                    InfoBarItem item = new InfoBarItem(xml);
+                    var item = new InfoBarItem(xml);
                     infoBarItems.Add(item);
                 }
             }
@@ -155,7 +107,7 @@ namespace ClassicUO.Game.Managers
         }
     }
 
-    internal enum InfoBarVars
+    public enum InfoBarVars
     {
         HP = 0,
         Mana,
@@ -184,36 +136,7 @@ namespace ClassicUO.Game.Managers
         TithingPoints
     }
 
-    internal enum InfoBarVarsOutlands
-    {
-        HP = 0,
-        Mana,
-        Stamina,
-        Weight,
-        Followers,
-        Gold,
-        Damage,
-        Armor,
-        FoodSatisfaction,
-        MurderTimer,
-        CriminalTimer,
-        PvpCooldown,
-        BandageTimer,
-        LowerReagentCost,
-        SpellDamageInc,
-        FasterCasting,
-        FasterCastRecovery,
-        HitChanceInc,
-        DefenseChanceInc,
-        LowerManaCost,
-        DamageChanceInc,
-        SwingSpeedInc,
-        MurderCount,
-        NameNotoriety,
-        TithingPoints
-    }
-
-    internal class InfoBarItem
+    public class InfoBarItem
     {
         public InfoBarItem(string label, InfoBarVars var, ushort labelColor)
         {

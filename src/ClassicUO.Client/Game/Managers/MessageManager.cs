@@ -1,43 +1,17 @@
-﻿#region license
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#endregion
-
+using System;
+using System.Collections.Generic;
+using System.Text;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Utility;
-using System;
-using System.Collections.Generic;
+using ClassicUO.Game.Scenes;
+using ClassicUO.Game.UI;
 
 namespace ClassicUO.Game.Managers
 {
@@ -65,11 +39,20 @@ namespace ClassicUO.Game.Managers
     }
 
 
-    internal static class MessageManager
+    public sealed class MessageManager
     {
-        public static PromptData PromptData { get; set; }
+        private readonly World _world;
 
-        public static void HandleMessage
+        public MessageManager(World world)
+        {
+            _world = world;
+        }
+
+        public PromptData PromptData { get; set; }
+
+        public event EventHandler<MessageEventArgs> LocalizedMessageReceived;
+
+        public void HandleMessage
         (
             Entity parent,
             string text,
@@ -88,6 +71,12 @@ namespace ClassicUO.Game.Managers
             }
 
             Profile currentProfile = ProfileManager.CurrentProfile;
+
+            if (textType == TextType.OBJECT)
+            {
+                if (currentProfile.ForceTooltipsOnOldClients && ForcedTooltipManager.IsObjectTextRequested(_world, parent, text, hue))
+                    return;
+            }
 
             EventSink.InvokeRawMessageReceived(parent, new MessageEventArgs
                 (
@@ -117,45 +106,39 @@ namespace ClassicUO.Game.Managers
                 case MessageType.System:
                     break;
                 case MessageType.Party:
-                    {
-                        if (!ProfileManager.CurrentProfile.DisplayPartyChatOverhead)
-                            break;
-                        if (parent == null)
-                        {
-                            bool handled = false;
-                            foreach (PartyMember member in World.Party.Members)
-                                if (member != null)
-                                    if (member.Name == name)
-                                    {
-                                        Mobile m = World.Mobiles.Get(member.Serial);
-                                        if (m != null)
-                                        {
-                                            parent = m;
-                                            handled = true;
-                                            break;
-                                        }
-
-                                    }
-                            if (!handled) break;
-                        }
-
-                        // If person who send that message is in ignores list - but filter out Spell Text
-                        if (IgnoreManager.IgnoredCharsList.Contains(parent.Name) && type != MessageType.Spell)
-                            break;
-
-                        TextObject msg = CreateMessage
-                        (
-                            text,
-                            hue,
-                            font,
-                            unicode,
-                            type,
-                            textType
-                        );
-
-                        parent.AddMessage(msg);
+                    if (!currentProfile.DisplayPartyChatOverhead)
                         break;
+
+                    if (parent == null) //No parent entity, need to check party members by name
+                    {
+                        foreach (PartyMember member in _world.Party.Members)
+                            if (member != null)
+                                if (member.Name == name) //Name matches message from server
+                                {
+                                    Mobile m = _world.Mobiles.Get(member.Serial);
+                                    if (m != null) //Mobile exists
+                                    {
+                                        parent = m;
+                                        break;
+                                    }
+                                }
                     }
+
+                    if (type != MessageType.Spell && parent != null && _world.IgnoreManager.IgnoredCharsList.Contains(parent.Name))
+                        break;
+
+                    //Add null check in case parent was not found above.
+                    parent?.AddMessage(CreateMessage
+                    (
+                        text,
+                        hue,
+                        font,
+                        unicode,
+                        type,
+                        textType
+                    ));
+                    break;
+
                 case MessageType.Guild:
                     if (currentProfile.IgnoreGuildMessages) return;
                     break;
@@ -171,7 +154,7 @@ namespace ClassicUO.Game.Managers
                         {
                             if (currentProfile != null && currentProfile.EnabledSpellFormat && !string.IsNullOrWhiteSpace(currentProfile.SpellDisplayFormat))
                             {
-                                ValueStringBuilder sb = new ValueStringBuilder(currentProfile.SpellDisplayFormat.AsSpan());
+                                var sb = new ValueStringBuilder(currentProfile.SpellDisplayFormat.AsSpan());
                                 {
                                     sb.Replace("{power}".AsSpan(), spell.PowerWords.AsSpan());
                                     sb.Replace("{spell}".AsSpan(), spell.Name.AsSpan());
@@ -210,11 +193,15 @@ namespace ClassicUO.Game.Managers
                 case MessageType.Label:
                     if (textType == TextType.OBJECT)
                     {
-                        for (LinkedListNode<Gump> gump = UIManager.Gumps.Last; gump != null; gump = gump.Previous)
+                        for (LinkedListNode<IGui> gump = UIManager.Gumps.Last; gump != null; gump = gump.Previous)
                         {
                             if (gump.Value is GridContainer && !gump.Value.IsDisposed)
                             {
                                 ((GridContainer)gump.Value).HandleObjectMessage(parent, text, hue);
+                            }
+                            if(gump.Value is ModernPaperdoll && !gump.Value.IsDisposed)
+                            {
+                                ((ModernPaperdoll)gump.Value).HandleObjectMessage(parent, text, hue);
                             }
                         }
                     }
@@ -227,7 +214,7 @@ namespace ClassicUO.Game.Managers
                         }
 
                         // If person who send that message is in ignores list - but filter out Spell Text
-                        if (IgnoreManager.IgnoredCharsList.Contains(parent.Name) && type != MessageType.Spell)
+                        if (_world.IgnoreManager.IgnoredCharsList.Contains(parent.Name) && type != MessageType.Spell)
                             break;
 
                         TextObject msg = CreateMessage
@@ -244,14 +231,14 @@ namespace ClassicUO.Game.Managers
 
                         if (parent is Item it && !it.OnGround)
                         {
-                            msg.X = DelayedObjectClickManager.X;
-                            msg.Y = DelayedObjectClickManager.Y;
+                            msg.X = _world.DelayedObjectClickManager.X;
+                            msg.Y = _world.DelayedObjectClickManager.Y;
                             msg.IsTextGump = true;
                             bool found = false;
 
-                            for (LinkedListNode<Gump> gump = UIManager.Gumps.Last; gump != null; gump = gump.Previous)
+                            for (LinkedListNode<IGui> gump = UIManager.Gumps.Last; gump != null; gump = gump.Previous)
                             {
-                                Control g = gump.Value;
+                                IGui g = gump.Value;
 
                                 if (!g.IsDisposed)
                                 {
@@ -301,10 +288,13 @@ namespace ClassicUO.Game.Managers
                     textType,
                     unicode,
                     lang
-                ));
+                )
+            );
         }
 
-        public static TextObject CreateMessage
+        public void OnLocalizedMessage(Entity entity, MessageEventArgs args) => LocalizedMessageReceived.Raise(args, entity);
+
+        public TextObject CreateMessage
         (
             string msg,
             ushort hue,
@@ -332,7 +322,7 @@ namespace ClassicUO.Game.Managers
             }
 
 
-            TextObject textObject = TextObject.Create();
+            var textObject = TextObject.Create(_world);
             textObject.Alpha = 0xFF;
             textObject.Type = type;
             //textObject.Hue = fixedColor;
@@ -343,18 +333,9 @@ namespace ClassicUO.Game.Managers
             }
 
             //Ignored the fixedColor in the textbox creation because it seems to interfere with correct colors, but if issues arrise I left the fixColor code here
+            TextBox.RTLOptions options = TextBox.RTLOptions.DefaultCenterStroked(ProfileManager.CurrentProfile.OverheadChatWidth).MouseInput(!ProfileManager.CurrentProfile.DisableMouseInteractionOverheadText);
 
-            textObject.TextBox = new TextBox(
-                    msg,
-                    ProfileManager.CurrentProfile.OverheadChatFont,
-                    ProfileManager.CurrentProfile.OverheadChatFontSize,
-                    ProfileManager.CurrentProfile.OverheadChatWidth,
-                    hue,
-                    FontStashSharp.RichText.TextHorizontalAlignment.Center,
-                    true
-                )
-            { AcceptMouseInput = !ProfileManager.CurrentProfile.DisableMouseInteractionOverheadText };
-
+            textObject.TextBox = TextBox.GetOne(msg, ProfileManager.CurrentProfile.OverheadChatFont, ProfileManager.CurrentProfile.OverheadChatFontSize, hue, options);
             textObject.Time = CalculateTimeToLive(textObject.TextBox);
 
             return textObject;

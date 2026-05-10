@@ -1,34 +1,4 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
@@ -38,7 +8,7 @@ using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.Managers
 {
-    internal class HealthLinesManager
+    public sealed class HealthLinesManager
     {
         private const int BAR_WIDTH = 34; //28;
         private const int BAR_HEIGHT = 8;
@@ -48,45 +18,49 @@ namespace ClassicUO.Game.Managers
         const ushort BACKGROUND_GRAPHIC = 0x1068;
         const ushort HP_GRAPHIC = 0x1069;
 
+        private readonly World _world;
+
+        public HealthLinesManager(World world) { _world = world; }
+
         public bool IsEnabled =>
             ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.ShowMobilesHP;
 
         public void Draw(UltimaBatcher2D batcher)
         {
-            var camera = Client.Game.Scene.Camera;
+            Camera camera = Client.Game.Scene.Camera;
 
-            if (SerialHelper.IsMobile(TargetManager.LastTargetInfo.Serial))
-            {
-                DrawHealthLineWithMath(
-                    batcher,
-                    TargetManager.LastTargetInfo.Serial,
-                    camera.Bounds.Width,
-                    camera.Bounds.Height
-                );
-                DrawTargetIndicator(batcher, TargetManager.LastTargetInfo.Serial);
-            }
+            // if (SerialHelper.IsMobile(_world.TargetManager.LastTargetInfo.Serial))
+            // {
+            //     DrawHealthLineWithMath(
+            //         batcher,
+            //         _world.TargetManager.LastTargetInfo.Serial,
+            //         camera.Bounds.Width,
+            //         camera.Bounds.Height
+            //     );
+            //     DrawTargetIndicator(batcher, _world.TargetManager.LastTargetInfo.Serial);
+            // }
 
-            if (SerialHelper.IsMobile(TargetManager.SelectedTarget))
-            {
-                DrawHealthLineWithMath(
-                    batcher,
-                    TargetManager.SelectedTarget,
-                    camera.Bounds.Width,
-                    camera.Bounds.Height
-                );
-                DrawTargetIndicator(batcher, TargetManager.SelectedTarget);
-            }
+            // if (SerialHelper.IsMobile(_world.TargetManager.SelectedTarget))
+            // {
+            //     DrawHealthLineWithMath(
+            //         batcher,
+            //         _world.TargetManager.SelectedTarget,
+            //         camera.Bounds.Width,
+            //         camera.Bounds.Height
+            //     );
+            //     DrawTargetIndicator(batcher, _world.TargetManager.SelectedTarget);
+            // }
 
-            if (SerialHelper.IsMobile(TargetManager.LastAttack))
-            {
-                DrawHealthLineWithMath(
-                    batcher,
-                    TargetManager.LastAttack,
-                    camera.Bounds.Width,
-                    camera.Bounds.Height
-                );
-                DrawTargetIndicator(batcher, TargetManager.LastAttack);
-            }
+            // if (SerialHelper.IsMobile(_world.TargetManager.LastAttack))
+            // {
+            //     DrawHealthLineWithMath(
+            //         batcher,
+            //         _world.TargetManager.LastAttack,
+            //         camera.Bounds.Width,
+            //         camera.Bounds.Height
+            //     );
+            //     DrawTargetIndicator(batcher, _world.TargetManager.LastAttack);
+            // }
 
             if (!IsEnabled)
             {
@@ -101,100 +75,121 @@ namespace ClassicUO.Game.Managers
             }
 
             int showWhen = ProfileManager.CurrentProfile.MobileHPShowWhen;
+            bool useNewTargetSystem = ProfileManager.CurrentProfile.UseNewTargetSystem;
+            Renderer.Animations.Animations animations = Client.Game.UO.Animations;
+            bool isEnabled = IsEnabled;
 
-            foreach (Mobile mobile in World.Mobiles.Values)
+            foreach (Mobile mobile in _world.Mobiles.Values)
             {
                 if (mobile.IsDestroyed)
                 {
                     continue;
                 }
 
+                bool newTargSystem = false;
+                bool forceDraw = false;
+                bool passive = mobile.Serial != _world.Player.Serial;
+
+                if (_world.TargetManager.LastTargetInfo.Serial == mobile ||
+                    _world.TargetManager.LastAttack == mobile ||
+                    _world.TargetManager.SelectedTarget == mobile ||
+                    _world.TargetManager.NewTargetSystemSerial == mobile)
+                {
+                    newTargSystem = useNewTargetSystem && _world.TargetManager.NewTargetSystemSerial == mobile;
+                    passive = false;
+                    forceDraw = true;
+                }
+
                 int current = mobile.Hits;
                 int max = mobile.HitsMax;
 
-                if (max == 0)
+                if (!newTargSystem)
                 {
-                    continue;
-                }
+                    if (max == 0)
+                    {
+                        continue;
+                    }
 
-                if (showWhen == 1 && current == max)
-                {
-                    continue;
+                    if (showWhen == 1 && current == max)
+                    {
+                        continue;
+                    }
                 }
 
                 Point p = mobile.RealScreenPosition;
                 p.X += (int)mobile.Offset.X + 22 + 5;
                 p.Y += (int)(mobile.Offset.Y - mobile.Offset.Z) + 22 + 5;
+                int offsetY = 0;
 
-                if (mode != 1 && !mobile.IsDead)
+                if (isEnabled)
                 {
-                    if (showWhen == 2 && current != max || showWhen <= 1)
+                    if (mode != 1 && !mobile.IsDead)
                     {
-                        if (mobile.HitsPercentage != 0)
+                        if (showWhen == 2 && current != max || showWhen <= 1)
                         {
-                            Client.Game.Animations.GetAnimationDimensions(
-                                mobile.AnimIndex,
-                                mobile.GetGraphicForAnimation(),
-                                /*(byte) m.GetDirectionForAnimation()*/
-                                0,
-                                /*Mobile.GetGroupForAnimation(m, isParent:true)*/
-                                0,
-                                mobile.IsMounted,
-                                /*(byte) m.AnimIndex*/
-                                0,
-                                out int centerX,
-                                out int centerY,
-                                out int width,
-                                out int height
-                            );
-
-                            Point p1 = p;
-                            p1.Y -= height + centerY + 8 + 22;
-
-                            if (mobile.IsGargoyle && mobile.IsFlying)
+                            if (mobile.HitsPercentage != 0)
                             {
-                                p1.Y -= 22;
-                            }
-                            else if (!mobile.IsMounted)
-                            {
-                                p1.Y += 22;
-                            }
+                                animations.GetAnimationDimensions(
+                                    mobile.AnimIndex,
+                                    mobile.GetGraphicForAnimation(),
+                                    /*(byte) m.GetDirectionForAnimation()*/
+                                    0,
+                                    /*Mobile.GetGroupForAnimation(m, isParent:true)*/
+                                    0,
+                                    mobile.IsMounted,
+                                    /*(byte) m.AnimIndex*/
+                                    0,
+                                    out int centerX,
+                                    out int centerY,
+                                    out int width,
+                                    out int height
+                                );
 
-                            p1 = Client.Game.Scene.Camera.WorldToScreen(p1);
-                            p1.X -= (mobile.HitsTexture.Width >> 1) + 5;
-                            p1.Y -= mobile.HitsTexture.Height;
+                                Point p1 = p;
+                                p1.Y -= height + centerY + 8 + 22;
 
-                            if (mobile.ObjectHandlesStatus == ObjectHandlesStatus.DISPLAYING)
-                            {
-                                p1.Y -= Constants.OBJECT_HANDLES_GUMP_HEIGHT + 5;
-                            }
+                                if (mobile.IsGargoyle && mobile.IsFlying)
+                                {
+                                    p1.Y -= 22;
+                                }
+                                else if (!mobile.IsMounted)
+                                {
+                                    p1.Y += 22;
+                                }
 
-                            if (
-                                !(
-                                    p1.X < 0
-                                    || p1.X > camera.Bounds.Width - mobile.HitsTexture.Width
-                                    || p1.Y < 0
-                                    || p1.Y > camera.Bounds.Height
+                                p1 = Client.Game.Scene.Camera.WorldToScreen(p1);
+                                p1.X -= (mobile.HitsTexture.Width >> 1) + 5;
+                                p1.Y -= mobile.HitsTexture.Height;
+
+                                if (mobile.ObjectHandlesStatus == ObjectHandlesStatus.DISPLAYING)
+                                {
+                                    p1.Y -= Constants.OBJECT_HANDLES_GUMP_HEIGHT + 5;
+                                    offsetY += Constants.OBJECT_HANDLES_GUMP_HEIGHT + 5;
+                                }
+
+                                if (
+                                    !(
+                                        p1.X < 0
+                                        || p1.X > camera.Bounds.Width - mobile.HitsTexture.Width
+                                        || p1.Y < 0
+                                        || p1.Y > camera.Bounds.Height
+                                    )
                                 )
-                            )
-                            {
-                                mobile.HitsTexture.Draw(batcher, p1.X, p1.Y);
+                                {
+                                    mobile.HitsTexture.Draw(batcher, p1.X, p1.Y);
+                                }
+
+                                if (newTargSystem)
+                                {
+                                    offsetY += mobile.HitsTexture.Height;
+                                }
                             }
                         }
                     }
                 }
 
-                if (
-                    mobile.Serial == TargetManager.LastTargetInfo.Serial
-                    || mobile.Serial == TargetManager.SelectedTarget
-                    || mobile.Serial == TargetManager.LastAttack
-                )
-                {
-                    continue;
-                }
-
                 p.X -= 5;
-                p = Client.Game.Scene.Camera.WorldToScreen(p);
+                //p = Client.Game.Scene.Camera.WorldToScreen(p);
                 p.X -= BAR_WIDTH_HALF;
                 p.Y -= BAR_HEIGHT_HALF;
 
@@ -208,16 +203,16 @@ namespace ClassicUO.Game.Managers
                     continue;
                 }
 
-                if (mode >= 1)
+                if ((isEnabled && mode >= 1) || newTargSystem || forceDraw)
                 {
-                    DrawHealthLine(batcher, mobile, p.X, p.Y, mobile.Serial != World.Player.Serial);
+                    DrawHealthLine(batcher, mobile, p.X, p.Y, offsetY, passive, newTargSystem);
                 }
             }
         }
 
         private void DrawTargetIndicator(UltimaBatcher2D batcher, uint serial)
         {
-            Entity entity = World.Get(serial);
+            Entity entity = _world.Get(serial);
 
             if (entity == null)
             {
@@ -227,7 +222,7 @@ namespace ClassicUO.Game.Managers
             {
                 return;
             }
-            ref readonly var indicatorInfo = ref Client.Game.Gumps.GetGump(0x756F);
+            ref readonly SpriteInfo indicatorInfo = ref Client.Game.UO.Gumps.GetGump(0x756F);
             if (indicatorInfo.Texture != null)
             {
                 Point p = entity.RealScreenPosition;
@@ -248,47 +243,49 @@ namespace ClassicUO.Game.Managers
                 ProfileManager.CurrentProfile.ShowTargetIndicator = false; //This sprite doesn't exist for this client, lets avoid checking for it every frame.
             }
         }
-        private void DrawHealthLineWithMath(
-            UltimaBatcher2D batcher,
-            uint serial,
-            int screenW,
-            int screenH
-        )
-        {
-            Entity entity = World.Get(serial);
+        // private void DrawHealthLineWithMath(
+        //     UltimaBatcher2D batcher,
+        //     uint serial,
+        //     int screenW,
+        //     int screenH
+        // )
+        // {
+        //     Entity entity = _world.Get(serial);
 
-            if (entity == null)
-            {
-                return;
-            }
+        //     if (entity == null)
+        //     {
+        //         return;
+        //     }
 
-            Point p = entity.RealScreenPosition;
-            p.X += (int)entity.Offset.X + 22;
-            p.Y += (int)(entity.Offset.Y - entity.Offset.Z) + 22 + 5;
+        //     Point p = entity.RealScreenPosition;
+        //     p.X += (int)entity.Offset.X + 22;
+        //     p.Y += (int)(entity.Offset.Y - entity.Offset.Z) + 22 + 5;
 
-            p = Client.Game.Scene.Camera.WorldToScreen(p);
-            p.X -= BAR_WIDTH_HALF;
-            p.Y -= BAR_HEIGHT_HALF;
+        //     p = Client.Game.Scene.Camera.WorldToScreen(p);
+        //     p.X -= BAR_WIDTH_HALF;
+        //     p.Y -= BAR_HEIGHT_HALF;
 
-            if (p.X < 0 || p.X > screenW - BAR_WIDTH)
-            {
-                return;
-            }
+        //     if (p.X < 0 || p.X > screenW - BAR_WIDTH)
+        //     {
+        //         return;
+        //     }
 
-            if (p.Y < 0 || p.Y > screenH - BAR_HEIGHT)
-            {
-                return;
-            }
+        //     if (p.Y < 0 || p.Y > screenH - BAR_HEIGHT)
+        //     {
+        //         return;
+        //     }
 
-            DrawHealthLine(batcher, entity, p.X, p.Y, false);
-        }
+        //     DrawHealthLine(batcher, entity, p.X, p.Y, false);
+        // }
 
         private void DrawHealthLine(
             UltimaBatcher2D batcher,
             Entity entity,
             int x,
             int y,
-            bool passive
+            int offsetY,
+            bool passive,
+            bool newTargetSystem
         )
         {
             if (entity == null)
@@ -308,15 +305,16 @@ namespace ClassicUO.Game.Managers
                 offset = per;
             }
 
-            Mobile mobile = entity as Mobile;
+            var mobile = entity as Mobile;
 
-            float alpha = passive ? 0.5f : 1.0f;
+            float alpha = passive && !newTargetSystem ? 0.5f : 1.0f;
             ushort hue =
                 mobile != null
                     ? Notoriety.GetHue(mobile.NotorietyFlag)
                     : Notoriety.GetHue(NotorietyFlag.Gray);
 
-            Vector3 hueVec = ShaderHueTranslator.GetHueVector(hue, false, alpha);
+            Vector3 hueVecZero = ShaderHueTranslator.GetHueVector(0, false, alpha);
+            Vector3 hueVecNoto = ShaderHueTranslator.GetHueVector(hue, false, alpha);
 
             if (mobile == null)
             {
@@ -324,7 +322,89 @@ namespace ClassicUO.Game.Managers
             }
 
 
-            ref readonly var gumpInfo = ref Client.Game.Gumps.GetGump(BACKGROUND_GRAPHIC);
+            if (newTargetSystem && mobile != null && mobile.Serial != _world.Player.Serial)
+            {
+                Client.Game.UO.Animations.GetAnimationDimensions(
+                    mobile.AnimIndex,
+                    mobile.GetGraphicForAnimation(),
+                    (byte) mobile.GetDirectionForAnimation(),
+                    Mobile.GetGroupForAnimation(mobile, isParent: true),
+                    mobile.IsMounted,
+                    0, //mobile.AnimIndex,
+                    out int centerX,
+                    out int centerY,
+                    out int width,
+                    out int height
+                );
+
+                uint topGump;
+                uint bottomGump;
+                uint gumpHue = 0x7572; // gray
+
+                if (mobile.NotorietyFlag == NotorietyFlag.Innocent)
+                    gumpHue = 0x7570; // blue
+                else if (mobile.NotorietyFlag == NotorietyFlag.Ally)
+                    gumpHue = 0x7571; // green
+                else if (mobile.NotorietyFlag == NotorietyFlag.Criminal || mobile.NotorietyFlag == NotorietyFlag.Gray)
+                    gumpHue = 0x7572; // grey
+                else if (mobile.NotorietyFlag == NotorietyFlag.Enemy)
+                    gumpHue = 0x7573; // orange
+
+                if (mobile.NotorietyFlag == NotorietyFlag.Invulnerable)
+                    gumpHue = 0x7575; // yellow
+                else if (mobile.NotorietyFlag == NotorietyFlag.Murderer)
+                    gumpHue = 0x7577; // red
+                if (width >= 80)
+                {
+                    topGump = 0x756D;
+                    bottomGump = 0x756A;
+                }
+                else if (width >= 40)
+                {
+                    topGump = 0x756E;
+                    bottomGump = 0x756B;
+                }
+                else
+                {
+                    topGump = 0x756F;
+                    bottomGump = 0x756C;
+                }
+
+                ref readonly SpriteInfo hueGumpInfo = ref Client.Game.UO.Gumps.GetGump(gumpHue);
+                float targetX = x + BAR_WIDTH_HALF - hueGumpInfo.UV.Width / 2f;
+                int topTargetY = height + centerY + 8 + 22 + offsetY;
+
+                ref readonly SpriteInfo newTargGumpInfo = ref Client.Game.UO.Gumps.GetGump(topGump);
+                if (newTargGumpInfo.Texture != null)
+                    batcher.Draw(
+                        newTargGumpInfo.Texture,
+                        new Vector2(targetX, y - topTargetY),
+                        newTargGumpInfo.UV,
+                        hueVecZero
+                    );
+
+                if (hueGumpInfo.Texture != null)
+                    batcher.Draw(
+                        hueGumpInfo.Texture,
+                        new Vector2(targetX, y - topTargetY),
+                        hueGumpInfo.UV,
+                        hueVecZero
+                    );
+
+                y += 7 + newTargGumpInfo.UV.Height / 2 - centerY;
+
+                newTargGumpInfo = ref Client.Game.UO.Gumps.GetGump(bottomGump);
+                if (newTargGumpInfo.Texture != null)
+                    batcher.Draw(
+                        newTargGumpInfo.Texture,
+                        new Vector2(targetX, y - 1 - newTargGumpInfo.UV.Height / 2f),
+                        newTargGumpInfo.UV,
+                        hueVecZero
+                    );
+            }
+
+
+            ref readonly SpriteInfo gumpInfo = ref Client.Game.UO.Gumps.GetGump(BACKGROUND_GRAPHIC);
             Rectangle bounds = gumpInfo.UV;
 
             if (multiplier > 1)
@@ -334,20 +414,20 @@ namespace ClassicUO.Game.Managers
                 gumpInfo.Texture,
                 new Rectangle(x, y, gumpInfo.UV.Width * multiplier, gumpInfo.UV.Height * multiplier),
                 gumpInfo.UV,
-                hueVec
+                hueVecNoto
             );
 
-            hueVec.X = 90;
+            hueVecNoto.X = 90;
 
             if (mobile != null)
             {
                 if (mobile.IsPoisoned)
                 {
-                    hueVec.X = 63;
+                    hueVecNoto.X = 63;
                 }
                 else if (mobile.IsYellowHits)
                 {
-                    hueVec.X = 53;
+                    hueVecNoto.X = 53;
                 }
             }
 
@@ -360,7 +440,7 @@ namespace ClassicUO.Game.Managers
                 SolidColorTextureCache.GetTexture(Color.White),
                 new Vector2(x + (3 * multiplier), y + (4 * multiplier)),
                 new Rectangle(0, 0, (int)(((BAR_WIDTH * multiplier) - (6 * multiplier)) * hitPerecentage), (bounds.Height * multiplier) - (6 * multiplier)),
-                hueVec
+                hueVecNoto
                 );
         }
     }

@@ -11,7 +11,7 @@ using ClassicUO.Resources;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal sealed class UserMarkersGump : Gump
+    public sealed class UserMarkersGump : Gump
     {
         private readonly StbTextBox _textBoxX;
         private readonly StbTextBox _textBoxY;
@@ -34,8 +34,8 @@ namespace ClassicUO.Game.UI.Gumps
         private const int MAX_NAME_LEN = 25;
 
         private const int MAP_MIN_CORD = 0;
-        private readonly int _mapMaxX = MapLoader.Instance.MapsDefaultSize[World.MapIndex, 0];
-        private readonly int _mapMaxY = MapLoader.Instance.MapsDefaultSize[World.MapIndex, 1];
+        private readonly int _mapMaxX;
+        private readonly int _mapMaxY;
 
         private readonly string _userMarkersFilePath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Client", $"{USER_MARKERS_FILE}.usr");
 
@@ -48,9 +48,12 @@ namespace ClassicUO.Game.UI.Gumps
             CANCEL_BTN,
         }
 
-        internal UserMarkersGump(int x, int y, List<WMapMarker> markers, string color = "none", string icon = "exit", bool isEdit = false, int markerIdx = -1) : base(0, 0)
+        internal UserMarkersGump(World world, int x, int y, List<WMapMarker> markers, string color = "none", string icon = "exit", bool isEdit = false, int markerIdx = -1) : base(world, 0, 0)
         {
             CanMove = true;
+
+            _mapMaxX= Client.Game.UO.FileManager.Maps.MapsDefaultSize[world.MapIndex, 0];
+            _mapMaxY = Client.Game.UO.FileManager.Maps.MapsDefaultSize[world.MapIndex, 1];
 
             _markers = markers;
             _markerIdx = markerIdx;
@@ -58,7 +61,7 @@ namespace ClassicUO.Game.UI.Gumps
             _colors = new[] { "none", "red", "green", "blue", "purple", "black", "yellow", "white" };
             _icons = _markerIcons.Keys.ToArray();
 
-            var markerName = _markerIdx < 0 ? ResGumps.MarkerDefName : _markers[_markerIdx].Name;
+            string markerName = _markerIdx < 0 ? ResGumps.MarkerDefName : _markers[_markerIdx].Name;
 
             int selectedIcon = Array.IndexOf(_icons, icon);
             if (selectedIcon < 0)
@@ -68,7 +71,7 @@ namespace ClassicUO.Game.UI.Gumps
             if (selectedColor < 0)
                 selectedColor = 0;
 
-            AlphaBlendControl markersGumpBackground = new AlphaBlendControl
+            var markersGumpBackground = new AlphaBlendControl
             {
                 Width = 320,
                 Height = 220,
@@ -96,8 +99,8 @@ namespace ClassicUO.Game.UI.Gumps
                 });
 
             // X Field
-            var fx = markersGumpBackground.X + 5;
-            var fy = markersGumpBackground.Y + 25;
+            int fx = markersGumpBackground.X + 5;
+            int fy = markersGumpBackground.Y + 25;
             Add(new ResizePic(0x0BB8)
             {
                 X = fx + LABEL_OFFSET,
@@ -259,7 +262,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void EditMarker()
         {
-            var editedMarker = PrepareMarker();
+            WMapMarker editedMarker = PrepareMarker();
             if (editedMarker == null)
                 return;
 
@@ -277,13 +280,13 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            var newMarker = PrepareMarker();
+            WMapMarker newMarker = PrepareMarker();
             if (newMarker == null)
             {
                 return;
             }
 
-            var newLine = $"{newMarker.X},{newMarker.Y},{newMarker.MapId},{newMarker.Name},{newMarker.MarkerIconName},{newMarker.ColorName},4\r";
+            string newLine = $"{newMarker.X},{newMarker.Y},{newMarker.MapId},{newMarker.Name},{newMarker.MarkerIconName},{newMarker.ColorName},4\r";
 
             File.AppendAllText(_userMarkersFilePath, newLine);
 
@@ -294,9 +297,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         private WMapMarker PrepareMarker()
         {
-            if (!int.TryParse(_textBoxX.Text, out var x))
+            if (!int.TryParse(_textBoxX.Text, out int x))
                 return null;
-            if (!int.TryParse(_textBoxY.Text, out var y))
+            if (!int.TryParse(_textBoxY.Text, out int y))
                 return null;
 
             // Validate User Enter Data
@@ -310,16 +313,16 @@ namespace ClassicUO.Game.UI.Gumps
                 return null;
             }
 
-            var markerName = _markerName.Text;
+            string markerName = _markerName.Text;
             if (string.IsNullOrEmpty(markerName))
                 return null;
 
             if (markerName.Contains(","))
                 markerName = markerName.Replace(",", "");
 
-            var mapIdx = World.MapIndex;
-            var color = _colors[_colorsCombo.SelectedIndex];
-            var icon = _iconsCombo == null ? string.Empty : _icons[_iconsCombo.SelectedIndex];
+            int mapIdx = World.MapIndex;
+            string color = _colors[_colorsCombo.SelectedIndex];
+            string icon = _iconsCombo == null ? string.Empty : _icons[_iconsCombo.SelectedIndex];
 
             var marker = new WMapMarker
             {
@@ -331,7 +334,7 @@ namespace ClassicUO.Game.UI.Gumps
                 Color = GetColor(color),
             };
 
-            if (!_markerIcons.TryGetValue(icon, out var iconTexture))
+            if (!_markerIcons.TryGetValue(icon, out Microsoft.Xna.Framework.Graphics.Texture2D iconTexture))
             {
                 return marker;
             }

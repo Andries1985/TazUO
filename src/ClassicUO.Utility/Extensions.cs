@@ -1,58 +1,22 @@
-#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace ClassicUO.Utility
 {
-    public static class Exstentions
+    public static partial class Extensions
     {
-        public static void Raise(this EventHandler handler, object sender = null)
-        {
-            handler?.Invoke(sender, EventArgs.Empty);
-        }
+        public static void Raise(this EventHandler handler, object sender = null) => handler?.Invoke(sender, EventArgs.Empty);
 
-        public static void Raise<T>(this EventHandler<T> handler, T e, object sender = null)
-        {
-            handler?.Invoke(sender, e);
-        }
+        public static void Raise<T>(this EventHandler<T> handler, T e, object sender = null) => handler?.Invoke(sender, e);
 
         public static void RaiseAsync(this EventHandler handler, object sender = null)
         {
@@ -70,9 +34,7 @@ namespace ClassicUO.Utility
             }
         }
 
-        public static Task Catch(this Task task)
-        {
-            return task.ContinueWith
+        public static Task Catch(this Task task) => task.ContinueWith
             (
                 t =>
                 {
@@ -102,7 +64,6 @@ namespace ClassicUO.Utility
                 },
                 TaskContinuationOptions.OnlyOnFaulted
             );
-        }
 
         public static void Resize<T>(this List<T> list, int size, T element = default)
         {
@@ -166,58 +127,113 @@ namespace ClassicUO.Utility
             return inrect;
         }
 
-
-#if NETFRAMEWORK
-        public static void ExtractToDirectory(this ZipArchive archive, string destinationDirectoryName, bool overwrite)
+        /// <summary>
+        /// Try to read all file lines from a file path.
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <param name="lines"></param>
+        /// <returns>false, out null on any failure.</returns>
+        public static bool TryReadFileLines(this string filePath, out string[] lines)
         {
-            if (!overwrite)
+            try
             {
-                archive.ExtractToDirectory(destinationDirectoryName);
-
-                return;
+                lines = File.ReadAllText(filePath).Split("\n");
+                return true;
             }
-
-            DirectoryInfo di = Directory.CreateDirectory(destinationDirectoryName);
-            string destinationDirectoryFullPath = di.FullName;
-
-            foreach (ZipArchiveEntry file in archive.Entries)
+            catch
             {
-                string completeFileName = Path.GetFullPath(Path.Combine(destinationDirectoryFullPath, file.FullName));
-
-                if (!completeFileName.StartsWith(destinationDirectoryFullPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new IOException("Trying to extract file outside of destination directory. See this link for more info: https://snyk.io/research/zip-slip-vulnerability");
-                }
-
-                // Assuming Empty for Directory
-                if (file.Name == "")
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(completeFileName));
-
-                    continue;
-                }
-
-                file.ExtractToFile(completeFileName, true);
+                lines = null;
+                return false;
             }
         }
-#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToHex(this uint serial)
-        {
-            return $"0x{serial:X8}";
-        }
+        public static string ToHex(this uint serial) => $"0x{serial:X8}";
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToHex(this ushort s)
-        {
-            return $"0x{s:X4}";
-        }
+        public static string ToHex(this ushort s) => $"0x{s:X4}";
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToHex(this byte b)
+        public static string ToHex(this byte b) => $"0x{b:X2}";
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static string ToHtmlHex(this Color color) => $"#{color.R:X2}{color.G:X2}{color.B:X2}";
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Color FromHtmlHex(this string hex)
         {
-            return $"0x{b:X2}";
+            if (hex.StartsWith("#")) hex = hex.Substring(1);
+            if (hex.Length != 6) return Color.White;
+
+            int value = Convert.ToInt32(hex, 16);
+            return new Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF);
         }
+
+        /// <summary>
+        /// Gets all character profile directories from the profiles path structure.
+        /// Structure: ProfilesPath/Account/Server/Character
+        /// </summary>
+        /// <param name="profilesPath">Root profiles path</param>
+        /// <returns>Dictionary mapping character names to their directory paths</returns>
+        public static Dictionary<string, string> GetAllCharacterPaths(string profilesPath)
+        {
+            var characterPaths = new Dictionary<string, string>();
+
+            if (string.IsNullOrEmpty(profilesPath) || !Directory.Exists(profilesPath))
+                return characterPaths;
+
+            try
+            {
+                string[] allAccounts = Directory.GetDirectories(profilesPath);
+
+                foreach (string account in allAccounts)
+                {
+                    string[] allServers = Directory.GetDirectories(account);
+
+                    foreach (string server in allServers)
+                    {
+                        string[] allCharacters = Directory.GetDirectories(server);
+
+                        foreach (string characterPath in allCharacters)
+                        {
+                            string characterName = Path.GetFileName(characterPath);
+
+                            // Use the character name as key, but handle potential duplicates
+                            // by appending server/account info if needed
+                            string key = characterName;
+                            int counter = 1;
+                            while (characterPaths.ContainsKey(key))
+                            {
+                                key = $"{characterName}_{counter}";
+                                counter++;
+                            }
+
+                            characterPaths[key] = characterPath;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't throw to avoid breaking calling code
+                Log.Error($"Error scanning character profiles: {ex.Message}");
+            }
+
+            return characterPaths;
+        }
+
+        public static bool NotNullNotEmpty(this string text) => !string.IsNullOrEmpty(text);
+
+        public static string Truncate(this string text, int maxLength, bool addEllipsis = true) => StringHelper.Truncate(text, maxLength, addEllipsis);
+
+        extension(int value)
+        {
+            /// <summary>
+            /// If value is 0, this will return 1 instead to prevent division by zero.
+            /// </summary>
+            public int NotZero => value == 0 ? 1 : value;
+        }
+
+        public static int ToInt<T>(this T enumValue) where T : struct, Enum => Unsafe.As<T, int>(ref enumValue);
     }
 }

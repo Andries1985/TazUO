@@ -36,15 +36,16 @@ using ClassicUO.Assets;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Resources;
-using SDL2;
+using SDL3;
 
 namespace ClassicUO.Game.UI.Controls
 {
-    internal class NameOverheadAssignControl : Control
+    public class NameOverheadAssignControl : Control
     {
         private readonly HotkeyBox _hotkeyBox;
         private readonly Dictionary<NameOverheadOptions, Checkbox> checkboxDict = new();
         private readonly ScrollArea checkBoxScroll;
+        private World _world;
 
         private enum ButtonType
         {
@@ -52,8 +53,10 @@ namespace ClassicUO.Game.UI.Controls
             UncheckAll,
         }
 
-        public NameOverheadAssignControl(NameOverheadOption option)
+        public NameOverheadAssignControl(World world, NameOverheadOption option)
         {
+            _world = world;
+
             Option = option;
 
             CanMove = true;
@@ -98,7 +101,7 @@ namespace ClassicUO.Game.UI.Controls
 
         private void SetupOptionCheckboxes()
         {
-            var y = 0;
+            int y = 0;
             AddLabel("Items", 75, y, true);
             y += 28;
 
@@ -107,6 +110,9 @@ namespace ClassicUO.Game.UI.Controls
             y += 22;
             AddCheckbox("Stackable", NameOverheadOptions.Stackable, 0, y);
             AddCheckbox("Locked down", NameOverheadOptions.LockedDown, 150, y);
+            y += 22;
+            AddCheckbox("Moveable", NameOverheadOptions.Moveable, 0, y);
+            AddCheckbox("Immoveable", NameOverheadOptions.Immoveable, 150, y);
             y += 22;
             AddCheckbox("Other items", NameOverheadOptions.Other, 0, y);
             y += 28;
@@ -179,7 +185,7 @@ namespace ClassicUO.Game.UI.Controls
 
             checkbox.ValueChanged += (sender, args) =>
             {
-                var isChecked = ((Checkbox)sender).IsChecked;
+                bool isChecked = ((Checkbox)sender).IsChecked;
 
                 if (isChecked)
                     Option.NameOverheadOptionFlags |= (int)optionFlag;
@@ -206,21 +212,21 @@ namespace ClassicUO.Game.UI.Controls
 
             if (Option.Key != SDL.SDL_Keycode.SDLK_UNKNOWN)
             {
-                SDL.SDL_Keymod mod = SDL.SDL_Keymod.KMOD_NONE;
+                SDL.SDL_Keymod mod = SDL.SDL_Keymod.SDL_KMOD_NONE;
 
                 if (Option.Alt)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_ALT;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_ALT;
                 }
 
                 if (Option.Shift)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_SHIFT;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_SHIFT;
                 }
 
                 if (Option.Ctrl)
                 {
-                    mod |= SDL.SDL_Keymod.KMOD_CTRL;
+                    mod |= SDL.SDL_Keymod.SDL_KMOD_CTRL;
                 }
 
                 _hotkeyBox.SetKey(Option.Key, mod);
@@ -229,9 +235,9 @@ namespace ClassicUO.Game.UI.Controls
 
         private void BoxOnHotkeyChanged(object sender, EventArgs e)
         {
-            bool shift = (_hotkeyBox.Mod & SDL.SDL_Keymod.KMOD_SHIFT) != SDL.SDL_Keymod.KMOD_NONE;
-            bool alt = (_hotkeyBox.Mod & SDL.SDL_Keymod.KMOD_ALT) != SDL.SDL_Keymod.KMOD_NONE;
-            bool ctrl = (_hotkeyBox.Mod & SDL.SDL_Keymod.KMOD_CTRL) != SDL.SDL_Keymod.KMOD_NONE;
+            bool shift = (_hotkeyBox.Mod & SDL.SDL_Keymod.SDL_KMOD_SHIFT) != SDL.SDL_Keymod.SDL_KMOD_NONE;
+            bool alt = (_hotkeyBox.Mod & SDL.SDL_Keymod.SDL_KMOD_ALT) != SDL.SDL_Keymod.SDL_KMOD_NONE;
+            bool ctrl = (_hotkeyBox.Mod & SDL.SDL_Keymod.SDL_KMOD_CTRL) != SDL.SDL_Keymod.SDL_KMOD_NONE;
 
             if (_hotkeyBox.Key == SDL.SDL_Keycode.SDLK_UNKNOWN)
                 return;
@@ -252,7 +258,7 @@ namespace ClassicUO.Game.UI.Controls
                 return;
 
             UpdateValueInHotkeyBox();
-            UIManager.Add(new MessageBoxGump(250, 150, string.Format(ResGumps.ThisKeyCombinationAlreadyExists, option.Name), null));
+            UIManager.Add(new MessageBoxGump(_world, 250, 150, string.Format(ResGumps.ThisKeyCombinationAlreadyExists, option.Name), null));
         }
 
         private void BoxOnHotkeyCancelled(object sender, EventArgs e)
@@ -281,10 +287,10 @@ namespace ClassicUO.Game.UI.Controls
 
         private void UpdateCheckboxesByCurrentOptionFlags()
         {
-            foreach (var kvp in checkboxDict)
+            foreach (KeyValuePair<NameOverheadOptions, Checkbox> kvp in checkboxDict)
             {
-                var flag = kvp.Key;
-                var checkbox = kvp.Value;
+                NameOverheadOptions flag = kvp.Key;
+                Checkbox checkbox = kvp.Value;
 
                 checkbox.IsChecked = ((NameOverheadOptions)Option.NameOverheadOptionFlags).HasFlag(flag);
             }

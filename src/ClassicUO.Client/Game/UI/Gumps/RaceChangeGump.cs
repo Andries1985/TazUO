@@ -11,7 +11,7 @@ using System.Collections.Generic;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class RaceChangeGump : Gump
+    public class RaceChangeGump : Gump
     {
         private bool isFemale { get; } = false;
         private RaceType selectedRace { get; } = RaceType.HUMAN;
@@ -29,7 +29,7 @@ namespace ClassicUO.Game.UI.Gumps
         };
         private Item hair, beard;
 
-        #region 
+        #region
         private ushort raceTextGraphic
         {
             get
@@ -62,16 +62,10 @@ namespace ClassicUO.Game.UI.Gumps
                 return 0;
             }
         }
-        private ushort genderTextGraphic
-        {
-            get
-            {
-                return (ushort)(isFemale ? 0x70D : 0x710);
-            }
-        }
+        private ushort genderTextGraphic => (ushort)(isFemale ? 0x70D : 0x710);
         #endregion
 
-        public RaceChangeGump(bool isFemale, byte race) : base(0, 0)
+        public RaceChangeGump(World world, bool isFemale, byte race) : base(world, 0, 0)
         {
             if (race <= 0 || race > (int)RaceType.GARGOYLE)
             {
@@ -156,7 +150,7 @@ namespace ClassicUO.Game.UI.Gumps
             Add(new GumpPic(185, 25, 0x708, 0));
             Add
             (
-                paperDollInteractable = new CustomPaperDollGump(210, 75, fakeMobile, hair, beard)
+                paperDollInteractable = new CustomPaperDollGump(this, 210, 75, fakeMobile, hair, beard)
                 {
                     AcceptMouseInput = false
                 }
@@ -192,7 +186,7 @@ namespace ClassicUO.Game.UI.Gumps
             #region Hair style
             Add
             (
-                new Label(ClilocLoader.Instance.GetString(selectedRace == RaceType.GARGOYLE ? 1112309 : 3000121), unicode, hue, font: font)
+                new Label(Client.Game.UO.FileManager.Clilocs.GetString(selectedRace == RaceType.GARGOYLE ? 1112309 : 3000121), unicode, hue, font: font)
                 {
                     X = x + 1,
                     Y = y
@@ -228,7 +222,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 Add
                 (
-                    new Label(ClilocLoader.Instance.GetString(selectedRace == RaceType.GARGOYLE ? 1112511 : 3000122), unicode, hue, font: font)
+                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(selectedRace == RaceType.GARGOYLE ? 1112511 : 3000122), unicode, hue, font: font)
                     {
                         X = x + 1,
                         Y = y
@@ -320,7 +314,7 @@ namespace ClassicUO.Game.UI.Gumps
             #region Create a fake character to use for the gump
             if (fakeMobile == null || fakeMobile.IsDestroyed)
             {
-                fakeMobile = new PlayerMobile(0);
+                fakeMobile = new PlayerMobile(World, 0);
             }
 
             LinkedObject first = fakeMobile.Items;
@@ -381,6 +375,7 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 colorPicker = new CustomColorPicker
                 (
+                    this,
                     layer,
                     clilocLabel,
                     pallet,
@@ -437,7 +432,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (!isFemale && selectedRace != RaceType.ELF) //Has beard
                 {
-                    NetClient.Socket.Send_ChangeRaceRequest(
+                    AsyncNetClient.Socket.Send_ChangeRaceRequest(
                         CurrentColorOption[Layer.Invalid].Item2,
                         (ushort)CharacterCreationValues.GetHairComboContent(isFemale, selectedRace).GetGraphic(CurrentOption[Layer.Hair]),
                         CurrentColorOption[Layer.Hair].Item2,
@@ -447,7 +442,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
                 else //No beard
                 {
-                    NetClient.Socket.Send_ChangeRaceRequest(
+                    AsyncNetClient.Socket.Send_ChangeRaceRequest(
                         CurrentColorOption[Layer.Invalid].Item2,
                         (ushort)CharacterCreationValues.GetHairComboContent(isFemale, selectedRace).GetGraphic(CurrentOption[Layer.Hair]),
                         CurrentColorOption[Layer.Hair].Item2,
@@ -538,9 +533,11 @@ namespace ClassicUO.Game.UI.Gumps
             private int _lastSelectedIndex;
             private readonly Layer _layer;
             private readonly ushort[] _pallet;
+            private readonly RaceChangeGump _gump;
 
-            public CustomColorPicker(Layer layer, int label, ushort[] pallet, int rows, int columns)
+            public CustomColorPicker(RaceChangeGump gump, Layer layer, int label, ushort[] pallet, int rows, int columns)
             {
+                _gump = gump;
                 Width = 121;
                 Height = 25;
                 _cellW = 125 / columns;
@@ -560,7 +557,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 Add
                 (
-                    new Label(ClilocLoader.Instance.GetString(label), unicode, hue, font: font)
+                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(label), unicode, hue, font: font)
                     {
                         X = 0,
                         Y = 0
@@ -625,6 +622,7 @@ namespace ClassicUO.Game.UI.Gumps
                     {
                         _colorPickerBox = new ColorPickerBox
                         (
+                            _gump.World,
                             485,
                             109,
                             _rows,
@@ -649,10 +647,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
-            private void ColorPickerBoxOnColorSelectedIndex(object sender, EventArgs e)
-            {
-                ColorSelected?.Invoke(this, new ColorSelectedEventArgs(_layer, _colorPickerBox.Hues, _colorPickerBox.SelectedIndex));
-            }
+            private void ColorPickerBoxOnColorSelectedIndex(object sender, EventArgs e) => ColorSelected?.Invoke(this, new ColorSelectedEventArgs(_layer, _colorPickerBox.Hues, _colorPickerBox.SelectedIndex));
         }
 
         /// <summary>
@@ -660,13 +655,15 @@ namespace ClassicUO.Game.UI.Gumps
         /// </summary>
         private class CustomPaperDollGump : PaperDollInteractable
         {
+            private readonly Gump _gump;
             private readonly Mobile playerMobile;
             private Item hair;
             private Item beard;
             private bool requestUpdate = false;
 
-            public CustomPaperDollGump(int x, int y, Mobile playerMobile, Item hair, Item beard) : base(x, y, playerMobile, null)
+            public CustomPaperDollGump(Gump gump, int x, int y, Mobile playerMobile, Item hair, Item beard) : base(x, y, playerMobile, new PaperDollGump(gump.World))
             {
+                _gump = gump;
                 this.playerMobile = playerMobile;
                 this.hair = hair;
                 this.beard = beard;
@@ -759,12 +756,13 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (hair != null)
                 {
-                    ushort id = GetAnimID(mobile.Graphic, hair.ItemData.AnimID, mobile.IsFemale);
+                    ushort id = GetAnimID(mobile.Graphic, hair.Graphic, hair.ItemData.AnimID, mobile.IsFemale);
 
                     Add
                     (
                         new GumpPicEquipment
                         (
+                            _gump,
                             hair.Serial,
                             0,
                             0,
@@ -782,12 +780,13 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (beard != null)
                 {
-                    ushort id = GetAnimID(mobile.Graphic, beard.ItemData.AnimID, mobile.IsFemale);
+                    ushort id = GetAnimID(mobile.Graphic, beard.Graphic, beard.ItemData.AnimID, mobile.IsFemale);
 
                     Add
                     (
                         new GumpPicEquipment
                         (
+                            _gump,
                             beard.Serial,
                             0,
                             0,
@@ -804,10 +803,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
-            public new void RequestUpdate()
-            {
-                requestUpdate = true;
-            }
+            public new void RequestUpdate() => requestUpdate = true;
 
             public override void Update()
             {

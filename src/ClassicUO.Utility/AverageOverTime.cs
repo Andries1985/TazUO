@@ -40,9 +40,9 @@ namespace ClassicUO.Utility
         /// <param name="currentTicks">The current time used for comparison.</param>
         private void RemoveOldValues(uint currentTicks)
         {
-            while (_values.Count > 0 && (currentTicks - _values.Peek().Timestamp) > (currentTicks - _timeWindow.TotalMilliseconds))
+            while (_values.Count > 0 && (currentTicks - _values.Peek().Timestamp) > _timeWindow.TotalMilliseconds)
             {
-                var oldItem = _values.Dequeue();
+                (uint Timestamp, double Value) oldItem = _values.Dequeue();
                 _sum -= oldItem.Value;
             }
         }

@@ -1,48 +1,21 @@
-﻿#region license
-
-// Copyright (c) 2021, andreakarasho
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-// 3. All advertising materials mentioning features or use of this software
-//    must display the following acknowledgement:
-//    This product includes software developed by andreakarasho - https://github.com/andreakarasho
-// 4. Neither the name of the copyright holder nor the
-//    names of its contributors may be used to endorse or promote products
-//    derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY
-// DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-// ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-#endregion
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using ClassicUO.Configuration;
 using ClassicUO.Assets;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
+using ClassicUO.Utility.Logging;
+using Microsoft.Xna.Framework;
 
 namespace ClassicUO.Game.Data
 {
     [Flags]
-    internal enum STATIC_TILES_FILTER_FLAGS : byte
+    public enum STATIC_TILES_FILTER_FLAGS : byte
     {
         STFF_CAVE = 0x01,
         STFF_STUMP = 0x02,
@@ -58,7 +31,7 @@ namespace ClassicUO.Game.Data
         public static readonly List<ushort> CaveTiles = new List<ushort>();
         public static readonly List<ushort> TreeTiles = new List<ushort>();
 
-        public static void Load()
+        public static void Load(TileDataLoader tileData)
         {
             string path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Client");
 
@@ -74,7 +47,7 @@ namespace ClassicUO.Game.Data
 
             if (!File.Exists(cave))
             {
-                using (StreamWriter writer = new StreamWriter(cave))
+                using (var writer = new StreamWriter(cave))
                 {
                     for (int i = 0x053B; i < 0x0553 + 1; i++)
                     {
@@ -88,7 +61,7 @@ namespace ClassicUO.Game.Data
 
             if (!File.Exists(vegetation))
             {
-                using (StreamWriter writer = new StreamWriter(vegetation))
+                using (var writer = new StreamWriter(vegetation))
                 {
                     ushort[] vegetationTiles =
                     {
@@ -115,7 +88,7 @@ namespace ClassicUO.Game.Data
                     {
                         ushort g = vegetationTiles[i];
 
-                        if (TileDataLoader.Instance.StaticData[g].IsImpassable)
+                        if (tileData.StaticData[g].IsImpassable)
                         {
                             continue;
                         }
@@ -127,8 +100,8 @@ namespace ClassicUO.Game.Data
 
             if (!File.Exists(trees))
             {
-                using (StreamWriter writer = new StreamWriter(trees))
-                using (StreamWriter writerveg = new StreamWriter(vegetation, true))
+                using (var writer = new StreamWriter(trees))
+                using (var writerveg = new StreamWriter(vegetation, true))
                 {
                     ushort[] treeTiles =
                     {
@@ -137,7 +110,7 @@ namespace ClassicUO.Game.Data
                         0x0CE0, 0x0CE3, 0x0CE6, 0x0CF8, 0x0CFB, 0x0CFE, 0x0D01, 0x0D37, 0x0D38, 0x0D41, 0x0D42,
                         0x0D43, 0x0D44, 0x0D57, 0x0D58, 0x0D59, 0x0D5A, 0x0D5B, 0x0D6E, 0x0D6F, 0x0D70, 0x0D71,
                         0x0D72, 0x0D84, 0x0D85, 0x0D86, 0x0D94, 0x0D98, 0x0D9C, 0x0DA0, 0x0DA4, 0x0DA8, 0x12B6,
-                        0x12B7, 0x12B8, 0x12B9, 0x12BA, 0x12BB, 0x12BC, 0x12BD
+                        0x12B7, 0x12B8, 0x12B9, 0x12BA, 0x12BB, 0x12BC, 0x12BD, 3418
                     };
 
                     for (int i = 0; i < treeTiles.Length; i++)
@@ -167,7 +140,7 @@ namespace ClassicUO.Game.Data
                                 break;
                         }
 
-                        if (!TileDataLoader.Instance.StaticData[graphic].IsImpassable)
+                        if (!tileData.StaticData[graphic].IsImpassable)
                         {
                             writerveg.WriteLine(graphic);
                         }
@@ -180,7 +153,7 @@ namespace ClassicUO.Game.Data
             }
 
 
-            TextFileParser caveParser = new TextFileParser(File.ReadAllText(cave), new[] { ' ', '\t', ',' }, new[] { '#', ';' }, new[] { '"', '"' });
+            var caveParser = new TextFileParser(File.ReadAllText(cave), new[] { ' ', '\t', ',' }, new[] { '#', ';' }, new[] { '"', '"' });
 
             while (!caveParser.IsEOF())
             {
@@ -197,7 +170,7 @@ namespace ClassicUO.Game.Data
             }
 
 
-            TextFileParser stumpsParser = new TextFileParser(File.ReadAllText(trees), new[] { ' ', '\t', ',', '=' }, new[] { '#', ';' }, new[] { '"', '"' });
+            var stumpsParser = new TextFileParser(File.ReadAllText(trees), new[] { ' ', '\t', ',', '=' }, new[] { '#', ';' }, new[] { '"', '"' });
 
             while (!stumpsParser.IsEOF())
             {
@@ -221,7 +194,7 @@ namespace ClassicUO.Game.Data
             }
 
 
-            TextFileParser vegetationParser = new TextFileParser(File.ReadAllText(vegetation), new[] { ' ', '\t', ',' }, new[] { '#', ';' }, new[] { '"', '"' });
+            var vegetationParser = new TextFileParser(File.ReadAllText(vegetation), new[] { ' ', '\t', ',' }, new[] { '#', ';' }, new[] { '"', '"' });
 
             while (!vegetationParser.IsEOF())
             {
@@ -237,26 +210,108 @@ namespace ClassicUO.Game.Data
             }
         }
 
-        public static void CleanCaveTextures()
+        public static void ApplyCaveTileBorder()
         {
-            //foreach (ushort graphic in CaveTiles)
-            //{
-            //    ArtTexture texture = ArtLoader.Instance.GetTexture(graphic);
+            Log.Trace("Applying statics border...");
 
-            //    if (texture != null)
-            //    {
-            //        texture.Ticks = 0;
-            //    }
-            //}
+            // Group graphics by their atlas texture to minimize GetData/SetData calls
+            IEnumerable<IGrouping<Microsoft.Xna.Framework.Graphics.Texture2D, ushort>> textureGroups = CaveTiles.GroupBy(graphic => Client.Game.UO.Arts.GetArt(graphic).Texture)
+                .Where(g => g.Key != null);
 
-            //ArtLoader.Instance.CleaUnusedResources(short.MaxValue);
+            foreach (IGrouping<Microsoft.Xna.Framework.Graphics.Texture2D, ushort> textureGroup in textureGroups)
+            {
+                Microsoft.Xna.Framework.Graphics.Texture2D atlasTexture = textureGroup.Key;
+                uint[] atlasPixels = new uint[atlasTexture.Width * atlasTexture.Height];
+                atlasTexture.GetData(atlasPixels);
+
+                bool atlasModified = false;
+
+                foreach (ushort graphic in textureGroup)
+                {
+                    ref readonly SpriteInfo artInfo = ref Client.Game.UO.Arts.GetArt(graphic);
+
+                    if (ApplyBorderToAtlasRegion(atlasPixels, atlasTexture.Width, atlasTexture.Height, artInfo.UV))
+                    {
+                        atlasModified = true;
+                    }
+                }
+
+                if (atlasModified)
+                {
+                    atlasTexture.SetData(atlasPixels);
+                }
+            }
         }
+
+    private static bool ApplyBorderToAtlasRegion(uint[] atlasPixels, int atlasWidth, int atlasHeight, Rectangle uv)
+    {
+        if (uv.Width <= 0 || uv.Height <= 0)
+            return false;
+
+        bool modified = false;
+
+        // Apply your border logic adapted for atlas coordinates
+        for (int yy = 0; yy < uv.Height; yy++)
+        {
+            int atlasY = uv.Y + yy;
+            if (atlasY < 0 || atlasY >= atlasHeight) continue;
+
+            int startY = yy != 0 ? -1 : 0;
+            int endY = yy + 1 < uv.Height ? 2 : 1;
+
+            for (int xx = 0; xx < uv.Width; xx++)
+            {
+                int atlasX = uv.X + xx;
+                if (atlasX < 0 || atlasX >= atlasWidth) continue;
+
+                int atlasIndex = atlasY * atlasWidth + atlasX;
+                ref uint pixel = ref atlasPixels[atlasIndex];
+
+                if (pixel == 0)
+                {
+                    continue;
+                }
+
+                int startX = xx != 0 ? -1 : 0;
+                int endX = xx + 1 < uv.Width ? 2 : 1;
+
+                for (int i = startY; i < endY; i++)
+                {
+                    int currentY = yy + i;
+                    int currentAtlasY = uv.Y + currentY;
+
+                    // Bounds check for atlas
+                    if (currentAtlasY < 0 || currentAtlasY >= atlasHeight) continue;
+
+                    for (int j = startX; j < endX; j++)
+                    {
+                        int currentX = xx + j;
+                        int currentAtlasX = uv.X + currentX;
+
+                        // Bounds check for atlas
+                        if (currentAtlasX < 0 || currentAtlasX >= atlasWidth) continue;
+
+                        int currentAtlasIndex = currentAtlasY * atlasWidth + currentAtlasX;
+                        ref uint currentPixel = ref atlasPixels[currentAtlasIndex];
+
+                        if (currentPixel == 0u)
+                        {
+                            pixel = 0xFF_00_00_00;
+                            modified = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return modified;
+    }
 
         public static void CleanTreeTextures()
         {
             //foreach (ushort graphic in TreeTiles)
             //{
-            //    ArtTexture texture = ArtLoader.Instance.GetTexture(graphic);
+            //    ArtTexture texture = Client.Game.UO.FileManager.Arts.GetTexture(graphic);
 
             //    if (texture != null)
             //    {
@@ -264,7 +319,7 @@ namespace ClassicUO.Game.Data
             //    }
             //}
 
-            //ArtLoader.Instance.CleaUnusedResources(short.MaxValue);
+            //Client.Game.UO.FileManager.Arts.CleaUnusedResources(short.MaxValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -292,16 +347,10 @@ namespace ClassicUO.Game.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsVegetation(ushort g)
-        {
-            return (_filteredTiles[g] & STATIC_TILES_FILTER_FLAGS.STFF_VEGETATION) != 0;
-        }
+        public static bool IsVegetation(ushort g) => (_filteredTiles[g] & STATIC_TILES_FILTER_FLAGS.STFF_VEGETATION) != 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsCave(ushort g)
-        {
-            return (_filteredTiles[g] & STATIC_TILES_FILTER_FLAGS.STFF_CAVE) != 0;
-        }
+        public static bool IsCave(ushort g) => (_filteredTiles[g] & STATIC_TILES_FILTER_FLAGS.STFF_CAVE) != 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsRock(ushort g)
@@ -323,46 +372,25 @@ namespace ClassicUO.Game.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsField(ushort g)
-        {
-            return g >= 0x398C && g <= 0x399F || g >= 0x3967 && g <= 0x397A || g >= 0x3946 && g <= 0x3964 || g >= 0x3914 && g <= 0x3929;
-        }
+        public static bool IsField(ushort g) => g >= 0x398C && g <= 0x399F || g >= 0x3967 && g <= 0x397A || g >= 0x3946 && g <= 0x3964 || g >= 0x3914 && g <= 0x3929;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsFireField(ushort g)
-        {
-            return g >= 0x398C && g <= 0x399F;
-        }
+        public static bool IsFireField(ushort g) => g >= 0x398C && g <= 0x399F;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsParalyzeField(ushort g)
-        {
-            return g >= 0x3967 && g <= 0x397A;
-        }
+        public static bool IsParalyzeField(ushort g) => g >= 0x3967 && g <= 0x397A;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsEnergyField(ushort g)
-        {
-            return g >= 0x3946 && g <= 0x3964;
-        }
+        public static bool IsEnergyField(ushort g) => g >= 0x3946 && g <= 0x3964;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPoisonField(ushort g)
-        {
-            return g >= 0x3914 && g <= 0x3929;
-        }
+        public static bool IsPoisonField(ushort g) => g >= 0x3914 && g <= 0x3929;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsWallOfStone(ushort g)
-        {
-            return g == 0x038A;
-        }
+        public static bool IsWallOfStone(ushort g) => g == 0x82;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsOutStamina()
-        {
-            return World.Player.Stamina != World.Player.StaminaMax;
-        }
+        public static bool IsOutStamina(World world) => world.Player.Stamina != world.Player.StaminaMax;
         // ## BEGIN - END ## // MISC2
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool isHumanAndMonster(ushort g)
@@ -397,6 +425,45 @@ namespace ClassicUO.Game.Data
             // }
             // return false;
         }
+
+        private static void AddBlackBorder(Span<uint> pixels, int width, int height)
+        {
+            for (int yy = 0; yy < height; yy++)
+            {
+                int startY = yy != 0 ? -1 : 0;
+                int endY = yy + 1 < height ? 2 : 1;
+
+                for (int xx = 0; xx < width; xx++)
+                {
+                    ref uint pixel = ref pixels[yy * width + xx];
+
+                    if (pixel == 0)
+                    {
+                        continue;
+                    }
+
+                    int startX = xx != 0 ? -1 : 0;
+                    int endX = xx + 1 < width ? 2 : 1;
+
+                    for (int i = startY; i < endY; i++)
+                    {
+                        int currentY = yy + i;
+
+                        for (int j = startX; j < endX; j++)
+                        {
+                            int currentX = xx + j;
+
+                            ref uint currentPixel = ref pixels[currentY * width + currentX];
+
+                            if (currentPixel == 0u)
+                            {
+                                pixel = 0xFF_00_00_00;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-    
+
 }

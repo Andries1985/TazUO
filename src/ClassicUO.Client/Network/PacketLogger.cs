@@ -1,13 +1,14 @@
 ﻿using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using System;
+using System.Collections.Generic;
 
 namespace ClassicUO.Network
 {
     sealed class PacketLogger
     {
         public static PacketLogger Default { get; set; } = new PacketLogger();
-
+        public List<byte> LogPacketID = new();
 
 
         private LogFile _logFile;
@@ -26,15 +27,18 @@ namespace ClassicUO.Network
         {
             if (!Enabled) return;
 
+            if (LogPacketID.Count != 0 && !LogPacketID.Contains(message[0]))
+                return;
+
             Span<char> span = stackalloc char[256];
             var output = new ValueStringBuilder(span);
             {
                 int off = sizeof(ulong) + 2;
 
                 output.Append(' ', off);
-                output.Append(string.Format("Ticks: {0} | {1} |  ID: {2:X2}   Length: {3}\n", Time.Ticks, (toServer ? "Client -> Server" : "Server -> Client"), message[0], message.Length));
+                output.Append(string.Format("Time: {0:T} | {1} |  ID: {2:X2}   Length: {3}\n", DateTime.Now, (toServer ? "Client -> Server" : "Server -> Client"), message[0], message.Length));
 
-                if (message[0] == 0x80 || message[0] == 0x91)
+                if ((message[0] == 0x80 || message[0] == 0x91) && (!LogPacketID.Contains(0x80) || !LogPacketID.Contains(0x91))) //Avoid logging account UNLESS requested specifically
                 {
                     output.Append(' ', off);
                     output.Append("[ACCOUNT CREDENTIALS HIDDEN]\n");
@@ -74,7 +78,7 @@ namespace ClassicUO.Network
 
                         for (int j = 0; j < 16 && i + j < message.Length; ++j)
                         {
-                            var c = message[i + j];
+                            byte c = message[i + j];
 
                             if (c >= 0x20 && c < 0x80)
                             {
@@ -93,7 +97,7 @@ namespace ClassicUO.Network
                 output.Append('\n');
                 output.Append('\n');
 
-                var s = output.ToString();
+                string s = output.ToString();
 
                 if (_logFile != null)
                 {

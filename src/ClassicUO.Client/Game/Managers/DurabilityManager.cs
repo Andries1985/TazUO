@@ -2,7 +2,7 @@
 
 // Copyright (c) 2021, andreakarasho
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
 // 1. Redistributions of source code must retain the above copyright
@@ -16,7 +16,7 @@
 // 4. Neither the name of the copyright holder nor the
 //    names of its contributors may be used to endorse or promote products
 //    derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -43,59 +43,58 @@ namespace ClassicUO.Game.Managers
 {
     public class DurabilityManager : IDisposable
     {
-        private readonly ConcurrentDictionary<uint, DurabiltyProp> _itemLayerSlots = new ConcurrentDictionary<uint, DurabiltyProp>();
-        
+        private readonly Dictionary<uint, DurabiltyProp> _itemLayerSlots = new();
+
         private static readonly Layer[] _equipLayers =
         {
-            Layer.Cloak, Layer.Shirt, Layer.Pants, Layer.Shoes, Layer.Legs, Layer.Arms, Layer.Torso, Layer.Tunic,
-            Layer.Ring, Layer.Bracelet, Layer.Gloves, Layer.Skirt, Layer.Robe, Layer.Waist, Layer.Necklace,
-            Layer.Beard, Layer.Earrings, Layer.Helmet, Layer.OneHanded, Layer.TwoHanded, Layer.Talisman
+            Layer.Cloak, Layer.Shirt, Layer.Pants, Layer.Shoes, Layer.Legs, Layer.Arms, Layer.Torso, Layer.Tunic, Layer.Ring, Layer.Bracelet, Layer.Gloves, Layer.Skirt,
+            Layer.Robe, Layer.Waist, Layer.Necklace, Layer.Beard, Layer.Earrings, Layer.Helmet, Layer.OneHanded, Layer.TwoHanded, Layer.Talisman
         };
+
+        private World World;
 
         public List<DurabiltyProp> Durabilities => _itemLayerSlots.Values.ToList();
 
-        public DurabilityManager()
+        public static bool HasDurabilityData { get; private set; }
+
+        public DurabilityManager(World world)
         {
+            this.World = world;
             EventSink.OPLOnReceive += OnOPLReceive;
         }
 
-        public bool TryGetDurability(uint serial, out DurabiltyProp durability)
-        {
-            return _itemLayerSlots.TryGetValue(serial, out durability);
-        }
+        public bool TryGetDurability(uint serial, out DurabiltyProp durability) => _itemLayerSlots.TryGetValue(serial, out durability);
 
         private void OnOPLReceive(object s, OPLEventArgs e)
         {
-            Task.Factory.StartNew(() =>
-            {
-                var isItem = SerialHelper.IsValid(e.Serial) && SerialHelper.IsItem(e.Serial);
-                if (isItem)
-                {
-                    if (World.Items.TryGetValue(e.Serial, out var item))
-                    {
-                        if (!item.IsDestroyed)
-                        {
-                            if (item.Container == World.Player.Serial && _equipLayers.Contains(item.Layer))
-                            {
-                                var durability = ParseDurability((int)item.Serial, e.Data);
-                                _itemLayerSlots.AddOrUpdate(item.Serial, durability, (_, _) => durability);
-                            }
-                            else
-                            {
-                                _itemLayerSlots.TryRemove(item.Serial, out DurabiltyProp _);
-                            }
+            if (!SerialHelper.IsItem(e.Serial))
+                return;
 
-                            UIManager.GetGump<DurabilitysGump>()?.RequestUpdateContents();
-                            UIManager.GetGump<ModernPaperdoll>()?.RequestUpdateContents();
-                        }
-                    }
-                }
-            });
+            if (!World.Items.TryGetValue(e.Serial, out GameObjects.Item item) || item.IsDestroyed)
+                return;
+
+            if (item.Container == World.Player.Serial && _equipLayers.Contains(item.Layer))
+            {
+                DurabiltyProp durability = ParseDurability((int)item.Serial, e.Data);
+
+                if (durability.Serial != 0)
+                    _itemLayerSlots[item.Serial] = durability;
+            }
+            else
+            {
+                _itemLayerSlots.Remove(item.Serial);
+            }
+
+            UIManager.ForEach<DurabilitysGump>(g => g.RequestUpdateContents());
+            UIManager.ForEach<ModernPaperdoll>(g => g.RequestUpdateContents());
+
+            HasDurabilityData = _itemLayerSlots.Count > 0;
         }
 
         private static DurabiltyProp ParseDurability(int serial, string data)
         {
             MatchCollection matches = Regex.Matches(data, @"(?<=Durability )(\d*) / (\d*)"); //This should match 45 / 255 for example
+
             if (matches.Count == 0)
             {
                 return new DurabiltyProp();
@@ -103,14 +102,10 @@ namespace ClassicUO.Game.Managers
 
             string[] parts = data.Substring(matches[0].Index, matches[0].Length).Split('/');
 
-            return int.TryParse(parts[0].Trim(), out int min) && int.TryParse(parts[1].Trim(), out int max) ?
-                new DurabiltyProp(serial, min, max) : new DurabiltyProp();
+            return int.TryParse(parts[0].Trim(), out int min) && int.TryParse(parts[1].Trim(), out int max) ? new DurabiltyProp(serial, min, max) : new DurabiltyProp();
         }
 
-        public void Dispose()
-        {
-            EventSink.OPLOnReceive -= OnOPLReceive;
-        }
+        public void Dispose() => EventSink.OPLOnReceive -= OnOPLReceive;
     }
 
     public class DurabiltyProp
@@ -127,6 +122,9 @@ namespace ClassicUO.Game.Managers
             Durabilty = current;
             MaxDurabilty = max;
         }
-        public DurabiltyProp() : this(0, 0, 0) { }
+
+        public DurabiltyProp() : this(0, 0, 0)
+        {
+        }
     }
 }

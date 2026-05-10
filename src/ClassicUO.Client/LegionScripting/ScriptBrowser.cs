@@ -1,183 +1,203 @@
-﻿using System;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
-using ClassicUO.Assets;
-using ClassicUO.Game;
-using ClassicUO.Game.Managers;
-using ClassicUO.Game.UI.Controls;
-using ClassicUO.Game.UI.Gumps;
-using ClassicUO.Input;
+using ClassicUO.Game.UI.MyraWindows;
 
-namespace ClassicUO.LegionScripting
+namespace ClassicUO.LegionScripting;
+
+[JsonSerializable(typeof(ScriptBrowser.GhFileObject))]
+[JsonSerializable(typeof(List<ScriptBrowser.GhFileObject>))]
+[JsonSerializable(typeof(ScriptBrowser.Links))]
+internal partial class ScriptBrowserJsonContext : JsonSerializerContext { }
+
+public static class ScriptBrowser
 {
-    internal class ScriptBrowser : Gump
+    public const string REPO = "PlayTazUO/PublicLegionScripts";
+
+    public static void Show() => ScriptBrowserWindow.Show();
+
+    public class GhFileObject
     {
-        private const int WIDTH = 400;
-        private const int HEIGHT = 600;
-        private const string REPO = "bittiez/PublicLegionScripts";
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
 
-        public static readonly HttpClient client = new HttpClient();
-        private ScrollArea scrollArea;
-        private string lastPath = "";
-        public ScriptBrowser() : base(0, 0)
+        [JsonPropertyName("path")]
+        public string Path { get; set; }
+
+        [JsonPropertyName("sha")]
+        public string Sha { get; set; }
+
+        [JsonPropertyName("size")]
+        public int Size { get; set; }
+
+        [JsonPropertyName("url")]
+        public string Url { get; set; }
+
+        [JsonPropertyName("html_url")]
+        public string HtmlUrl { get; set; }
+
+        [JsonPropertyName("git_url")]
+        public string GitUrl { get; set; }
+
+        [JsonPropertyName("download_url")]
+        public string DownloadUrl { get; set; }
+
+        [JsonPropertyName("type")]
+        public string Type { get; set; }
+
+        [JsonPropertyName("_links")]
+        public Links Links { get; set; }
+    }
+
+    public class Links
+    {
+        [JsonPropertyName("self")]
+        public string Self { get; set; }
+
+        [JsonPropertyName("git")]
+        public string Git { get; set; }
+
+        [JsonPropertyName("html")]
+        public string Html { get; set; }
+    }
+}
+
+/// <summary>
+/// Caches GitHub repository content
+/// </summary>
+internal class GitHubContentCache : IDisposable
+{
+    private static readonly HttpClient _httpClient = new HttpClient
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+        DefaultRequestHeaders = { { "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" } }
+    };
+
+    private readonly string _repository;
+    private readonly string _baseUrl;
+    private readonly ConcurrentDictionary<string, List<ScriptBrowser.GhFileObject>> _directoryCache = new();
+    private readonly ConcurrentDictionary<string, string> _fileContentCache = new();
+    private readonly ConcurrentDictionary<string, DateTime> _cacheTimestamps = new();
+    private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(10);
+    private DateTime _lastApiCallTime = DateTime.MinValue;
+    private readonly Lock _rateLimitLock = new Lock();
+    private const int MIN_MS_BETWEEN_REQUESTS = 1000;
+
+    public GitHubContentCache(string repo)
+    {
+        _repository = repo;
+        _baseUrl = $"https://api.github.com/repos/{_repository}/contents";
+    }
+
+    public async Task<List<ScriptBrowser.GhFileObject>> GetDirectoryContentsAsync(string path = "")
+    {
+        string cacheKey = string.IsNullOrEmpty(path) ? "ROOT" : path;
+
+        if (_directoryCache.TryGetValue(cacheKey, out List<ScriptBrowser.GhFileObject> cached) &&
+            _cacheTimestamps.TryGetValue(cacheKey, out DateTime timestamp) &&
+            DateTime.Now - timestamp < _cacheExpiration)
         {
-            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Mozilla", "5.0"));
-
-            CanMove = true;
-            CanCloseWithRightClick = true;
-
-            Width = WIDTH;
-            Height = HEIGHT;
-
-            Add(new AlphaBlendControl() { Width = Width, Height = Height });
-            Add(scrollArea = new ScrollArea(0, 0, Width, Height, true) { ScrollbarBehaviour = ScrollbarBehaviour.ShowAlways });
-
-            GetFilesAsync().ContinueWith((r) =>
-            {
-                SetFiles(r.Result);
-            });
-
-            CenterXInViewPort();
-            CenterYInViewPort();
+            return cached;
         }
 
-        public void SetFiles(List<GHFileObject> files)
+        List<ScriptBrowser.GhFileObject> contents = await FetchDirectoryFromApi(path);
+
+        _directoryCache[cacheKey] = contents;
+        _cacheTimestamps[cacheKey] = DateTime.Now;
+
+        _ = Task.Run(async () =>
         {
-            while (scrollArea.Children.Count > 1)
-                scrollArea.Children[1].Dispose();
-
-            string lastP = lastPath;
-            if (lastPath.Length > 0)
+            IEnumerable<ScriptBrowser.GhFileObject> directories = contents.Where(f => f.Type == "dir").Take(3);
+            foreach (ScriptBrowser.GhFileObject dir in directories)
             {
-                lastP = Path.GetDirectoryName(lastPath);
-                scrollArea.Add(new ItemControl(new GHFileObject() { type = "dir", name = $"<- Back{(string.IsNullOrEmpty(lastP)? "" : $" ({lastP})")}", path = lastP }, this));
-
-            }
-
-            foreach (GHFileObject file in files)
-            {
-                if (file.type == "file" && !file.name.EndsWith(".lscript"))
-                    continue;
-
-                scrollArea.Add(new ItemControl(file, this));
-            }
-
-            int y = 0;
-            foreach (Control c in scrollArea.Children)
-            {
-                if (c is not ItemControl)
-                    continue;
-
-                c.Y = y;
-                y += c.Height + 3;
-            }
-        }
-
-        private async Task<List<GHFileObject>> GetFilesAsync(string path = "")
-        {
-            try
-            {
-                lastPath = path;
-
-                var files = new List<GHFileObject>();
-                var url = $"https://api.github.com/repos/{REPO}/contents{path}";
-                var response = await client.GetStringAsync(url);
-
-                return JsonSerializer.Deserialize<List<GHFileObject>>(response);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-                GameActions.Print("There was an error trying to load public scripts. You can browse them manually at: https://github.com/bittiez/PublicLegionScripts");
-            }
-
-            return new List<GHFileObject>();
-        }
-
-
-        internal class GHFileObject
-        {
-            public string name { get; set; }
-            public string path { get; set; }
-            public string sha { get; set; }
-            public int size { get; set; }
-            public string url { get; set; }
-            public string html_url { get; set; }
-            public string git_url { get; set; }
-            public string download_url { get; set; }
-            public string type { get; set; }
-            public _Links _links { get; set; }
-        }
-
-        internal class _Links
-        {
-            public string self { get; set; }
-            public string git { get; set; }
-            public string html { get; set; }
-        }
-
-
-        internal class ItemControl : Control
-        {
-            public ItemControl(GHFileObject gHFileObject, ScriptBrowser scriptBrowser)
-            {
-                Width = WIDTH - 18;
-                Height = 50;
-
-                Add(new AlphaBlendControl() { Width = Width, Height = Height });
-
-                GHFileObject = gHFileObject;
-                ScriptBrowser = scriptBrowser;
-                if (gHFileObject.type == "dir")
+                try
                 {
-                    Add(GenTextBox("Directory", 14, 5, 5));
-                    MouseDown += DirectoryMouseDown;
+                    if (!_directoryCache.ContainsKey(dir.Path))
+                        await GetDirectoryContentsAsync(dir.Path);
                 }
-                else if (gHFileObject.type == "file" && gHFileObject.name.EndsWith(".lscript"))
-                {
-                    Add(GenTextBox("Script", 14, 5, 5));
-                    MouseDown += FileMouseDown;
-                }
-
-                var tb = GenTextBox(gHFileObject.name, 20);
-                tb.X = Width - tb.MeasuredSize.X - 5;
-                tb.Y = (Height - tb.MeasuredSize.Y) / 2;
-                Add(tb);
+                catch { }
             }
+        });
 
-            private void FileMouseDown(object sender, MouseEventArgs e)
-            {
-                var t = ScriptBrowser.client.GetStringAsync(GHFileObject.download_url);
-                t.Wait();
+        return contents;
+    }
 
-                ScriptFile f = new ScriptFile(LegionScripting.ScriptPath, t.Result, GHFileObject.name);
-                UIManager.Add(new ScriptEditor(f));
-            }
+    public async Task<string> GetFileContentAsync(string downloadUrl)
+    {
+        if (_fileContentCache.TryGetValue(downloadUrl, out string cachedContent))
+            return cachedContent;
 
-            private void DirectoryMouseDown(object sender, MouseEventArgs e)
-            {
-                ScriptBrowser.GetFilesAsync(GHFileObject.path).ContinueWith((r) =>
-                {
-                    ScriptBrowser.SetFiles(r.Result);
-                });
-            }
+        string content = await DownloadStringAsync(downloadUrl);
+        _fileContentCache[downloadUrl] = content;
+        return content;
+    }
 
-            private TextBox GenTextBox(string text, int fontsize, int x = 0, int y = 0)
-            {
+    private async Task<List<ScriptBrowser.GhFileObject>> FetchDirectoryFromApi(string path)
+    {
+        try
+        {
+            string url = string.IsNullOrEmpty(path) ? _baseUrl : $"{_baseUrl}/{path}";
+            string response = await DownloadStringAsync(url);
 
-                TextBox tb = new TextBox(text, TrueTypeLoader.EMBEDDED_FONT, fontsize, null, Microsoft.Xna.Framework.Color.White, strokeEffect: false);
-                tb.X = x;
-                tb.Y = y;
-                tb.AcceptMouseInput = false;
-                return tb;
-            }
+            if (string.IsNullOrEmpty(response))
+                return new List<ScriptBrowser.GhFileObject>();
 
-            public GHFileObject GHFileObject { get; }
-            public ScriptBrowser ScriptBrowser { get; }
+            List<ScriptBrowser.GhFileObject> files = JsonSerializer.Deserialize(response, ScriptBrowserJsonContext.Default.ListGhFileObject);
+            return files ?? new List<ScriptBrowser.GhFileObject>();
+        }
+        catch (HttpRequestException httpEx)
+        {
+            Console.WriteLine($"HTTP error fetching directory {path}: {httpEx.Message}");
+            if (httpEx.StatusCode.HasValue)
+                Console.WriteLine($"HTTP Status: {httpEx.StatusCode}");
+            throw;
+        }
+        catch (JsonException jsonEx)
+        {
+            Console.WriteLine($"JSON parsing error for directory {path}: {jsonEx.Message}");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching directory {path}: {ex.Message}");
+            throw;
         }
     }
+
+    private async Task EnforceRateLimitAsync()
+    {
+        int delayNeeded = 0;
+
+        lock (_rateLimitLock)
+        {
+            int timeSinceLastCall = (int)(DateTime.Now - _lastApiCallTime).TotalMilliseconds;
+            if (timeSinceLastCall < MIN_MS_BETWEEN_REQUESTS)
+                delayNeeded = MIN_MS_BETWEEN_REQUESTS - timeSinceLastCall;
+            _lastApiCallTime = DateTime.Now.AddMilliseconds(delayNeeded);
+        }
+
+        if (delayNeeded > 0)
+            await Task.Delay(delayNeeded);
+    }
+
+    private async Task<string> DownloadStringAsync(string url)
+    {
+        await EnforceRateLimitAsync();
+        return await _httpClient.GetStringAsync(url);
+    }
+
+    public void ClearCache()
+    {
+        _directoryCache.Clear();
+        _fileContentCache.Clear();
+        _cacheTimestamps.Clear();
+    }
+
+    public void Dispose() => ClearCache();
 }
