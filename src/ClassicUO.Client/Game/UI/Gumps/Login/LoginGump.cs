@@ -208,7 +208,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int)Buttons.Quit, 0x05CA, 0x05C9, 0x05C8)
                     {
-                        X = 1770,
+                        X = 1750,
                         Y = 10,
                         ButtonAction = ButtonAction.Activate
                     }
@@ -231,7 +231,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     _nextArrow0 = new Button((int)Buttons.NextArrow, 0x5CD, 0x5CC, 0x5CB)
                     {
                         X = 900,
-                        Y = 860,
+                        Y = 850,
                         ButtonAction = ButtonAction.Activate
                     }
                 );
