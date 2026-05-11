@@ -45,15 +45,15 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 align: TEXT_ALIGN_TYPE.TS_CENTER
             )
             {
-                X = 162,
-                Y = 178
+                X = 780,
+                Y = 470
             };
 
             Add
             (
-                new ResizePic(0x0A28)
+                new ResizePic(0x0A3C)
                 {
-                    X = 142, Y = 134, Width = 366, Height = 212
+                    X = 760, Y = 425, Width = 366, Height = 212
                 }
             );
 
@@ -65,7 +65,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int) LoginButtons.OK, 0x0481, 0x0483, 0x0482)
                     {
-                        X = 306, Y = 304, ButtonAction = ButtonAction.Activate
+                        X = 930, Y = 600, ButtonAction = ButtonAction.Activate
                     }
                 );
             }
@@ -75,8 +75,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int) LoginButtons.Cancel, 0x047E, 0x0480, 0x047F)
                     {
-                        X = 306,
-                        Y = 304,
+                        X = 930,
+                        Y = 600,
                         ButtonAction = ButtonAction.Activate
                     }
                 );
@@ -87,7 +87,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int) LoginButtons.OK, 0x0481, 0x0483, 0x0482)
                     {
-                        X = 264, Y = 304, ButtonAction = ButtonAction.Activate
+                        X = 888, Y = 600, ButtonAction = ButtonAction.Activate
                     }
                 );
 
@@ -95,7 +95,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int) LoginButtons.Cancel, 0x047E, 0x0480, 0x047F)
                     {
-                        X = 348, Y = 304, ButtonAction = ButtonAction.Activate
+                        X = 972, Y = 600, ButtonAction = ButtonAction.Activate
                     }
                 );
             }

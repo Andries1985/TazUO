@@ -348,7 +348,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     hue: 0x0036
                 )
                 {
-                    X = offsetX + 2,
+                    X = offsetX + 3,
                     Y = offsetY + 8,
                     Width = 190,
                     Height = 25,
@@ -369,7 +369,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     hue: 0x0036
                 )
                 {
-                    X = offsetX + 2,
+                    X = offsetX + 3,
                     Y = offsetY + offtextY + 2 + 8,
                     Width = 190,
                     Height = 25

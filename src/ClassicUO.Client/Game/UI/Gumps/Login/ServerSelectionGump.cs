@@ -303,7 +303,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         entry.Name,
                         false,
-                        normal_hue,
+                        56,
                         selected_hue,
                         selected_hue,
                         font: font
@@ -320,7 +320,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         CUOEnviroment.NoServerPing ? string.Empty : "-",
                         false,
-                        normal_hue,
+                        56,
                         selected_hue,
                         selected_hue,
                         font: font
@@ -337,7 +337,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         CUOEnviroment.NoServerPing ? string.Empty : "-",
                         false,
-                        normal_hue,
+                        56,
                         selected_hue,
                         selected_hue,
                         font: font
