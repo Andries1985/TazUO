@@ -21,7 +21,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
     public class CharacterSelectionGump : Gump
     {
         private const ushort SELECTED_COLOR = 0x0021;
-        private const ushort NORMAL_COLOR = 0x034F;
+        private const ushort NORMAL_COLOR = 0x36;
         private uint _selectedCharacter;
         private CharacterEntryGump[] chars;
 
@@ -30,9 +30,9 @@ namespace ClassicUO.Game.UI.Gumps.Login
             CanCloseWithRightClick = false;
 
             int posInList = 0;
-            int yOffset = 150;
+            int yOffset = 575;
             int yBonus = 0;
-            int listTitleY = 106;
+            int listTitleY = 538;
 
             LoginScene loginScene = Client.Game.GetScene<LoginScene>();
 
@@ -45,8 +45,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             if (Client.Game.UO.Version >= ClientVersion.CV_6040 || Client.Game.UO.Version >= ClientVersion.CV_5020 && loginScene.Characters.Length > 5)
             {
-                listTitleY = 96;
-                yOffset = 125;
+                listTitleY = 538;
+                yOffset = 575;
                 yBonus = 45;
             }
 
@@ -61,12 +61,12 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             Add
             (
-                new ResizePic(0x0A28)
+                new ResizePic(0x0A3C)
                 {
-                    X = 160,
-                    Y = 70,
+                    X = 737,
+                    Y = 523,
                     Width = 408,
-                    Height = 343 + yBonus
+                    Height = 383 + yBonus
                 },
                 1
             );
@@ -76,14 +76,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 string.Compare(Settings.GlobalSettings.Language, "JPN", StringComparison.InvariantCultureIgnoreCase) == 0;
 
             bool unicode = isAsianLang;
-            byte font = (byte)(isAsianLang ? 1 : 2);
-            ushort hue = (ushort)(isAsianLang ? 0xFFFF : 0x0386);
+            byte font = (byte)(isAsianLang ? 1 : 0);
+            ushort hue = (ushort)(isAsianLang ? 0xFFFF : 0x34);
 
             Add
             (
                 new Label(Client.Game.UO.FileManager.Clilocs.GetString(3000050, "Character Selection"), unicode, hue, font: font)
                 {
-                    X = 267,
+                    X = 840,
                     Y = listTitleY
                 },
                 1
@@ -97,7 +97,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 if (character.NotNullNotEmpty())
                 {
-                    LemCharData? LEMData = LastEquipmentManager.Load(LoginHandshake.Instance.LastServerName, character, LoginHandshake.Account);
+                    // LemCharData? LEMData = LastEquipmentManager.Load(LoginHandshake.Instance.LastServerName, character, LoginHandshake.Account);
 
                     valid++;
 
@@ -113,7 +113,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (g =
                         new CharacterEntryGump((uint)i, character, SelectCharacter, LoginCharacter)
                         {
-                            X = 224,
+                            X = 813,
                             Y = yOffset + posInList * 40,
                             Hue = i == _selectedCharacter ? SELECTED_COLOR : NORMAL_COLOR
                         },
@@ -121,24 +121,24 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     );
                     gumps.Add(g);
 
-                    if (LEMData.HasValue)
-                    {
-                        var equipment = new Dictionary<Layer, StaticPaperDollView.EquipmentEntry>();
-                        foreach (KeyValuePair<Layer, LemEquipmentEntry> kvp in LEMData.Value.Equipment)
-                        {
-                            equipment[kvp.Key] = new StaticPaperDollView.EquipmentEntry(
-                                kvp.Value.AnimID, kvp.Value.Hue, kvp.Value.IsPartialHue);
-                        }
-
-                        var view = new StaticPaperDollView(
-                            LEMData.Value.PlayerGraphic,
-                            LEMData.Value.BodyHue,
-                            LEMData.Value.IsFemale,
-                            equipment,
-                            new Vector2(200, 300));
-
-                        g.SetTooltip(view);
-                    }
+                    // if (LEMData.HasValue)
+                    // {
+                    //     var equipment = new Dictionary<Layer, StaticPaperDollView.EquipmentEntry>();
+                    //     foreach (KeyValuePair<Layer, LemEquipmentEntry> kvp in LEMData.Value.Equipment)
+                    //     {
+                    //         equipment[kvp.Key] = new StaticPaperDollView.EquipmentEntry(
+                    //             kvp.Value.AnimID, kvp.Value.Hue, kvp.Value.IsPartialHue);
+                    //     }
+                    //
+                    //     var view = new StaticPaperDollView(
+                    //         LEMData.Value.PlayerGraphic,
+                    //         LEMData.Value.BodyHue,
+                    //         LEMData.Value.IsFemale,
+                    //         equipment,
+                    //         new Vector2(200, 300));
+                    //
+                    //     g.SetTooltip(view);
+                    // }
 
                     posInList++;
                 }
@@ -151,8 +151,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int)Buttons.New, 0x159D, 0x159F, 0x159E)
                     {
-                        X = 224,
-                        Y = 350 + yBonus,
+                        X = 805,
+                        Y = 870 + yBonus,
                         ButtonAction = ButtonAction.Activate
                     },
                     1
@@ -163,8 +163,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int)Buttons.Delete, 0x159A, 0x159C, 0x159B)
                 {
-                    X = 442,
-                    Y = 350 + yBonus,
+                    X = 1023,
+                    Y = 870 + yBonus,
                     ButtonAction = ButtonAction.Activate
                 },
                 1
@@ -174,8 +174,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int)Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 586,
-                    Y = 445,
+                    X = 1080,
+                    Y = 955,
                     ButtonAction = ButtonAction.Activate
                 },
                 1
@@ -185,8 +185,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int)Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 610,
-                    Y = 445,
+                    X = 1110,
+                    Y = 955,
                     ButtonAction = ButtonAction.Activate
                 },
                 1
@@ -369,10 +369,10 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 // Bg
                 Add
                 (
-                    new ResizePic(0x0BB8)
+                    new ResizePic(0x013BE)
                     {
-                        X = 0,
-                        Y = 0,
+                        X = -10,
+                        Y = -5,
                         Width = 280,
                         Height = 30,
                         AcceptMouseInput = false
@@ -388,7 +388,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         false,
                         NORMAL_COLOR,
                         270,
-                        5,
+                        0,
                         align: TEXT_ALIGN_TYPE.TS_CENTER
                     )
                     {

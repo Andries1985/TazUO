@@ -29,7 +29,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 1050, Y = 600, ButtonAction = ButtonAction.Activate
+                    X = 1050, Y = 950, ButtonAction = ButtonAction.Activate
                 }
             );
 
@@ -37,7 +37,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int) Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 1085, Y = 600, ButtonAction = ButtonAction.Activate
+                    X = 1085, Y = 950, ButtonAction = ButtonAction.Activate
                 }
             );
 
@@ -49,7 +49,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044579), true, textColor, font: 2)
                     {
-                        X = 765, Y = 450
+                        X = 765, Y = 698
                     }
                 ); // "Select which shard to play on:"
 
@@ -59,7 +59,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044577), true, textColor, font: 2)
                         {
-                            X = 990, Y = 450
+                            X = 990, Y = 698
                         }
                     ); // "Latency:"
 
@@ -67,7 +67,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044578), true, textColor, font: 2)
                         {
-                            X = 1050, Y = 450
+                            X = 1050, Y = 698
                         }
                     ); // "Packet Loss:"
                 }
@@ -153,22 +153,22 @@ namespace ClassicUO.Game.UI.Gumps.Login
             //     }
             // );
 
-            // Sever Scroll Area Bg
+            // Server Scroll Area Bg
             Add
             (
                 new ResizePic(0x13BE)
                 {
-                    X = 747, Y = 468, Width = 400 - 14, Height = 132
+                    X = 747, Y = 715, Width = 400 - 14, Height = 232
                 }
             );
 
-            // Sever Scroll Area
+            // Server Scroll Area
             var scrollArea = new ScrollArea
             (
                 747,
-                468,
+                715,
                 400,
-                132,
+                232,
                 true
             );
 
