@@ -26,18 +26,14 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             /* Build the gump */
             Add
             (
-                new ResizePic(2600)
+                new ResizePic(2620)
                 {
-                    X = 100,
-                    Y = 80,
-                    Width = 470,
-                    Height = 372
+                    X = 620,
+                    Y = 430,
+                    Width = 630,
+                    Height = 530
                 }
             );
-
-            Add(new GumpPic(291, 42, 0x0589, 0));
-            Add(new GumpPic(214, 58, 0x058B, 0));
-            Add(new GumpPic(300, 51, 0x15A9, 0));
 
             ClilocLoader localization = Client.Game.UO.FileManager.Clilocs;
 
@@ -53,22 +49,28 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Label(localization.GetString(3000326, "Choose a Trade for Your Character"), unicode, hue, font: font)
                 {
-                    X = 158,
-                    Y = 132
+                    X = 770,
+                    Y = 465
                 }
             );
 
+            int columns = 3;
+            int startX = 647;
+            int startY = 530;
+            int xSpacing = 195;
+            int ySpacing = 70;
+
             for (int i = 0; i < professions.Count; i++)
             {
-                int cx = i % 2;
-                int cy = i >> 1;
+                int cx = i % columns;
+                int cy = i / columns;
 
                 Add
                 (
                     new ProfessionInfoGump(professions[i])
                     {
-                        X = 145 + cx * 195,
-                        Y = 168 + cy * 70,
+                        X = startX + cx * xSpacing,
+                        Y = startY + cy * ySpacing,
 
                         Selected = SelectProfession
                     }
@@ -79,8 +81,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 586,
-                    Y = 445,
+                    X = 680,
+                    Y = 930,
                     ButtonAction = ButtonAction.Activate
                 }
             );
