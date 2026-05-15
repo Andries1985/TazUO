@@ -89,7 +89,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 _maleRadio = new Button((int)Buttons.MaleButton, 0x0768, 0x0767)
                 {
-                    X = 1015, Y = 947, ButtonAction = ButtonAction.Activate
+                    X = 690, Y = 860, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -98,7 +98,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 _femaleRadio = new Button((int)Buttons.FemaleButton, 0x0768, 0x0767)
                 {
-                    X = 1015, Y = 967, ButtonAction = ButtonAction.Activate
+                    X = 690, Y = 880, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -107,7 +107,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.MaleButton, 0x0710, 0x0712, 0x0711)
                 {
-                    X = 1035, Y = 947, ButtonAction = ButtonAction.Activate
+                    X = 710, Y = 860, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -116,24 +116,24 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.FemaleButton, 0x070D, 0x070F, 0x070E)
                 {
-                    X = 1035, Y = 967, ButtonAction = ButtonAction.Activate
+                    X = 710, Y = 880, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
 
             Add
             (
-                _nameTextBox = new StbTextBox
+                _nameTextBox = new StbTextBox // Character Name text
                 (
-                    3,
+                    2,
                     16,
                     200,
                     false,
-                    hue: 0x3E9,
+                    hue: 0x3E7,
                     style: FontStyle.Fixed
                 )
                 {
-                    X = 850, Y = 567, Width = 200, Height = 20
+                    X = 840, Y = 567, Width = 200, Height = 20
                     //ValidationRules = (uint) (TEXT_ENTRY_RULES.LETTER | TEXT_ENTRY_RULES.SPACE)
                 },
                 1
@@ -144,7 +144,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 _humanRadio = new Button((int)Buttons.HumanButton, 0x0768, 0x0767)
                 {
-                    X = 180, Y = 435, ButtonAction = ButtonAction.Activate
+                    X = 690, Y = 930, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -153,7 +153,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.HumanButton, 0x0702, 0x0704, 0x0703)
                 {
-                    X = 200, Y = 435, ButtonAction = ButtonAction.Activate
+                    X = 710, Y = 930, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -162,7 +162,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 _elfRadio = new Button((int)Buttons.ElfButton, 0x0768, 0x0767, 0x0768)
                 {
-                    X = 180, Y = 455, ButtonAction = ButtonAction.Activate
+                    X = 805, Y = 930, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -171,7 +171,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.ElfButton, 0x0705, 0x0707, 0x0706)
                 {
-                    X = 200, Y = 455, ButtonAction = ButtonAction.Activate
+                    X = 825, Y = 930, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -182,7 +182,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 (
                     _gargoyleRadio = new Button((int)Buttons.GargoyleButton, 0x0768, 0x0767)
                     {
-                        X = 60, Y = 435, ButtonAction = ButtonAction.Activate
+                        X = 920, Y = 930, ButtonAction = ButtonAction.Activate
                     },
                     1
                 );
@@ -191,7 +191,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 (
                     new Button((int) Buttons.GargoyleButton, 0x07D3, 0x07D5, 0x07D4)
                     {
-                        X = 80, Y = 435, ButtonAction = ButtonAction.Activate
+                        X = 940, Y = 930, ButtonAction = ButtonAction.Activate
                     },
                     1
                 );
@@ -202,7 +202,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 586, Y = 445, ButtonAction = ButtonAction.Activate
+                    X = 1135, Y = 930, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -211,7 +211,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 _nextButton = new Button((int) Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 610, Y = 445, ButtonAction = ButtonAction.Activate
+                    X = 1175, Y = 930, ButtonAction = ButtonAction.Activate
                 },
                 1
             );
@@ -433,7 +433,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 _hairLabel = new Label(Client.Game.UO.FileManager.Clilocs.GetString(race == RaceType.GARGOYLE ? 1112309 : 3000121), unicode, hue, font: font)
                 {
-                    X = 682, Y = 660
+                    X = 682, Y = 640
                 },
                 1
             );
@@ -443,7 +443,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 _hairCombobox = new Combobox
                 (
                     681,
-                    675,
+                    655,
                     120,
                     content.Labels,
                     CurrentOption[Layer.Hair]
@@ -462,7 +462,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 (
                     _facialLabel = new Label(Client.Game.UO.FileManager.Clilocs.GetString(race == RaceType.GARGOYLE ? 1112511 : 3000122), unicode, hue, font: font)
                     {
-                        X = 682, Y = 718
+                        X = 682, Y = 698
                     },
                     1
                 );
@@ -472,7 +472,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                     _facialCombobox = new Combobox
                     (
                         681,
-                        733,
+                        713,
                         120,
                         content.Labels,
                         CurrentOption[Layer.Beard]
@@ -494,7 +494,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             AddCustomColorPicker
             (
                 1072,
-                660,
+                640,
                 pallet,
                 Layer.Invalid,
                 3000183,
@@ -506,7 +506,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             AddCustomColorPicker
             (
                 1072,
-                702,
+                682,
                 null,
                 Layer.Shirt,
                 3000440,
@@ -520,7 +520,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 AddCustomColorPicker
                 (
                     1072,
-                    744,
+                    724,
                     null,
                     Layer.Pants,
                     3000441,
@@ -535,7 +535,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             AddCustomColorPicker
             (
                 1072,
-                786,
+                766,
                 pallet,
                 Layer.Hair,
                 race == RaceType.GARGOYLE ? 1112322 : 3000184,
@@ -551,7 +551,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 AddCustomColorPicker
                 (
                     1072,
-                    828,
+                    808,
                     pallet,
                     Layer.Beard,
                     race == RaceType.GARGOYLE ? 1112512 : 3000446,
@@ -566,7 +566,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
 
             Add
             (
-                _paperDoll = new PaperDollInteractable(262, 135, _character, new PaperDollGump(World))
+                _paperDoll = new PaperDollInteractable(850, 630, _character, new PaperDollGump(World))
                 {
                     AcceptMouseInput = false
                 },
@@ -1059,7 +1059,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
 
                 Add
                 (
-                    _colorPicker = new ColorBox(121, 23, (ushort) ((pallet?[0] ?? 1) + 1))
+                    _colorPicker = new ColorBox(120, 23, (ushort) ((pallet?[0] ?? 1) + 1))
                     {
                         X = 1,
                         Y = 15
@@ -1116,8 +1116,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                         _colorPickerBox = new ColorPickerBox
                         (
                             _gump.World,
-                            489,
-                            141,
+                            1073,
+                            630,
                             _rows,
                             _columns,
                             _cellW,

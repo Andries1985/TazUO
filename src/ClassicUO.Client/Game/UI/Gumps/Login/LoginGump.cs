@@ -348,8 +348,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     hue: 0x0036
                 )
                 {
-                    X = offsetX + 3,
-                    Y = offsetY + 8,
+                    X = offsetX + 5,
+                    Y = offsetY + 9,
                     Width = 190,
                     Height = 25,
                     PlaceHolderText="Account Name"
@@ -369,8 +369,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     hue: 0x0036
                 )
                 {
-                    X = offsetX + 3,
-                    Y = offsetY + offtextY + 2 + 8,
+                    X = offsetX + 5,
+                    Y = offsetY + offtextY + 2 + 9,
                     Width = 190,
                     Height = 25
                 }

@@ -151,7 +151,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int)Buttons.New, 0x159D, 0x159F, 0x159E)
                     {
-                        X = 805,
+                        X = 830,
                         Y = 870 + yBonus,
                         ButtonAction = ButtonAction.Activate
                     },
@@ -163,7 +163,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int)Buttons.Delete, 0x159A, 0x159C, 0x159B)
                 {
-                    X = 1023,
+                    X = 990,
                     Y = 870 + yBonus,
                     ButtonAction = ButtonAction.Activate
                 },
@@ -175,7 +175,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 new Button((int)Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
                     X = 1080,
-                    Y = 955,
+                    Y = 920,
                     ButtonAction = ButtonAction.Activate
                 },
                 1
@@ -186,7 +186,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 new Button((int)Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
                 {
                     X = 1110,
-                    Y = 955,
+                    Y = 920,
                     ButtonAction = ButtonAction.Activate
                 },
                 1
