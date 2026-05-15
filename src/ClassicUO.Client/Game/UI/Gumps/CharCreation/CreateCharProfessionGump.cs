@@ -55,7 +55,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             );
 
             int columns = 3;
-            int startX = 647;
+            int startX = 648;
             int startY = 530;
             int xSpacing = 195;
             int ySpacing = 70;
@@ -81,8 +81,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 680,
-                    Y = 930,
+                    X = 655,
+                    Y = 920,
                     ButtonAction = ButtonAction.Activate
                 }
             );
