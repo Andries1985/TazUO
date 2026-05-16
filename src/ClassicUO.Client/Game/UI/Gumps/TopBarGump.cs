@@ -28,7 +28,7 @@ namespace ClassicUO.Game.UI.Gumps
             CanCloseWithRightClick = false;
 
             // little
-            Add(new ResizePic(0x13BE) { Width = 30, Height = 27 }, 2);
+            Add(new ResizePic(0x1400) { Width = 30, Height = 27 }, 2);
 
             Add(
                 new Button(0, 0x15A1, 0x15A1, 0x15A1)
@@ -82,7 +82,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             ResizePic background;
 
-            Add(background = new ResizePic(0x13BE) { Height = 27 }, 1);
+            Add(background = new ResizePic(0x1400) { Height = 27 }, 1);
 
             Add(
                 new Button(0, 0x15A4, 0x15A4, 0x15A4)
