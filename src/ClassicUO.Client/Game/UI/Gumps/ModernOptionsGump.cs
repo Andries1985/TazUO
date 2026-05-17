@@ -3787,10 +3787,10 @@ namespace ClassicUO.Game.UI.Gumps
             );
 
             content.BlankLine();
-            content.AddToRight(
-                new CheckboxWithLabel(lang.GetTazUO.EnableAdvancedShopGump, 0, profile.UseModernShopGump,
-                    (b) => { profile.UseModernShopGump = b; }), true, page);
-            content.BlankLine();
+            // content.AddToRight(
+            //     new CheckboxWithLabel(lang.GetTazUO.EnableAdvancedShopGump, 0, profile.UseModernShopGump,
+            //         (b) => { profile.UseModernShopGump = b; }), true, page);
+            // content.BlankLine(); // Doesn't work on POL.
 
             content.AddToRight
             (
