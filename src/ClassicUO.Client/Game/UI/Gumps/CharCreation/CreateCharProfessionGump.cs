@@ -28,10 +28,10 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new ResizePic(2620)
                 {
-                    X = 620,
-                    Y = 430,
-                    Width = 630,
-                    Height = 530
+                    X = 700,
+                    Y = 630,
+                    Width = 480,
+                    Height = 320
                 }
             );
 
@@ -47,16 +47,16 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
 
             Add
             (
-                new Label(localization.GetString(3000326, "Choose a Trade for Your Character"), unicode, hue, font: font)
+                new Label(localization.GetString(3000326, "You can choose your race and class in game!"), unicode, hue, font: font)
                 {
-                    X = 770,
-                    Y = 465
+                    X = 714,
+                    Y = 660
                 }
             );
 
             int columns = 3;
-            int startX = 648;
-            int startY = 530;
+            int startX = 850;
+            int startY = 750;
             int xSpacing = 195;
             int ySpacing = 70;
 
@@ -81,8 +81,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 655,
-                    Y = 920,
+                    X = 1130,
+                    Y = 915,
                     ButtonAction = ButtonAction.Activate
                 }
             );
