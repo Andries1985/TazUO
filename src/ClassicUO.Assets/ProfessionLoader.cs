@@ -93,17 +93,17 @@ namespace ClassicUO.Assets
                 }
             }
 
-            Professions[new ProfessionInfo(FileManager.Version)
-            {
-                Name = "Advanced",
-                Localization = 1061176,
-                Description = 1061226,
-                Graphic = 5545,
-                TopLevel = true,
-                Type = PROF_TYPE.PROFESSION,
-                DescriptionIndex = -1,
-                TrueName = "advanced"
-            }] = null;
+            // Professions[new ProfessionInfo(FileManager.Version)
+            // {
+            //     Name = "Advanced",
+            //     Localization = 1061176,
+            //     Description = 1061226,
+            //     Graphic = 5545,
+            //     TopLevel = true,
+            //     Type = PROF_TYPE.PROFESSION,
+            //     DescriptionIndex = -1,
+            //     TrueName = "advanced"
+            // }] = null;
 
             foreach (KeyValuePair<ProfessionInfo, List<ProfessionInfo>> kvp in Professions)
             {

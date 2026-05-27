@@ -18,7 +18,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
     public class CreateCharSelectionCityGump : Gump
     {
         private readonly List<CityControl> _cityControls = new List<CityControl>();
-        private readonly string[] _cityNames = { "Felucca", "Trammel", "Ilshenar", "Malas", "Tokuno", "Ter Mur" };
+        private readonly string[] _cityNames = { "Felucca", "Sosaria", "Ilshenar", "Malas", "Tokuno", "Ter Mur" };
         private readonly Label _facetName;
         private readonly HtmlControl _htmlControl;
         private readonly LoginScene _scene;
@@ -87,15 +87,14 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 style: FontStyle.BlackBorder
             )
             {
-                X = 240,
-                Y = 440
+                X = 880,
+                Y = 30
             };
 
 
             if (Client.Game.UO.Version >= ClientVersion.CV_70130)
             {
-                Add(new GumpPic(62, 54, (ushort) (0x15D9 + map), 0));
-                Add(new GumpPic(57, 49, 0x15DF, 0));
+                Add(new GumpPic(1, 1, (ushort) (0x15D9 + map), 0));
                 _facetName.Text = _cityNames[map];
             }
             else
@@ -110,8 +109,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.PreviousScreen, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 586,
-                    Y = 445,
+                    X = 35,
+                    Y = 35,
                     ButtonAction = ButtonAction.Activate
                 }
             );
@@ -120,8 +119,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.Finish, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 610,
-                    Y = 445,
+                    X = 70,
+                    Y = 35,
                     ButtonAction = ButtonAction.Activate
                 }
             );
@@ -129,10 +128,10 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
 
             _htmlControl = new HtmlControl
             (
-                452,
+                1440,
                 60,
-                175,
-                367,
+                325,
+                860,
                 true,
                 true,
                 ishtml: true,
