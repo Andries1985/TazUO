@@ -2,7 +2,29 @@
 All notable changes to TazUO will be recorded here.
 
 ---
-## In Development ( `dev` branch )
+## In Development
+
+### Features
+* Pet support for the bandage agent - [P.R 485](https://github.com/PlayTazUO/TazUO/pull/485) ([yuval-po](https://github.com/yuval-po))
+* Allow dropping of items onto minimized grid containers - [P.R 487](https://github.com/PlayTazUO/TazUO/pull/487) ([yuval-po](https://github.com/yuval-po))
+* Auto focus and enter to submit support added to prompt input window - [P.R 486](https://github.com/PlayTazUO/TazUO/pull/486) ([bittiez](https://github.com/bittiez))
+* Add overhead message filter option - [P.R 494](https://github.com/PlayTazUO/TazUO/pull/494) ([bittiez](https://github.com/bittiez))
+* Color picker gump now dynamically calculates page count based on loaded hues. Updated shader slightly for supporting hues past 3k. - [P.R 496](https://github.com/PlayTazUO/TazUO/pull/496) ([bittiez](https://github.com/bittiez))
+* Add option to skip server select & reorganized login gump - [P.R 498](https://github.com/PlayTazUO/TazUO/pull/498) ([bittiez](https://github.com/bittiez))
+
+### Fixes
+* Mouse wheel macros hijack scroll from shop gumps - [P.R 479](https://github.com/PlayTazUO/TazUO/pull/479) ([yuval-po](https://github.com/yuval-po))
+* FindItems now properly returns the highest level container - [P.R 488](https://github.com/PlayTazUO/TazUO/pull/488) ([Jascen](https://github.com/Jascen))
+* Grid container label missing updates - [P.R 487](https://github.com/PlayTazUO/TazUO/pull/487) ([yuval-po](https://github.com/yuval-po))
+* Fixed server index from name - ([bittiez](https://github.com/bittiez))
+
+### Misc
+* Remove tab completion and command history tracking - [P.R 489](https://github.com/PlayTazUO/TazUO/pull/489) ([Jascen](https://github.com/Jascen))
+* Add option to toggle bandage agent from macros - [P.R 491](https://github.com/PlayTazUO/TazUO/pull/491) ([bittiez](https://github.com/bittiez))
+
+---
+
+## V5.2.0
 
 ### Features
 * Automatic loading of system fonts - [P.R 444](https://github.com/PlayTazUO/TazUO/pull/444) ([yuval-po](https://github.com/yuval-po) & [bittiez](https://github.com/bittiez))
@@ -42,6 +64,8 @@ All notable changes to TazUO will be recorded here.
 * Two Modern Paperdoll issues (closure and context menus) - [P.R 468](https://github.com/PlayTazUO/TazUO/pull/468) ([yuval-po](https://github.com/yuval-po))
 * Allow resetting of outline color via the SetOutlineColor API - [P.R 471](https://github.com/PlayTazUO/TazUO/pull/471) ([yuval-po](https://github.com/yuval-po))
 
+---
+
 ## V5.1.0
 
 ### Assistant
@@ -50,6 +74,8 @@ All notable changes to TazUO will be recorded here.
 
 ### Fixes
 * Fix accidentally broken game viewport - ([bittiez](https://github.com/bittiez))
+
+---
 
 ## V5.0.0
 

@@ -11,8 +11,7 @@ using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using SDL3;
-using System.Collections.Generic;
-using System.IO;
+using ClassicUO.Utility.Platforms;
 
 namespace ClassicUO.Game.UI.Gumps.Login
 {
@@ -141,25 +140,6 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label($"UO Version {Settings.GlobalSettings.ClientVersion}.", false, 0x034E, font: 9)
-                    {
-                        X = 286,
-                        Y = 453
-                    }
-                );
-
-                Add
-                (
-                    new Label(string.Format("TazUO Version {0}", CUOEnviroment.Version), false, 0x034E, font: 9)
-                    {
-                        X = 286,
-                        Y = 465
-                    }
-                );
-
-
-                Add
-                (
                     _checkboxAutologin = new Checkbox
                     (
                         0x00D2,
@@ -239,25 +219,6 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 offsetX = 619;
                 offsetY = 567;
                 offtextY = 38;
-
-
-                Add
-                (
-                    new Label($"UO Version {Settings.GlobalSettings.ClientVersion}.", false, 0x0481, font: 9)
-                    {
-                        X = 15,
-                        Y = 741
-                    }
-                );
-
-                Add
-                (
-                    new Label(string.Format("TazUO Version {0}", CUOEnviroment.Version), false, 0x0481, font: 9)
-                    {
-                        X = 15,
-                        Y = 751
-                    }
-                );
 
                 if (Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine)
                 {
@@ -401,88 +362,6 @@ namespace ClassicUO.Game.UI.Gumps.Login
             _checkboxSaveAccount.IsChecked = Settings.GlobalSettings.SaveAccount;
             _checkboxAutologin.IsChecked = Settings.GlobalSettings.AutoLogin;
 
-
-            Add
-            (
-                new HtmlControl
-                (
-                    1285,
-                    721,
-                    150,
-                    15,
-                    false,
-                    false,
-                    false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://zuluhotelomega.com\">ZHO Website",
-                    0x32,
-                    true,
-                    isunicode: true,
-                    style: FontStyle.BlackBorder
-                )
-            );
-
-            Add
-            (
-                new HtmlControl
-                (
-                    1285,
-                    736,
-                    100,
-                    15,
-                    false,
-                    false,
-                    false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://discord.gg/X6TWp76\">ZHO Discord",
-                    0x32,
-                    true,
-                    isunicode: true,
-                    style: FontStyle.BlackBorder
-                )
-            );
-
-            Add
-            (
-                new HtmlControl
-                (
-                    1285,
-                    751,
-                    100,
-                    15,
-                    false,
-                    false,
-                    false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://zuluhotelomega.com/public/gamefiles/latest/version.txt\">ZHO Version",
-                    0x32,
-                    true,
-                    isunicode: true,
-                    style: FontStyle.BlackBorder
-                )
-            );
-
-            TextBox _;
-            HitBox _hit;
-            var options = TextBox.RTLOptions.Default();
-            options.Width = 200;
-            Add(_ = TextBox.GetOne("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
-            _.X = 15;
-            _.Y = 701;
-            _.AcceptMouseInput = true;
-            Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
-            _hit.MouseUp += (s, e) =>
-            {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://github.com/PlayTazUO/TazUO/wiki");
-            };
-
-            Add(_ = TextBox.GetOne("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
-            _.X = 15;
-            _.Y = 716;
-            _.AcceptMouseInput = true;
-            Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
-            _hit.MouseUp += (s, e) =>
-            {
-                Utility.Platforms.PlatformHelper.LaunchBrowser("https://discord.gg/QvqzkB95G4");
-            };
-
             var loginmusic_checkbox = new Checkbox
             (
                 0x00D2,
@@ -541,6 +420,60 @@ namespace ClassicUO.Game.UI.Gumps.Login
             {
                 _textboxAccount.SetKeyboardFocus();
             }
+
+            Add
+            (
+                new Label($"UO Version {Settings.GlobalSettings.ClientVersion}.", false, 0x034E, font: 9)
+                {
+                    X = 286,
+                    Y = 453
+                }
+            );
+
+            Add
+            (
+                new Label(string.Format("TazUO Version {0}", CUOEnviroment.Version), false, 0x034E, font: 9)
+                {
+                    X = 286,
+                    Y = 465
+                }
+            );
+
+            var optionsButton = new NiceButton(5, 5, 80, 30, ButtonAction.Default, "Options") { IsSelectable = false, BackgroundColor = new Color(0.7f, 0.7f, 0.7f, 0.7f) };
+            optionsButton.MouseDown += (s,e) =>
+            {
+                ContextMenuControl c = GenOptionsContext();
+                optionsButton.ContextMenu = c;
+                c.Show();
+            };
+            Add(optionsButton);
+        }
+
+        private ContextMenuControl GenOptionsContext()
+        {
+            var c = new ContextMenuControl(this);
+            c.Add(new ContextMenuItemEntry("Skip Server Select? (When only 1 server is available)", () =>
+            {
+                Settings.GlobalSettings.SkipServerSelect = !Settings.GlobalSettings.SkipServerSelect;
+                _ = Client.Settings.SetAsync(SettingsScope.Global, Constants.SqlSettings.SKIP_SERVER_SELECTION, Settings.GlobalSettings.SkipServerSelect);
+            }, true, Settings.GlobalSettings.SkipServerSelect));
+
+            c.Add(new ContextMenuItemEntry("TazUO Website", () =>
+            {
+                PlatformHelper.LaunchBrowser("https://tazuo.org");
+            }, true, false));
+
+            c.Add(new ContextMenuItemEntry("TazUO Discord", () =>
+            {
+                PlatformHelper.LaunchBrowser("https://discord.gg/QvqzkB95G4");
+            }, true, false));
+
+            c.Add(new ContextMenuItemEntry("CUO Website", () =>
+            {
+                PlatformHelper.LaunchBrowser("https://www.classicuo.eu");
+            }, true, false));
+
+            return c;
         }
 
         protected override void OnControllerButtonUp(SDL.SDL_GamepadButton button)

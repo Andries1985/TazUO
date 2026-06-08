@@ -179,6 +179,7 @@ namespace ClassicUO.Configuration
         public bool BandageAgentCheckInvul { get; set => SetProperty(ref field, value); } = true;
         public bool BandageAgentBandageFriends { get; set => SetProperty(ref field, value); } = false;
         public bool BandageAgentBandageAllies { get; set => SetProperty(ref field, value); } = false;
+        public bool BandageAgentBandagePets { get; set => SetProperty(ref field, value); } = false;
         public bool BandageAgentUseDexFormula { get; set => SetProperty(ref field, value); } = false;
         public bool BandageAgentDisableSelfHeal { get; set => SetProperty(ref field, value); } = false;
 
@@ -812,6 +813,10 @@ namespace ClassicUO.Configuration
                 //     TazUOChatManager.Instance.Init();
             }
         }
+
+        [JsonIgnore]
+        [SqlSetting(SettingsScope.Global, Constants.SqlSettings.OVERHEAD_MESSAGE_TYPES_HIDDEN, (uint)0)]
+        public partial uint DisabledOverheadMessageTypes { get; set; }
 
         private long lastSave;
 
