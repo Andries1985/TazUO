@@ -208,8 +208,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int)Buttons.Quit, 0x05CA, 0x05C9, 0x05C8)
                     {
-                        X = 1750,
-                        Y = 10,
+                        X = 1277,
+                        Y = 8,
                         ButtonAction = ButtonAction.Activate
                     }
                 );
@@ -230,23 +230,23 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     _nextArrow0 = new Button((int)Buttons.NextArrow, 0x5CD, 0x5CC, 0x5CB)
                     {
-                        X = 900,
-                        Y = 850,
+                        X = 667,
+                        Y = 639,
                         ButtonAction = ButtonAction.Activate
                     }
                 );
 
-                offsetX = 835;
-                offsetY = 755;
-                offtextY = 50;
+                offsetX = 619;
+                offsetY = 567;
+                offtextY = 38;
 
 
                 Add
                 (
                     new Label($"UO Version {Settings.GlobalSettings.ClientVersion}.", false, 0x0481, font: 9)
                     {
-                        X = 20,
-                        Y = 990
+                        X = 15,
+                        Y = 741
                     }
                 );
 
@@ -254,8 +254,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Label(string.Format("TazUO Version {0}", CUOEnviroment.Version), false, 0x0481, font: 9)
                     {
-                        X = 20,
-                        Y = 1000
+                        X = 15,
+                        Y = 751
                     }
                 );
 
@@ -265,8 +265,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         new Label("Eventine Shard Detected!", false, 0xFFFF, font: 9)
                         {
-                            X = 242,
-                            Y = 5
+                            X = 179,
+                            Y = 4
                         }
                     );
                 }
@@ -283,8 +283,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         false
                     )
                     {
-                        X = 800,
-                        Y = 900
+                        X = 593,
+                        Y = 676
                     }
                 );
 
@@ -301,7 +301,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     )
                     {
                         X = _checkboxAutologin.X + _checkboxAutologin.Width + 10,
-                        Y = 900
+                        Y = 676
                     }
                 );
 
@@ -317,8 +317,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 {
                     X = offsetX,
                     Y = offsetY,
-                    Width = 210,
-                    Height = 30
+                    Width = 156,
+                    Height = 23
                 }
             );
 
@@ -343,15 +343,15 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     1,
                     16,
-                    190,
+                    141,
                     false,
                     hue: 0x0036
                 )
                 {
                     X = offsetX + 5,
                     Y = offsetY + 9,
-                    Width = 190,
-                    Height = 25,
+                    Width = 141,
+                    Height = 19,
                     PlaceHolderText="Account Name"
                 }
             );
@@ -364,15 +364,15 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     1,
                     16,
-                    190,
+                    141,
                     false,
                     hue: 0x0036
                 )
                 {
                     X = offsetX + 5,
                     Y = offsetY + offtextY + 2 + 9,
-                    Width = 190,
-                    Height = 25
+                    Width = 141,
+                    Height = 19
                 }
             );
 
@@ -406,8 +406,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new HtmlControl
                 (
-                    1740,
-                    960,
+                    1285,
+                    721,
                     150,
                     15,
                     false,
@@ -425,8 +425,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new HtmlControl
                 (
-                    1740,
-                    980,
+                    1285,
+                    736,
                     100,
                     15,
                     false,
@@ -444,8 +444,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new HtmlControl
                 (
-                    1740,
-                    1000,
+                    1285,
+                    751,
                     100,
                     15,
                     false,
@@ -464,8 +464,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             var options = TextBox.RTLOptions.Default();
             options.Width = 200;
             Add(_ = TextBox.GetOne("TazUO Wiki", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
-            _.X = 20;
-            _.Y = 950;
+            _.X = 15;
+            _.Y = 701;
             _.AcceptMouseInput = true;
             Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
             _hit.MouseUp += (s, e) =>
@@ -474,8 +474,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             };
 
             Add(_ = TextBox.GetOne("TazUO Discord", TrueTypeLoader.EMBEDDED_FONT, 15, Color.Orange, options));
-            _.X = 20;
-            _.Y = 970;
+            _.X = 15;
+            _.Y = 716;
             _.AcceptMouseInput = true;
             Add(_hit = new HitBox(_.X, _.Y, _.MeasuredSize.X, _.MeasuredSize.Y));
             _hit.MouseUp += (s, e) =>
@@ -494,7 +494,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             )
             {
                 X = _checkboxSaveAccount.X + _checkboxSaveAccount.Width + 10,
-                Y = 900,
+                Y = 676,
                 IsChecked = Settings.GlobalSettings.LoginMusic
             };
 
