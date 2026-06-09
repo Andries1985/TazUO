@@ -179,9 +179,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
             scrollArea.ScissorRectangle.Y = 16;
             scrollArea.ScissorRectangle.Height = -32;
 
+            int index = loginScene.GetServerIndexFromSettings();
+            ServerListEntry selected = null;
+
             foreach (ServerListEntry server in loginScene.Servers)
             {
                 databox.Add(new ServerEntryGump(server, 9, NORMAL_COLOR, SELECTED_COLOR));
+                if(server.Index == index)
+                    selected = server;
             }
 
             databox.ReArrangeChildren();
@@ -189,19 +194,20 @@ namespace ClassicUO.Game.UI.Gumps.Login
             Add(scrollArea);
             scrollArea.Add(databox);
 
-            // if (loginScene.Servers.Length != 0)
-            // {
-            //     int index = loginScene.GetServerIndexFromSettings();
-            //
-            //     Add
-            //     (
-            //         new Label(loginScene.Servers[index].Name, false, 0x0481, font: 9)
-            //         {
-            //             X = 243,
-            //             Y = 420
-            //         }
-            //     );
-            // }
+            if (loginScene.Servers.Length != 0)
+            {
+                if (selected == null)
+                    selected = loginScene.Servers[0];
+
+                Add
+                (
+                    new Label(selected.Name, false, 0x0481, font: 9)
+                    {
+                        X = 243,
+                        Y = 420
+                    }
+                );
+            }
 
             AcceptKeyboardInput = true;
             CanCloseWithRightClick = false;
@@ -265,8 +271,20 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 if (loginScene.Servers?.Any(s => s != null) ?? false)
                 {
                     int index = loginScene.GetServerIndexFromSettings();
+                    bool serverSelected = false;
 
-                    loginScene.SelectServer((byte) loginScene.Servers[index].Index);
+                    foreach (ServerListEntry s in loginScene.Servers)
+                        if (s.Index == index)
+                        {
+                            loginScene.SelectServer((byte)index);
+                            serverSelected = true;
+                            break;
+                        }
+                    
+                    if (!serverSelected)
+                    {
+                        loginScene.SelectServer((byte)loginScene.Servers[0].Index);
+                    }
                 }
             }
         }

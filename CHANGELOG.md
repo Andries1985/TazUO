@@ -11,12 +11,19 @@ All notable changes to TazUO will be recorded here.
 * Add overhead message filter option - [P.R 494](https://github.com/PlayTazUO/TazUO/pull/494) ([bittiez](https://github.com/bittiez))
 * Color picker gump now dynamically calculates page count based on loaded hues. Updated shader slightly for supporting hues past 3k. - [P.R 496](https://github.com/PlayTazUO/TazUO/pull/496) ([bittiez](https://github.com/bittiez))
 * Add option to skip server select & reorganized login gump - [P.R 498](https://github.com/PlayTazUO/TazUO/pull/498) ([bittiez](https://github.com/bittiez))
+* Opening an already open grid container will now unminimize it if minimized and bring it to the front - [P.R 502](https://github.com/PlayTazUO/TazUO/pull/502) ([bittiez](https://github.com/bittiez))
+* Script manager and assistant windows now re-center when reopened via toolbar button instead of closing/reopening - [P.R 503](https://github.com/PlayTazUO/TazUO/pull/503) ([bittiez](https://github.com/bittiez))
+* Swapped a few hard coded texts for their cliloc equivelent - [P.R 505](https://github.com/PlayTazUO/TazUO/pull/505) ([bittiez](https://github.com/bittiez))
 
 ### Fixes
 * Mouse wheel macros hijack scroll from shop gumps - [P.R 479](https://github.com/PlayTazUO/TazUO/pull/479) ([yuval-po](https://github.com/yuval-po))
 * FindItems now properly returns the highest level container - [P.R 488](https://github.com/PlayTazUO/TazUO/pull/488) ([Jascen](https://github.com/Jascen))
 * Grid container label missing updates - [P.R 487](https://github.com/PlayTazUO/TazUO/pull/487) ([yuval-po](https://github.com/yuval-po))
 * Fixed server index from name - ([bittiez](https://github.com/bittiez))
+* Fixed bulletin board crash - ([bittiez](https://github.com/bittiez))
+* Added maximum depth recursion to legion py scripting to prevent stack overflow - ([bittiez](https://github.com/bittiez))
+* Fixed tooltips going outside window bounds when scaled - ([bittiez](https://github.com/bittiez))
+* Fixed logout gump not being centered when scaled - ([bittiez](https://github.com/bittiez))
 
 ### Misc
 * Remove tab completion and command history tracking - [P.R 489](https://github.com/PlayTazUO/TazUO/pull/489) ([Jascen](https://github.com/Jascen))
