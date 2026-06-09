@@ -87,14 +87,15 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 style: FontStyle.BlackBorder
             )
             {
-                X = 880,
-                Y = 30
+                X = 240,
+                Y = 440
             };
 
 
             if (Client.Game.UO.Version >= ClientVersion.CV_70130)
             {
                 Add(new GumpPic(1, 1, (ushort) (0x15D9 + map), 0));
+                //Add(new GumpPic(57, 49, 0x15DF, 0));
                 _facetName.Text = _cityNames[map];
             }
             else
@@ -109,8 +110,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.PreviousScreen, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 35,
-                    Y = 35,
+                    X = 586,
+                    Y = 445,
                     ButtonAction = ButtonAction.Activate
                 }
             );
@@ -119,8 +120,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.Finish, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 70,
-                    Y = 35,
+                    X = 610,
+                    Y = 445,
                     ButtonAction = ButtonAction.Activate
                 }
             );
@@ -128,10 +129,10 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
 
             _htmlControl = new HtmlControl
             (
-                1440,
+                452,
                 60,
-                325,
-                860,
+                175,
+                367,
                 true,
                 true,
                 ishtml: true,

@@ -28,12 +28,16 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new ResizePic(2620)
                 {
-                    X = 700,
-                    Y = 630,
-                    Width = 480,
-                    Height = 320
+                    X = 100,
+                    Y = 80,
+                    Width = 470,
+                    Height = 372
                 }
             );
+
+            // Add(new GumpPic(291, 42, 0x0589, 0));
+            // Add(new GumpPic(214, 58, 0x058B, 0));
+            // Add(new GumpPic(300, 51, 0x15A9, 0));
 
             ClilocLoader localization = Client.Game.UO.FileManager.Clilocs;
 
@@ -49,28 +53,22 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Label(localization.GetString(3000326, "You can choose your race and class in game!"), unicode, hue, font: font)
                 {
-                    X = 714,
-                    Y = 660
+                    X = 158,
+                    Y = 132
                 }
             );
 
-            int columns = 3;
-            int startX = 850;
-            int startY = 750;
-            int xSpacing = 195;
-            int ySpacing = 70;
-
             for (int i = 0; i < professions.Count; i++)
             {
-                int cx = i % columns;
-                int cy = i / columns;
+                int cx = i % 2;
+                int cy = i >> 1;
 
                 Add
                 (
                     new ProfessionInfoGump(professions[i])
                     {
-                        X = startX + cx * xSpacing,
-                        Y = startY + cy * ySpacing,
+                        X = 145 + cx * 195,
+                        Y = 168 + cy * 70,
 
                         Selected = SelectProfession
                     }
@@ -81,8 +79,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 1130,
-                    Y = 915,
+                    X = 586,
+                    Y = 445,
                     ButtonAction = ButtonAction.Activate
                 }
             );

@@ -29,7 +29,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int) Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 1050, Y = 950, ButtonAction = ButtonAction.Activate
+                    X = 586, Y = 445, ButtonAction = ButtonAction.Activate
                 }
             );
 
@@ -37,7 +37,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int) Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 1085, Y = 950, ButtonAction = ButtonAction.Activate
+                    X = 610, Y = 445, ButtonAction = ButtonAction.Activate
                 }
             );
 
@@ -47,9 +47,9 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044579), true, textColor, font: 2)
+                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044579), true, textColor, font: 1)
                     {
-                        X = 765, Y = 698
+                        X = 155, Y = 70
                     }
                 ); // "Select which shard to play on:"
 
@@ -57,17 +57,17 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 {
                     Add
                     (
-                        new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044577), true, textColor, font: 2)
+                        new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044577), true, textColor, font: 1)
                         {
-                            X = 990, Y = 698
+                            X = 400, Y = 70
                         }
                     ); // "Latency:"
 
                     Add
                     (
-                        new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044578), true, textColor, font: 2)
+                        new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044578), true, textColor, font: 1)
                         {
-                            X = 1050, Y = 698
+                            X = 470, Y = 70
                         }
                     ); // "Packet Loss:"
                 }
@@ -158,17 +158,17 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new ResizePic(0x13BE)
                 {
-                    X = 747, Y = 715, Width = 400 - 14, Height = 232
+                    X = 150, Y = 90, Width = 393 - 14, Height = 271
                 }
             );
 
             // Server Scroll Area
             var scrollArea = new ScrollArea
             (
-                747,
-                715,
-                400,
-                232,
+                150,
+                90,
+                393,
+                271,
                 true
             );
 
@@ -327,7 +327,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         font: font
                     )
                     {
-                        X = 15,
+                        X = 74,
                         AcceptMouseInput = false
                     }
                 );
@@ -344,7 +344,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         font: font
                     )
                     {
-                        X = 255,
+                        X = 250,
                         AcceptMouseInput = false
                     }
                 );
@@ -361,7 +361,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         font: font
                     )
                     {
-                        X = 325,
+                        X = 320,
                         AcceptMouseInput = false
                     }
                 );

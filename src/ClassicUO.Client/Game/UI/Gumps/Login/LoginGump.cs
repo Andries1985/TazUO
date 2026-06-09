@@ -181,7 +181,6 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 _buttonNormal = 0x5CD;
                 _buttonOver = 0x5CB;
 
-                //// Background Gump
                 // Add(new GumpPic(0, 0, 0x014E, 0));
 
                 //// Quit Button
@@ -189,8 +188,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int)Buttons.Quit, 0x05CA, 0x05C9, 0x05C8)
                     {
-                        X = 1277,
-                        Y = 8,
+                        X = 25,
+                        Y = 240,
                         ButtonAction = ButtonAction.Activate
                     }
                 );
@@ -211,15 +210,15 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     _nextArrow0 = new Button((int)Buttons.NextArrow, 0x5CD, 0x5CC, 0x5CB)
                     {
-                        X = 667,
-                        Y = 639,
+                        X = 280,
+                        Y = 365,
                         ButtonAction = ButtonAction.Activate
                     }
                 );
 
-                offsetX = 619;
-                offsetY = 567;
-                offtextY = 38;
+                offsetX = 218;
+                offsetY = 283;
+                offtextY = 50;
 
                 if (Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine)
                 {
@@ -227,8 +226,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         new Label("Eventine Shard Detected!", false, 0xFFFF, font: 9)
                         {
-                            X = 179,
-                            Y = 4
+                            X = 242,
+                            Y = 5
                         }
                     );
                 }
@@ -245,8 +244,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         false
                     )
                     {
-                        X = 593,
-                        Y = 676
+                        X = 150,
+                        Y = 417
                     }
                 );
 
@@ -263,7 +262,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     )
                     {
                         X = _checkboxAutologin.X + _checkboxAutologin.Width + 10,
-                        Y = 676
+                        Y = 417
                     }
                 );
 
@@ -279,8 +278,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 {
                     X = offsetX,
                     Y = offsetY,
-                    Width = 156,
-                    Height = 23
+                    Width = 210,
+                    Height = 30
                 }
             );
 
@@ -305,15 +304,15 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     1,
                     16,
-                    141,
+                    190,
                     false,
                     hue: 0x0036
                 )
                 {
-                    X = offsetX + 5,
-                    Y = offsetY + 9,
-                    Width = 141,
-                    Height = 19,
+                    X = offsetX,
+                    Y = offsetY,
+                    Width = 190,
+                    Height = 25,
                     PlaceHolderText="Account Name"
                 }
             );
@@ -326,15 +325,15 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     1,
                     16,
-                    141,
+                    190,
                     false,
                     hue: 0x0036
                 )
                 {
-                    X = offsetX + 5,
-                    Y = offsetY + offtextY + 2 + 9,
-                    Width = 141,
-                    Height = 19
+                    X = offsetX,
+                    Y = offsetY + offtextY + 2,
+                    Width = 190,
+                    Height = 25
                 }
             );
 
@@ -374,7 +373,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             )
             {
                 X = _checkboxSaveAccount.X + _checkboxSaveAccount.Width + 10,
-                Y = 676,
+                Y = 417,
                 IsChecked = Settings.GlobalSettings.LoginMusic
             };
 
