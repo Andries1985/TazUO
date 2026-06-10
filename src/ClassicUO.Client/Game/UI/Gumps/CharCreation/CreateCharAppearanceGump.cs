@@ -73,7 +73,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
             );
 
             Add(new GumpPic(463, 73, 0x070C, 0), 1);
-            Add(new GumpPic(238, 98, 0x0708, 0), 1);
+            Add(new GumpPic(256, 131, 0x0708, 0), 1);
 
             // Add
             // (

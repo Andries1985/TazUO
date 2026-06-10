@@ -54,18 +54,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 }
 
                 //UO Flag
-                Add(new GumpPic(0, 4, 0x15A0, 0) { AcceptKeyboardInput = false });
-
-                // Quit Button
-                Add
-                (
-                    new Button((int)Buttons.Quit, 0x1589, 0x158B, 0x158A)
-                    {
-                        X = 555,
-                        Y = 4,
-                        ButtonAction = ButtonAction.Activate
-                    }
-                );
+                // Add(new GumpPic(0, 4, 0x15A0, 0) { AcceptKeyboardInput = false });
 
                 //Login Panel
                 Add
@@ -85,32 +74,32 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 }
 
                 // Credits
-                Add
-                (
-                    new Button((int)Buttons.Credits, 0x1583, 0x1585, 0x1584)
-                    {
-                        X = 60,
-                        Y = 385,
-                        ButtonAction = ButtonAction.Activate
-                    }
-                );
+                // Add
+                // (
+                //     new Button((int)Buttons.Credits, 0x1583, 0x1585, 0x1584)
+                //     {
+                //         X = 60,
+                //         Y = 385,
+                //         ButtonAction = ButtonAction.Activate
+                //     }
+                // );
 
                 // Login to ultima online
-                Add
-                (
-                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(3000038), false, HUE, font: 2)
-                    {
-                        X = 253,
-                        Y = 305
-                    }
-                );
+                // Add
+                // (
+                //     new Label(Client.Game.UO.FileManager.Clilocs.GetString(3000038), false, HUE, font: 2)
+                //     {
+                //         X = 253,
+                //         Y = 305
+                //     }
+                // );
 
                 Add
                 (
                     new Label(ResGumps.Account, false, HUE, font: 2)
                     {
                         X = 183,
-                        Y = 345
+                        Y = 350
                     }
                 );
 
@@ -119,7 +108,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     new Label(ResGumps.Password, false, HUE, font: 2)
                     {
                         X = 183,
-                        Y = 385
+                        Y = 390
                     }
                 );
 
@@ -183,13 +172,16 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 // Add(new GumpPic(0, 0, 0x014E, 0));
 
+                // Account Blurry Window
+                Add(new GumpPic(200, 253, 0x157D, 0) { AcceptKeyboardInput = false });
+
                 //// Quit Button
                 Add
                 (
                     new Button((int)Buttons.Quit, 0x05CA, 0x05C9, 0x05C8)
                     {
-                        X = 25,
-                        Y = 240,
+                        X = 550,
+                        Y = 4,
                         ButtonAction = ButtonAction.Activate
                     }
                 );
@@ -205,7 +197,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 //     }
                 // );
 
-                // Arrow Button
+                // Login Button
                 Add
                 (
                     _nextArrow0 = new Button((int)Buttons.NextArrow, 0x5CD, 0x5CC, 0x5CB)
@@ -220,17 +212,17 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 offsetY = 283;
                 offtextY = 50;
 
-                if (Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine)
-                {
-                    Add
-                    (
-                        new Label("Eventine Shard Detected!", false, 0xFFFF, font: 9)
-                        {
-                            X = 242,
-                            Y = 5
-                        }
-                    );
-                }
+                // if (Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine)
+                // {
+                //     Add
+                //     (
+                //         new Label("Eventine Shard Detected!", false, 0xFFFF, font: 9)
+                //         {
+                //             X = 242,
+                //             Y = 5
+                //         }
+                //     );
+                // }
 
                 Add
                 (
@@ -310,7 +302,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 )
                 {
                     X = offsetX,
-                    Y = offsetY,
+                    Y = offsetY + 12,
                     Width = 190,
                     Height = 25,
                     PlaceHolderText="Account Name"
@@ -331,7 +323,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 )
                 {
                     X = offsetX,
-                    Y = offsetY + offtextY + 2,
+                    Y = offsetY + offtextY + 14,
                     Width = 190,
                     Height = 25
                 }
@@ -425,7 +417,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Label($"UO Version {Settings.GlobalSettings.ClientVersion}.", false, 0x034E, font: 9)
                 {
-                    X = 286,
+                    X = 10,
                     Y = 453
                 }
             );
@@ -434,7 +426,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Label(string.Format("TazUO Version {0}", CUOEnviroment.Version), false, 0x034E, font: 9)
                 {
-                    X = 286,
+                    X = 10,
                     Y = 465
                 }
             );
