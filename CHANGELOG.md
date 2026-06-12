@@ -14,6 +14,8 @@ All notable changes to TazUO will be recorded here.
 * Opening an already open grid container will now unminimize it if minimized and bring it to the front - [P.R 502](https://github.com/PlayTazUO/TazUO/pull/502) ([bittiez](https://github.com/bittiez))
 * Script manager and assistant windows now re-center when reopened via toolbar button instead of closing/reopening - [P.R 503](https://github.com/PlayTazUO/TazUO/pull/503) ([bittiez](https://github.com/bittiez))
 * Swapped a few hard coded texts for their cliloc equivelent - [P.R 505](https://github.com/PlayTazUO/TazUO/pull/505) ([bittiez](https://github.com/bittiez))
+* Auto loot corpse retry delay is now configurable in the Auto Loot agent UI (range 1000–600000ms, default 5000ms) - [P.R 508](https://github.com/PlayTazUO/TazUO/pull/508) ([bittiez](https://github.com/bittiez))
+* Added a quick settings.json editor on the login gump - [P.R 510](https://github.com/PlayTazUO/TazUO/pull/510) ([bittiez](https://github.com/bittiez))
 
 ### Fixes
 * Mouse wheel macros hijack scroll from shop gumps - [P.R 479](https://github.com/PlayTazUO/TazUO/pull/479) ([yuval-po](https://github.com/yuval-po))
@@ -24,10 +26,12 @@ All notable changes to TazUO will be recorded here.
 * Added maximum depth recursion to legion py scripting to prevent stack overflow - ([bittiez](https://github.com/bittiez))
 * Fixed tooltips going outside window bounds when scaled - ([bittiez](https://github.com/bittiez))
 * Fixed logout gump not being centered when scaled - ([bittiez](https://github.com/bittiez))
+* Back button now reaches the server select & username screens when 'Skip Server Select' is enabled, and added a `-skipserverselect` command-line arg - [P.R 512](https://github.com/PlayTazUO/TazUO/pull/512) ([bittiez](https://github.com/bittiez))
 
 ### Misc
 * Remove tab completion and command history tracking - [P.R 489](https://github.com/PlayTazUO/TazUO/pull/489) ([Jascen](https://github.com/Jascen))
 * Add option to toggle bandage agent from macros - [P.R 491](https://github.com/PlayTazUO/TazUO/pull/491) ([bittiez](https://github.com/bittiez))
+* Refactored PromptPopupWindow into a reusable text prompt and replaced InputRequest with it - [P.R 509](https://github.com/PlayTazUO/TazUO/pull/509) ([bittiez](https://github.com/bittiez))
 
 ---
 

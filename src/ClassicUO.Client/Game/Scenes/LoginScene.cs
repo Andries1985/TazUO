@@ -8,6 +8,7 @@ using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Game.UI.Gumps.CharCreation;
 using ClassicUO.Game.UI.Gumps.Login;
+using ClassicUO.Game.UI.MyraWindows;
 using ClassicUO.Network;
 using ClassicUO.Resources;
 using ClassicUO.Utility;
@@ -90,24 +91,20 @@ namespace ClassicUO.Game.Scenes
 
             if (string.IsNullOrEmpty(Settings.GlobalSettings.IP))
             {
-                UIManager.Add(new InputRequest(_world, "Please enter a server IP to connect to", "Save", "Cancel", (result, input) =>
+                new PromptPopupWindow("Server IP", "Please enter a server IP to connect to", input =>
                 {
-                    if (result == InputRequest.Result.BUTTON1 && !string.IsNullOrEmpty(input))
+                    if (!string.IsNullOrEmpty(input))
                     {
                         if (Settings.GlobalSettings.Port <= 0)
                         {
-                            UIManager.Add(new InputRequest(_world, "Please enter the port for this server", "Save", "Cancel", (result, input) =>
+                            new PromptPopupWindow("Server Port", "Please enter the port for this server", portInput =>
                             {
-                                if (result == InputRequest.Result.BUTTON1 && !string.IsNullOrEmpty(input))
+                                if (!string.IsNullOrEmpty(portInput) && ushort.TryParse(portInput, out ushort p))
                                 {
-                                    if (ushort.TryParse(input, out ushort p))
-                                    {
-                                        Settings.GlobalSettings.Port = p;
-                                    }
+                                    Settings.GlobalSettings.Port = p;
                                 }
                                 UIManager.Add(_currentGump = new LoginGump(_world, this));
-                            })
-                            { X = 130, Y = 150 });
+                            }, "Save", "Cancel", () => UIManager.Add(_currentGump = new LoginGump(_world, this)));
                         }
                         else //Port is > 0, possibly valid
                         {
@@ -119,8 +116,7 @@ namespace ClassicUO.Game.Scenes
                     {
                         UIManager.Add(_currentGump = new LoginGump(_world, this));
                     }
-                })
-                { X = 130, Y = 150 });
+                }, "Save", "Cancel", () => UIManager.Add(_currentGump = new LoginGump(_world, this)));
             }
             else
             {
@@ -478,6 +474,10 @@ namespace ClassicUO.Game.Scenes
                     break;
 
                 case LoginSteps.LoginInToServer:
+                    // Stepping back here reconnects and walks the flow back to server selection.
+                    // If 'Skip Server Select' is enabled the auto-skip would bounce us straight back to
+                    // character selection, so suppress it once to let the user reach the server screen.
+                    LoginHandshake.Instance.BypassServerSelectSkipOnce = true;
                     LoginHandshake.Instance.Disconnect();
                     Connect(Account, Password);
 
