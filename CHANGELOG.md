@@ -16,8 +16,12 @@ All notable changes to TazUO will be recorded here.
 * Swapped a few hard coded texts for their cliloc equivelent - [P.R 505](https://github.com/PlayTazUO/TazUO/pull/505) ([bittiez](https://github.com/bittiez))
 * Auto loot corpse retry delay is now configurable in the Auto Loot agent UI (range 1000–600000ms, default 5000ms) - [P.R 508](https://github.com/PlayTazUO/TazUO/pull/508) ([bittiez](https://github.com/bittiez))
 * Added a quick settings.json editor on the login gump - [P.R 510](https://github.com/PlayTazUO/TazUO/pull/510) ([bittiez](https://github.com/bittiez))
+* Added an alternative character select screen - [P.R 513](https://github.com/PlayTazUO/TazUO/pull/513) ([bittiez](https://github.com/bittiez))
+* Added a macro to set an organizer's source container via target - [P.R 516](https://github.com/PlayTazUO/TazUO/pull/516) ([bittiez](https://github.com/bittiez))
 
 ### Fixes
+* Fixed reconnect getting stuck when the server is unavailable or restarting during a reconnect attempt - [P.R 517](https://github.com/PlayTazUO/TazUO/pull/517) ([bittiez](https://github.com/bittiez))
+* Fix NullReferenceException in campfire character selection when a character has no appearance data - [P.R 515](https://github.com/PlayTazUO/TazUO/pull/515) ([bittiez](https://github.com/bittiez))
 * Mouse wheel macros hijack scroll from shop gumps - [P.R 479](https://github.com/PlayTazUO/TazUO/pull/479) ([yuval-po](https://github.com/yuval-po))
 * FindItems now properly returns the highest level container - [P.R 488](https://github.com/PlayTazUO/TazUO/pull/488) ([Jascen](https://github.com/Jascen))
 * Grid container label missing updates - [P.R 487](https://github.com/PlayTazUO/TazUO/pull/487) ([yuval-po](https://github.com/yuval-po))
@@ -32,6 +36,7 @@ All notable changes to TazUO will be recorded here.
 * Remove tab completion and command history tracking - [P.R 489](https://github.com/PlayTazUO/TazUO/pull/489) ([Jascen](https://github.com/Jascen))
 * Add option to toggle bandage agent from macros - [P.R 491](https://github.com/PlayTazUO/TazUO/pull/491) ([bittiez](https://github.com/bittiez))
 * Refactored PromptPopupWindow into a reusable text prompt and replaced InputRequest with it - [P.R 509](https://github.com/PlayTazUO/TazUO/pull/509) ([bittiez](https://github.com/bittiez))
+* Managed zlib is now a global setting, defaults to enabled on Linux and disabled on Windows/Mac, and the `-zlib` arg now persists the setting - [P.R 514](https://github.com/PlayTazUO/TazUO/pull/514) ([bittiez](https://github.com/bittiez))
 
 ---
 
