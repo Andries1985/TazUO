@@ -71,14 +71,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
                         }
                     ); // "Packet Loss:"
                 }
-                
-                // Add
-                // (
-                //     new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044580), true, textColor, font: 2)
-                //     {
-                //         X = 153, Y = 368
-                //     }
-                // ); // "Sort by:"
+
+                Add
+                (
+                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(1044580), true, textColor, font: 1)
+                    {
+                        X = 153, Y = 368
+                    }
+                ); // "Sort by:"
             }
             else
             {
@@ -117,52 +117,52 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 );
             }
 
-            // Add
-            // (
-            //     new Button((int) Buttons.SortTimeZone, 0x093B, 0x093C, 0x093D)
-            //     {
-            //         X = 230, Y = 366
-            //     }
-            // );
-            //
-            // Add
-            // (
-            //     new Button((int) Buttons.SortFull, 0x093E, 0x093F, 0x0940)
-            //     {
-            //         X = 338, Y = 366
-            //     }
-            // );
-            //
-            // Add
-            // (
-            //     new Button((int) Buttons.SortConnection, 0x0941, 0x0942, 0x0943)
-            //     {
-            //         X = 446, Y = 366
-            //     }
-            // );
-            //
-            // // World Pic Bg
-            // Add(new GumpPic(150, 390, 0x0589, 0));
-            //
-            // // Earth
-            // Add
-            // (
-            //     new Button((int) Buttons.Earth, 0x15E8, 0x15EA, 0x15E9)
-            //     {
-            //         X = 160, Y = 400, ButtonAction = ButtonAction.Activate
-            //     }
-            // );
-
-            // Server Scroll Area Bg
             Add
             (
-                new ResizePic(0x13BE)
+                new Button((int) Buttons.SortTimeZone, 0x093B, 0x093C, 0x093D)
+                {
+                    X = 230, Y = 366
+                }
+            );
+
+            Add
+            (
+                new Button((int) Buttons.SortFull, 0x093E, 0x093F, 0x0940)
+                {
+                    X = 338, Y = 366
+                }
+            );
+
+            Add
+            (
+                new Button((int) Buttons.SortConnection, 0x0941, 0x0942, 0x0943)
+                {
+                    X = 446, Y = 366
+                }
+            );
+
+            // World Pic Bg
+            Add(new GumpPic(150, 390, 0x0589, 0));
+
+            // Earth
+            Add
+            (
+                new Button((int) Buttons.Earth, 0x15E8, 0x15EA, 0x15E9)
+                {
+                    X = 160, Y = 400, ButtonAction = ButtonAction.Activate
+                }
+            );
+
+            // Sever Scroll Area Bg
+            Add
+            (
+                new ResizePic(0x0DAC)
                 {
                     X = 150, Y = 90, Width = 393 - 14, Height = 271
                 }
             );
 
-            // Server Scroll Area
+            // Sever Scroll Area
             var scrollArea = new ScrollArea
             (
                 150,
@@ -184,7 +184,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             foreach (ServerListEntry server in loginScene.Servers)
             {
-                databox.Add(new ServerEntryGump(server, 9, NORMAL_COLOR, SELECTED_COLOR));
+                databox.Add(new ServerEntryGump(server, 5, NORMAL_COLOR, SELECTED_COLOR));
                 if(server.Index == index)
                     selected = server;
             }
@@ -321,7 +321,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         entry.Name,
                         false,
-                        56,
+                        normal_hue,
                         selected_hue,
                         selected_hue,
                         font: font
@@ -338,7 +338,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         CUOEnviroment.NoServerPing ? string.Empty : "-",
                         false,
-                        56,
+                        normal_hue,
                         selected_hue,
                         selected_hue,
                         font: font
@@ -355,7 +355,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         CUOEnviroment.NoServerPing ? string.Empty : "-",
                         false,
-                        56,
+                        normal_hue,
                         selected_hue,
                         selected_hue,
                         font: font
