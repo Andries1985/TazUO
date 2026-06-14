@@ -19,8 +19,12 @@ All notable changes to TazUO will be recorded here.
 * Added an alternative character select screen - [P.R 513](https://github.com/PlayTazUO/TazUO/pull/513) ([bittiez](https://github.com/bittiez))
 * Added a macro to set an organizer's source container via target - [P.R 516](https://github.com/PlayTazUO/TazUO/pull/516) ([bittiez](https://github.com/bittiez))
 * Added new language system for easier futute translations - [P.R 519](https://github.com/PlayTazUO/TazUO/pull/519) ([bittiez](https://github.com/bittiez))
+* Added an auto stat lock agent - [P.R 524](https://github.com/PlayTazUO/TazUO/pull/524) ([bittiez](https://github.com/bittiez))
+* UI language selection on the login screen now applies immediately instead of requiring a restart - [P.R 526](https://github.com/PlayTazUO/TazUO/pull/526) ([bittiez](https://github.com/bittiez))
+* Added loops to in-game macros - [P.R 519](https://github.com/PlayTazUO/TazUO/pull/519) ([DavideRei](https://github.com/DavideRei))
 
 ### Fixes
+* Fixed WorldMap crash when a marker has a null/empty name - [P.R 530](https://github.com/PlayTazUO/TazUO/pull/530) ([bittiez](https://github.com/bittiez))
 * Fixed reconnect getting stuck when the server is unavailable or restarting during a reconnect attempt - [P.R 517](https://github.com/PlayTazUO/TazUO/pull/517) ([bittiez](https://github.com/bittiez))
 * Fix NullReferenceException in campfire character selection when a character has no appearance data - [P.R 515](https://github.com/PlayTazUO/TazUO/pull/515) ([bittiez](https://github.com/bittiez))
 * Mouse wheel macros hijack scroll from shop gumps - [P.R 479](https://github.com/PlayTazUO/TazUO/pull/479) ([yuval-po](https://github.com/yuval-po))
@@ -35,12 +39,15 @@ All notable changes to TazUO will be recorded here.
 * Fixed an issue with Toggle Legion Script macro not reoping it - ([bittiez](https://github.com/bittiez))
 * Fixed IndexOutOfRangeException when pressing the arrow button on the server selection screen - [P.R 520](https://github.com/PlayTazUO/TazUO/pull/520) ([bittiez](https://github.com/bittiez))
 * Fixed server selection gump lingering behind the login screen when stepping back - [P.R 521](https://github.com/PlayTazUO/TazUO/pull/521) ([bittiez](https://github.com/bittiez))
+* Setting reconnect time via launch args would not allow less than 1000(Reconnect time is in seconds, it should be 1) - ([bittiez](https://github.com/bittiez))
 
 ### Misc
 * Remove tab completion and command history tracking - [P.R 489](https://github.com/PlayTazUO/TazUO/pull/489) ([Jascen](https://github.com/Jascen))
 * Add option to toggle bandage agent from macros - [P.R 491](https://github.com/PlayTazUO/TazUO/pull/491) ([bittiez](https://github.com/bittiez))
 * Refactored PromptPopupWindow into a reusable text prompt and replaced InputRequest with it - [P.R 509](https://github.com/PlayTazUO/TazUO/pull/509) ([bittiez](https://github.com/bittiez))
 * Managed zlib is now a global setting, defaults to enabled on Linux and disabled on Windows/Mac, and the `-zlib` arg now persists the setting - [P.R 514](https://github.com/PlayTazUO/TazUO/pull/514) ([bittiez](https://github.com/bittiez))
+* Add option to disable corpse retry in autoloot - [P.R 525](https://github.com/PlayTazUO/TazUO/pull/525) ([bittiez](https://github.com/bittiez))
+
 
 ---
 

@@ -55,7 +55,18 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 }
 
                 //UO Flag
-                // Add(new GumpPic(0, 4, 0x15A0, 0) { AcceptKeyboardInput = false });
+                //Add(new GumpPic(0, 4, 0x15A0, 0) { AcceptKeyboardInput = false });
+
+                // Quit Button
+                Add
+                (
+                    new Button((int)Buttons.Quit, 0x1589, 0x158B, 0x158A)
+                    {
+                        X = 555,
+                        Y = 4,
+                        ButtonAction = ButtonAction.Activate
+                    }
+                );
 
                 //Login Panel
                 Add
@@ -86,21 +97,21 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 // );
 
                 // Login to ultima online
-                // Add
-                // (
-                //     new Label(Client.Game.UO.FileManager.Clilocs.GetString(3000038), false, HUE, font: 2)
-                //     {
-                //         X = 253,
-                //         Y = 305
-                //     }
-                // );
+                Add
+                (
+                    new Label(Client.Game.UO.FileManager.Clilocs.GetString(3000038), false, HUE, font: 2)
+                    {
+                        X = 253,
+                        Y = 305
+                    }
+                );
 
                 Add
                 (
                     new Label(ResGumps.Account, false, HUE, font: 2)
                     {
                         X = 183,
-                        Y = 350
+                        Y = 345
                     }
                 );
 
@@ -109,7 +120,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     new Label(ResGumps.Password, false, HUE, font: 2)
                     {
                         X = 183,
-                        Y = 390
+                        Y = 385
                     }
                 );
 
@@ -198,7 +209,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 //     }
                 // );
 
-                // Login Button
+                // Arrow Button
                 Add
                 (
                     _nextArrow0 = new Button((int)Buttons.NextArrow, 0x5CD, 0x5CC, 0x5CB)
@@ -213,17 +224,17 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 offsetY = 283;
                 offtextY = 50;
 
-                // if (Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine)
-                // {
-                //     Add
-                //     (
-                //         new Label("Eventine Shard Detected!", false, 0xFFFF, font: 9)
-                //         {
-                //             X = 242,
-                //             Y = 5
-                //         }
-                //     );
-                // }
+                if (Settings.GlobalSettings.CustomServer == Settings.CustomServers.Eventine)
+                {
+                    Add
+                    (
+                        new Label(TazLang.Get("eventineshard"), false, 0xFFFF, font: 9)
+                        {
+                            X = 242,
+                            Y = 5
+                        }
+                    );
+                }
 
                 Add
                 (
@@ -471,7 +482,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             return c;
         }
 
-        private static void OpenEditSettings()
+        private void OpenEditSettings()
         {
             var existing = OptionsWindow.GetExisting(TazLang.Get("editsettings"));
             if (existing != null)
@@ -528,10 +539,18 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 TazLang.Get("uilangentry"),
                 langs,
                 langIdx >= 0 ? langIdx : 0,
-                i => { s.UILanguage = langs[i]; s.Save(); },
+                i =>
+                {
+                    s.UILanguage = langs[i];
+                    s.Save();
+
+                    // Reload the language strings and rebuild the login screen so the
+                    // selection takes effect live without requiring a restart.
+                    TazLang.Load(langs[i]);
+                    Client.Game.GetScene<LoginScene>()?.RebuildLoginGump();
+                },
                 TazLang.Get("uilangtooltip")
             );
-            w.AddLabel(TazLang.Get("langwarning"));
 
             w.CenterInScreen();
         }
