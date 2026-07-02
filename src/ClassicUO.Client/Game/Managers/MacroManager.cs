@@ -2106,6 +2106,14 @@ namespace ClassicUO.Game.Managers
 
                     break;
 
+                case MacroType.SetZoomLevel:
+                    if (macro is MacroObjectString zoomStr && float.TryParse(zoomStr.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float zoomLevel))
+                    {
+                        Client.Game.Scene.Camera.Zoom = zoomLevel;
+                    }
+
+                    break;
+
                 case MacroType.ToggleChatVisibility:
                     UIManager.SystemChat?.ToggleChatVisibility();
 
@@ -2125,6 +2133,16 @@ namespace ClassicUO.Game.Managers
                     _world.TargetManager.SetTargeting(CursorTarget.Grab, 0, TargetType.Neutral);
 
                     break;
+
+                case MacroType.LootHoveredItem:
+                {
+                    Item lootItem = GetHoveredItem();
+
+                    if (lootItem != null && !lootItem.IsDestroyed && lootItem.IsLootable)
+                        GameActions.GrabItem(_world, lootItem.Serial, lootItem.Amount);
+
+                    break;
+                }
 
                 case MacroType.SetGrabBag:
                     GameActions.Print(_world, ResGumps.TargetContainerToGrabItemsInto);
@@ -2533,6 +2551,32 @@ namespace ClassicUO.Game.Managers
             return result;
         }
 
+        /// <summary>
+        /// Resolves the item currently under the mouse for the LootHoveredItem macro.
+        /// Prefers the UI control directly under the cursor (grid containers, regular
+        /// containers, paperdoll and modern paperdoll all expose their item via
+        /// LocalSerial), stopping at the gump boundary so empty space inside a container
+        /// does not resolve to the container itself. Falls back to the world object under
+        /// the cursor for items on the ground and item nameplates.
+        /// </summary>
+        private Item GetHoveredItem()
+        {
+            for (var control = UIManager.MouseOverControl; control != null && control is not Gump; control = control.Parent)
+            {
+                if (!SerialHelper.IsItem(control.LocalSerial))
+                    continue;
+
+                Item item = _world.Items.Get(control.LocalSerial);
+
+                if (item != null)
+                    return item;
+            }
+
+            BaseGameObject obj = SelectedObject.Object;
+
+            return obj as Item ?? (obj as TextObject)?.Owner as Item;
+        }
+
         private void SetLastTarget(uint serial)
         {
             if (SerialHelper.IsValid(serial))
@@ -2917,6 +2961,7 @@ namespace ClassicUO.Game.Managers
                 case MacroType.ClientCommand:
                 case MacroType.UseType:
                 case MacroType.SetOrganizerSource:
+                case MacroType.SetZoomLevel:
                     obj = new MacroObjectString(code, MacroSubType.MSC_NONE);
 
                     break;
@@ -3114,6 +3159,7 @@ namespace ClassicUO.Game.Managers
                 case MacroType.ClientCommand:
                 case MacroType.UseType:
                 case MacroType.SetOrganizerSource:
+                case MacroType.SetZoomLevel:
                     SubMenuType = 2;
 
                     break;
