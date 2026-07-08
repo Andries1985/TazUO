@@ -3224,7 +3224,7 @@ namespace ClassicUO.Game.UI.Gumps
                 (
                     World,
                     lang.GetTazUO.LowContrastHighlightStyle, 0, ThemeSettings.COMBO_BOX_WIDTH,
-                    Enum.GetNames(typeof(GridContainer.LowContrastHighlightStyle)), profile.GridHighlightLowContrastItemsStyle,
+                    Enum.GetNames(typeof(LowContrastHighlightStyle)), profile.GridHighlightLowContrastItemsStyle,
                     (i, s) => { profile.GridHighlightLowContrastItemsStyle = i; }
                 ), true, page
             );
@@ -3240,7 +3240,7 @@ namespace ClassicUO.Game.UI.Gumps
                     (i) =>
                     {
                         profile.GridBorderAlpha = (byte)i;
-                        GridContainer.GridItem.StaticGridContainerSettingUpdated();
+                        GridItem.StaticGridContainerSettingUpdated();
                     }), true, page
             );
 
@@ -3249,7 +3249,7 @@ namespace ClassicUO.Game.UI.Gumps
                 (h) =>
                 {
                     profile.GridBorderHue = h;
-                    GridContainer.GridItem.StaticGridContainerSettingUpdated();
+                    GridItem.StaticGridContainerSettingUpdated();
                 }), true, page);
             content.RemoveIndent();
 
@@ -3302,6 +3302,22 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 new ComboBoxWithLabel
                 (World,
+                    TazLang.Get("gridcontainer_defaultview", "Default container view"), 0, ThemeSettings.COMBO_BOX_WIDTH,
+                    new string[] { TazLang.Get("gridcontainer_view_grid_short", "Grid"), TazLang.Get("gridcontainer_view_list_short", "List") }, profile.GridContainerViewMode,
+                    (i, s) =>
+                    {
+                        profile.GridContainerViewMode = i;
+                        GridContainer.UpdateAllGridContainers();
+                    }
+                ), true, page
+            );
+
+            content.BlankLine();
+
+            content.AddToRight
+            (
+                new ComboBoxWithLabel
+                (World,
                     lang.GetTazUO.SearchStyle, 0, ThemeSettings.COMBO_BOX_WIDTH,
                     new string[] { lang.GetTazUO.OnlyShow, lang.GetTazUO.Highlight }, profile.GridContainerSearchMode,
                     (i, s) => { profile.GridContainerSearchMode = i; }
@@ -3339,7 +3355,7 @@ namespace ClassicUO.Game.UI.Gumps
                 new ComboBoxWithLabel
                 (World,
                     lang.GetTazUO.ContainerStyle, 0, ThemeSettings.COMBO_BOX_WIDTH,
-                    Enum.GetNames(typeof(GridContainer.BorderStyle)), profile.Grid_BorderStyle, (i, s) =>
+                    Enum.GetNames(typeof(BorderStyle)), profile.Grid_BorderStyle, (i, s) =>
                     {
                         profile.Grid_BorderStyle = i;
                         GridContainer.UpdateAllGridContainers();
@@ -4861,6 +4877,20 @@ namespace ClassicUO.Game.UI.Gumps
                         //Must be cast even though VS thinks it's redundant.
                         double v = (double)i / (double)100;
                         profile.ContextMenuScale = v > 0 ? v : 1f;
+                    }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    TazLang.Get("gumpscaling_tradegump", "Trade Gump"), 0, ThemeSettings.SLIDER_WIDTH, 50, 300,
+                    (int)(profile.TradeGumpScale * 100), (i) =>
+                    {
+                        //Must be cast even though VS thinks it's redundant.
+                        double v = (double)i / (double)100;
+                        profile.TradeGumpScale = v > 0 ? v : 1f;
                     }
                 ), true, page
             );

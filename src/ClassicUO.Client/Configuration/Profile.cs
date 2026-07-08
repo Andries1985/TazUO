@@ -194,6 +194,7 @@ namespace ClassicUO.Configuration
         public int MobileHPType { get; set => SetProperty(ref field, value); }     // 0 = %, 1 = line, 2 = both
         public int MobileHPShowWhen { get; set => SetProperty(ref field, value); } // 0 = Always, 1 - <100%
         public bool DrawRoofs { get; set => SetProperty(ref field, value); } = true;
+        public int MobileDepthSliceStep { get; set => SetProperty(ref field, value); } = 0;
         public bool TreeToStumps { get; set => SetProperty(ref field, value); }
         public bool EnableCaveBorder { get; set => SetProperty(ref field, value); }
         public bool HideVegetation { get; set => SetProperty(ref field, value); }
@@ -428,6 +429,8 @@ namespace ClassicUO.Configuration
         public int WorldMapWidth { get; set => SetProperty(ref field, value); } = 400;
         public int WorldMapHeight { get; set => SetProperty(ref field, value); } = 400;
         public int WorldMapFont { get; set => SetProperty(ref field, value); } = 3;
+        public string WorldMapTtfFont { get; set => SetProperty(ref field, value); } = string.Empty;
+        public int WorldMapTtfFontSize { get; set => SetProperty(ref field, value); } = 20;
         public bool WorldMapFlipMap { get; set => SetProperty(ref field, value); } = true;
         public bool WorldMapTopMost { get; set => SetProperty(ref field, value); }
         public bool WorldMapFreeView { get; set => SetProperty(ref field, value); }
@@ -475,7 +478,8 @@ namespace ClassicUO.Configuration
 
         public int AutoFollowDistance { get; set => SetProperty(ref field, value); } = 1;
         public bool DisableAutoFollowAlt { get; set => SetProperty(ref field, value); } = false;
-        [JsonConverter(typeof(Point2Converter))] public Point ResizeJournalSize { get; set => SetProperty(ref field, value); } = new Point(410, 350);
+        [JsonConverter(typeof(Point2Converter))] public Point ResizeJournalSize { get; set => SetProperty(ref field, value); } = new(410, 350);
+        [JsonConverter(typeof(NullablePoint2Converter))] public Point? OptionsWindowsSize { get; set => SetProperty(ref field, value); }
         public bool FollowingMode { get; set => SetProperty(ref field, value); } = false;
         public uint FollowingTarget { get; set => SetProperty(ref field, value); }
         public bool NamePlateHealthBar { get; set => SetProperty(ref field, value); } = true;
@@ -516,7 +520,8 @@ namespace ClassicUO.Configuration
         #region GRID CONTAINER
         public bool UseGridLayoutContainerGumps { get; set => SetProperty(ref field, value); } = true;
         public bool GridContainersDefaultToOldStyleView { get; set => SetProperty(ref field, value); } = false;
-        public int GridContainerSearchMode { get; set => SetProperty(ref field, value); } = 1;
+        public int GridContainerViewMode { get; set => SetProperty(ref field, value); } = 0; // 0 = Grid, 1 = List
+        public int GridContainerSearchMode { get; set => SetProperty(ref field, value); } = 0;
         public bool EnableGridContainerAnchor { get; set => SetProperty(ref field, value); } = false;
         public byte GridBorderAlpha { get; set => SetProperty(ref field, value); } = 75;
         public ushort GridBorderHue { get; set => SetProperty(ref field, value); } = 0;
@@ -649,7 +654,6 @@ namespace ClassicUO.Configuration
         public int OptionsFontSize { get; set => SetProperty(ref field, value); } = 18;
 
         public int TextBorderSize { get; set => SetProperty(ref field, value); } = 1;
-
         public uint SavedMountSerial { get; set => SetProperty(ref field, value); } = 0;
 
         public uint SavedMainHandSerial { get; set => SetProperty(ref field, value); } = 0;
@@ -660,6 +664,7 @@ namespace ClassicUO.Configuration
         public int MaxJournalEntries { get; set => SetProperty(ref field, value); } = 250;
         public int MaxSoundEntries { get; set => SetProperty(ref field, value); } = 250;
         public bool HideJournalBorder { get; set => SetProperty(ref field, value); } = false;
+        public bool JournalTransparencyWhenInactive { get; set => SetProperty(ref field, value); } = false;
         public bool HideJournalTimestamp { get; set => SetProperty(ref field, value); } = false;
         public bool HideJournalSystemPrefix { get; set => SetProperty(ref field, value); } = false;
 
@@ -787,6 +792,8 @@ namespace ClassicUO.Configuration
         public double StatusGumpScale { get; set => SetProperty(ref field, Math.Clamp(value, 0.5d, 3.0d)); } = 1f;
 
         public double ContextMenuScale { get; set => SetProperty(ref field, Math.Clamp(value, 0.5d, 3.0d)); } = 1f;
+
+        public double TradeGumpScale { get; set => SetProperty(ref field, Math.Clamp(value, 0.5d, 3.0d)); } = 1f;
 
         /// <summary>
         /// Scale applied to every server created gump (and all of its controls).

@@ -5,9 +5,11 @@ using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.Managers.Hotkeys;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Renderer;
+using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -607,6 +609,17 @@ namespace ClassicUO.Game.UI.Gumps
                             }
                         }
                     }
+                    else if (
+                        HotKeys.IsPressed(HotKeyRegistrar.FollowMobileId)
+                        && !ProfileManager.CurrentProfile.DisableAutoFollowAlt
+                        && SerialHelper.IsMobile(LocalSerial)
+                    )
+                    {
+                        if (World.Get(LocalSerial) is Mobile followTarget)
+                        {
+                            followTarget.Follow();
+                        }
+                    }
                     else if (!World.DelayedObjectClickManager.IsEnabled)
                     {
                         World.DelayedObjectClickManager.Set(
@@ -812,7 +825,6 @@ namespace ClassicUO.Game.UI.Gumps
             _wordOfDeathIconBounds = Rectangle.Empty;
 
             bool _isMobile = false;
-            double _hpPercent = 1;
             IsVisible = true;
             Entity nameplateEntity = null;
 
@@ -827,14 +839,14 @@ namespace ClassicUO.Game.UI.Gumps
                     return false;
                 }
 
-                if (!string.IsNullOrEmpty(NameOverHeadManager.Search))
+                if (NameOverHeadManager.Search.NotNullNotEmpty())
                 {
-                    string sText = NameOverHeadManager.Search.ToLower();
-                    if (m.Name == null || !m.Name.ToLower().Contains(sText))
+                    string sText = NameOverHeadManager.Search;
+                    if (m.Name == null || !m.Name.ContainsIgnoreCase(sText))
                     {
                         if (World.OPL.TryGetNameAndData(m.Serial, out string name, out string data))
                         {
-                            if (/*(data != null && !data.ToLower().Contains(sText)) && */(name != null && !name.ToLower().Contains(sText)))
+                            if (name != null && !name.ContainsIgnoreCase(sText))
                             {
                                 IsVisible = false;
                                 return true;
@@ -850,7 +862,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 _isMobile = true;
                 nameplateEntity = m;
-                _hpPercent = GetResourcePercent(m.Hits, m.HitsMax);
+                double _hpPercent = GetResourcePercent(m.Hits, m.HitsMax);
 
                 IsVisible = true;
                 if (ProfileManager.CurrentProfile.NamePlateHideAtFullHealth && _hpPercent >= 1)

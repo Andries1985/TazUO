@@ -57,6 +57,10 @@ public class WorldMapGump : ResizableGump
     private static readonly string UserMarkersFilePath = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "Client", $"{USER_MARKERS_FILE}.usr");
     public static readonly List<WMapMarkerFile> _markerFiles = new List<WMapMarkerFile>();
     public static readonly Dictionary<string, Texture2D> _markerIcons = new Dictionary<string, Texture2D>();
+    // Maps a marker icon name (file name without extension, lowercased) to the full path of the
+    // source icon file on disk. Used by the web map so it can serve the original icon file by its
+    // path instead of streaming rendered GPU textures.
+    public static readonly Dictionary<string, string> _markerIconPaths = new Dictionary<string, string>();
     private static readonly float[] _zooms = new float[10] { 0.125f, 0.25f, 0.5f, 0.75f, 1f, 1.5f, 2f, 4f, 6f, 8f };
     private static readonly Color _semiTransparentWhiteForGrid = new Color(255, 255, 255, 56);
     private static Point _last_position = new Point(100, 100);
@@ -81,6 +85,20 @@ public class WorldMapGump : ResizableGump
 
     private Renderer.SpriteFont _markerFont = Fonts.Map1;
     private int _markerFontIndex = 1;
+
+    // When a TTF font is selected all names/markers are rendered through cached TextBox
+    // instances instead of the sprite-font DrawString methods. An empty name means the
+    // sprite-font styles (_markerFont) are used instead.
+    private string _ttfFont = string.Empty;
+    private int _ttfFontSize = 20;
+    private const int TTF_FONT_SIZE_MIN = 6;
+    private const int TTF_FONT_SIZE_MAX = 60;
+    // TextBoxes are cached by their text and reused across frames. Entries that have not been
+    // drawn for a while are disposed in Update; everything is disposed when the gump closes.
+    private readonly Dictionary<string, TextBox> _ttfTextBoxes = new Dictionary<string, TextBox>();
+    private readonly Dictionary<string, long> _ttfTextBoxLastUse = new Dictionary<string, long>();
+    private const long TTF_TEXTBOX_TTL = 10000;
+    private bool UseTtfFont => !string.IsNullOrEmpty(_ttfFont);
     private readonly Dictionary<string, ContextMenuItemEntry> _options = new Dictionary<string, ContextMenuItemEntry>();
     private bool _showCoordinates;
     private bool _showSextantCoordinates;
@@ -112,6 +130,13 @@ public class WorldMapGump : ResizableGump
     private long _navDestSetTime;
     private List<Point> _navPath;
     private Action<int, int> _navStepFailedHandler;
+
+    // End of the currently planned route (world coords + Z). Shift+Ctrl right-click extends
+    // the path by searching from here to the new point, so multi-segment routes chain
+    // A->B->C. _navSegments tracks how many segments make up the active route.
+    private Point _navPlannedEnd;
+    private sbyte _navPlannedEndZ;
+    private int _navSegments;
 
     private const int MAX_NAV_REPLANS = 3;
     private int _navReplansLeft;
@@ -225,6 +250,9 @@ public class WorldMapGump : ResizableGump
 
         SetFont(ProfileManager.CurrentProfile.WorldMapFont);
 
+        _ttfFont = ProfileManager.CurrentProfile.WorldMapTtfFont ?? string.Empty;
+        _ttfFontSize = Math.Clamp(ProfileManager.CurrentProfile.WorldMapTtfFontSize, TTF_FONT_SIZE_MIN, TTF_FONT_SIZE_MAX);
+
         ResizeWindow(new Point(Width, Height));
 
         _flipMap = ProfileManager.CurrentProfile.WorldMapFlipMap;
@@ -296,6 +324,10 @@ public class WorldMapGump : ResizableGump
 
         ProfileManager.CurrentProfile.WorldMapHiddenMarkerFiles = string.Join(",", _hiddenMarkerFiles);
         ProfileManager.CurrentProfile.WorldMapHiddenZoneFiles = string.Join(",", _hiddenZoneFiles);
+
+        ProfileManager.CurrentProfile.WorldMapFont = _markerFontIndex;
+        ProfileManager.CurrentProfile.WorldMapTtfFont = _ttfFont;
+        ProfileManager.CurrentProfile.WorldMapTtfFontSize = _ttfFontSize;
 
         ProfileManager.CurrentProfile.WorldMapShowGridIfZoomed = _showGridIfZoomed;
         ProfileManager.CurrentProfile.WorldMapPosition = _isFullscreen ? new Point(_preFullscreenBounds.X, _preFullscreenBounds.Y) : new Point(X, Y);
@@ -555,18 +587,22 @@ public class WorldMapGump : ResizableGump
         }
         ContextMenu.Add(follow);
 
+        // Font style choice applies to both marker names and mobile/entity names, so it
+        // lives on the main context menu (not the marker submenu). Selecting a sprite-font
+        // style also turns off any active TTF font.
         var markerFontEntry = new ContextMenuItemEntry(ResGumps.FontStyle);
-        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 1), () => { SetFont(1); }));
-        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 2), () => { SetFont(2); }));
-        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 3), () => { SetFont(3); }));
-        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 4), () => { SetFont(4); }));
-        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 5), () => { SetFont(5); }));
-        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 6), () => { SetFont(6); }));
+        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 1), () => { SetFont(1); SaveSettings(); }, true, !UseTtfFont && _markerFontIndex == 1));
+        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 2), () => { SetFont(2); SaveSettings(); }, true, !UseTtfFont && _markerFontIndex == 2));
+        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 3), () => { SetFont(3); SaveSettings(); }, true, !UseTtfFont && _markerFontIndex == 3));
+        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 4), () => { SetFont(4); SaveSettings(); }, true, !UseTtfFont && _markerFontIndex == 4));
+        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 5), () => { SetFont(5); SaveSettings(); }, true, !UseTtfFont && _markerFontIndex == 5));
+        markerFontEntry.Add(new ContextMenuItemEntry(string.Format(ResGumps.Style0, 6), () => { SetFont(6); SaveSettings(); }, true, !UseTtfFont && _markerFontIndex == 6));
+        ContextMenu.Add(markerFontEntry);
+
+        ContextMenu.Add(BuildTtfFontMenu());
 
         var markersEntry = new ContextMenuItemEntry(ResGumps.MapMarkerOptions);
         markersEntry.Add(new ContextMenuItemEntry(ResGumps.ReloadMarkers, LoadMarkers));
-
-        markersEntry.Add(markerFontEntry);
 
         markersEntry.Add(_options["show_all_markers"]);
         markersEntry.Add(new ContextMenuItemEntry(""));
@@ -680,6 +716,11 @@ public class WorldMapGump : ResizableGump
 
         if (_map.Index != World.MapIndex && !_freeView)
             ChangeMap(World.MapIndex);
+
+        // Drop cached TTF TextBoxes that haven't been drawn recently so names/markers that
+        // leave the view (or change) don't leak their layouts.
+        if (_ttfTextBoxes.Count > 0)
+            PurgeTtfTextBoxes();
 
         if (_isFullscreen)
         {
@@ -877,6 +918,10 @@ public class WorldMapGump : ResizableGump
         _navStepFailedHandler = null;
         _navDest = null;
         _navPath = null;
+        _navSegments = 0;
+
+        // Dispose every cached TextBox so their layouts don't outlive the map gump.
+        PurgeTtfTextBoxes(true);
 
         base.Dispose();
     }
@@ -884,6 +929,14 @@ public class WorldMapGump : ResizableGump
     private void SetFont(int fontIndex)
     {
         _markerFontIndex = fontIndex;
+
+        // Choosing a sprite-font style disables any active TTF font so both name and
+        // marker rendering fall back to the shared DrawString path.
+        if (UseTtfFont)
+        {
+            _ttfFont = string.Empty;
+            PurgeTtfTextBoxes(true);
+        }
 
         switch (fontIndex)
         {
@@ -922,6 +975,120 @@ public class WorldMapGump : ResizableGump
                 _markerFont = Fonts.Map1;
 
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Builds the "TTF Fonts" context menu. When a TTF font is selected every name and marker
+    /// is rendered through TextBox (TrueType) instead of the sprite-font DrawString methods.
+    /// The top of the menu holds a size increase/decrease submenu.
+    /// </summary>
+    private ContextMenuItemEntry BuildTtfFontMenu()
+    {
+        var ttfEntry = new ContextMenuItemEntry(TazLang.Get("map_ttf_fonts", "TTF Fonts"));
+
+        var sizeEntry = new ContextMenuItemEntry(string.Format(TazLang.Get("map_ttf_font_size", "Font Size: {0}"), _ttfFontSize));
+        sizeEntry.Add(new ContextMenuItemEntry(TazLang.Get("map_ttf_font_size_inc", "Increase (+)"), () => AdjustTtfFontSize(2)));
+        sizeEntry.Add(new ContextMenuItemEntry(TazLang.Get("map_ttf_font_size_dec", "Decrease (-)"), () => AdjustTtfFontSize(-2)));
+        ttfEntry.Add(sizeEntry);
+
+        ttfEntry.Add(new ContextMenuItemEntry(""));
+
+        // Turns TTF rendering off and returns to the sprite-font styles.
+        ttfEntry.Add(new ContextMenuItemEntry(TazLang.Get("map_ttf_font_none", "None (use font style)"), () => SetTtfFont(string.Empty), true, !UseTtfFont));
+
+        (string[] fontNames, _) = TrueTypeLoader.Instance.GetSortedFontNames();
+
+        foreach (string fontName in fontNames)
+        {
+            string name = fontName;
+            ttfEntry.Add(new ContextMenuItemEntry(name, () => SetTtfFont(name), true, string.Equals(_ttfFont, name, StringComparison.Ordinal)));
+        }
+
+        return ttfEntry;
+    }
+
+    private void SetTtfFont(string fontName)
+    {
+        fontName ??= string.Empty;
+
+        if (string.Equals(_ttfFont, fontName, StringComparison.Ordinal))
+            return;
+
+        _ttfFont = fontName;
+        PurgeTtfTextBoxes(true); // Cached boxes are baked with the old font, drop them all.
+        SaveSettings();
+    }
+
+    private void AdjustTtfFontSize(int delta)
+    {
+        int newSize = Math.Clamp(_ttfFontSize + delta, TTF_FONT_SIZE_MIN, TTF_FONT_SIZE_MAX);
+
+        if (newSize == _ttfFontSize)
+            return;
+
+        _ttfFontSize = newSize;
+        PurgeTtfTextBoxes(true); // Size is baked into the layout, drop and rebuild on demand.
+        SaveSettings();
+        BuildContextMenu(); // Refresh the "Font Size: X" label.
+    }
+
+    /// <summary>
+    /// Returns a cached TextBox for <paramref name="text"/>, creating one if necessary, and marks
+    /// it as used this frame so it survives the next purge.
+    /// </summary>
+    private TextBox GetTtfTextBox(string text)
+    {
+        if (!_ttfTextBoxes.TryGetValue(text, out TextBox tb) || tb.IsDisposed)
+        {
+            tb = TextBox.GetOne
+            (
+                text,
+                _ttfFont,
+                _ttfFontSize,
+                Color.White,
+                new TextBox.RTLOptions { ConvertHtmlColors = false, SupportsCommands = false }
+            );
+
+            _ttfTextBoxes[text] = tb;
+        }
+
+        _ttfTextBoxLastUse[text] = Time.Ticks;
+
+        return tb;
+    }
+
+    /// <summary>
+    /// Disposes cached TextBoxes. When <paramref name="all"/> is true every box is disposed,
+    /// otherwise only those not drawn within <see cref="TTF_TEXTBOX_TTL"/> milliseconds.
+    /// </summary>
+    private void PurgeTtfTextBoxes(bool all = false)
+    {
+        if (_ttfTextBoxes.Count == 0)
+            return;
+
+        List<string> toRemove = null;
+
+        foreach (KeyValuePair<string, TextBox> kv in _ttfTextBoxes)
+        {
+            long lastUse = _ttfTextBoxLastUse.TryGetValue(kv.Key, out long t) ? t : 0;
+
+            if (all || Time.Ticks - lastUse > TTF_TEXTBOX_TTL)
+            {
+                (toRemove ??= new List<string>()).Add(kv.Key);
+            }
+        }
+
+        if (toRemove == null)
+            return;
+
+        foreach (string key in toRemove)
+        {
+            if (_ttfTextBoxes.TryGetValue(key, out TextBox tb))
+                tb.Dispose();
+
+            _ttfTextBoxes.Remove(key);
+            _ttfTextBoxLastUse.Remove(key);
         }
     }
 
@@ -1582,6 +1749,7 @@ public class WorldMapGump : ResizableGump
                 }
 
                 _markerIcons.Clear();
+                _markerIconPaths.Clear();
 
                     List<string> mapIconPaths = new();
                     List<string> mapIconPathsPngJpg = new();
@@ -1616,7 +1784,9 @@ public class WorldMapGump : ResizableGump
                     {
                         Texture2D texture = CurLoader.CreateTextureFromICO_Cur(ms);
 
-                        _markerIcons.Add(Path.GetFileNameWithoutExtension(icon).ToLower(), texture);
+                        string iconKey = Path.GetFileNameWithoutExtension(icon).ToLower();
+                        _markerIcons.Add(iconKey, texture);
+                        _markerIconPaths[iconKey] = icon;
                     }
                     catch (Exception ee)
                     {
@@ -1640,7 +1810,9 @@ public class WorldMapGump : ResizableGump
                     {
                         var texture = Texture2D.FromStream(Client.Game.GraphicsDevice, ms);
 
-                        _markerIcons.Add(Path.GetFileNameWithoutExtension(icon).ToLower(), texture);
+                        string iconKey = Path.GetFileNameWithoutExtension(icon).ToLower();
+                        _markerIcons.Add(iconKey, texture);
+                        _markerIconPaths[iconKey] = icon;
                     }
                     catch (Exception ee)
                     {
@@ -2658,7 +2830,8 @@ public class WorldMapGump : ResizableGump
 
         if (drawName && !string.IsNullOrEmpty(mobile.Name))
         {
-            Vector2 size = Fonts.Regular.MeasureString(mobile.Name);
+            TextBox ttfBox = UseTtfFont ? GetTtfTextBox(mobile.Name) : null;
+            Vector2 size = ttfBox != null ? new Vector2(ttfBox.MeasuredSize.X, ttfBox.MeasuredSize.Y) : Fonts.Regular.MeasureString(mobile.Name);
 
             if (rot.X + size.X / 2 > x + Width - 8)
             {
@@ -2681,30 +2854,40 @@ public class WorldMapGump : ResizableGump
             int xx = (int)(rot.X - size.X / 2);
             int yy = (int)(rot.Y - size.Y);
 
-            hueVector.X = 0;
-            hueVector.Y = 1;
+            ushort nameHue = isparty ? (ushort)0x0034 : Notoriety.GetHue(mobile.NotorietyFlag);
 
-            batcher.DrawString
-            (
-                Fonts.Regular,
-                mobile.Name,
-                xx + 1,
-                yy + 1,
-                hueVector
-            );
+            if (ttfBox != null)
+            {
+                ttfBox.Draw(batcher, xx + 1, yy + 1, Color.Black);
+                ttfBox.Draw(batcher, xx, yy, TextBox.ConvertHueToColor(nameHue));
+            }
+            else
+            {
+                hueVector.X = 0;
+                hueVector.Y = 1;
 
-            hueVector.X = isparty ? 0x0034 : Notoriety.GetHue(mobile.NotorietyFlag);
-            hueVector.Y = 1;
-            hueVector.Z = 1;
+                batcher.DrawString
+                (
+                    Fonts.Regular,
+                    mobile.Name,
+                    xx + 1,
+                    yy + 1,
+                    hueVector
+                );
 
-            batcher.DrawString
-            (
-                Fonts.Regular,
-                mobile.Name,
-                xx,
-                yy,
-                hueVector
-            );
+                hueVector.X = nameHue;
+                hueVector.Y = 1;
+                hueVector.Z = 1;
+
+                batcher.DrawString
+                (
+                    Fonts.Regular,
+                    mobile.Name,
+                    xx,
+                    yy,
+                    hueVector
+                );
+            }
         }
 
         if (drawHpBar)
@@ -2847,7 +3030,8 @@ public class WorldMapGump : ResizableGump
         rot.X += x + width;
         rot.Y += y + height;
 
-        Vector2 size = _markerFont.MeasureString(marker.Name);
+        TextBox ttfBox = UseTtfFont ? GetTtfTextBox(marker.Name) : null;
+        Vector2 size = ttfBox != null ? new Vector2(ttfBox.MeasuredSize.X, ttfBox.MeasuredSize.Y) : _markerFont.MeasureString(marker.Name);
 
         if (rot.X + size.X / 2 > x + Width - 8)
         {
@@ -2884,6 +3068,12 @@ public class WorldMapGump : ResizableGump
             ),
             hueVector
         );
+
+        if (ttfBox != null)
+        {
+            ttfBox.Draw(batcher, xx, yy, Color.White);
+            return;
+        }
 
         hueVector = new Vector3(0f, 1f, 1f);
 
@@ -3244,7 +3434,8 @@ public class WorldMapGump : ResizableGump
         if (_showGroupName)
         {
             string name = entity.Name ?? ResGumps.OutOfRange;
-            Vector2 size = Fonts.Regular.MeasureString(entity.Name ?? name);
+            TextBox ttfBox = UseTtfFont ? GetTtfTextBox(name) : null;
+            Vector2 size = ttfBox != null ? new Vector2(ttfBox.MeasuredSize.X, ttfBox.MeasuredSize.Y) : Fonts.Regular.MeasureString(name);
 
             if (rot.X + size.X / 2 > x + Width - 8)
             {
@@ -3267,28 +3458,36 @@ public class WorldMapGump : ResizableGump
             int xx = (int)(rot.X - size.X / 2);
             int yy = (int)(rot.Y - size.Y);
 
-            hueVector.X = 0;
-            hueVector.Y = 1;
+            if (ttfBox != null)
+            {
+                ttfBox.Draw(batcher, xx + 1, yy + 1, Color.Black);
+                ttfBox.Draw(batcher, xx, yy, TextBox.ConvertHueToColor(uohue));
+            }
+            else
+            {
+                hueVector.X = 0;
+                hueVector.Y = 1;
 
-            batcher.DrawString
-            (
-                Fonts.Regular,
-                name,
-                xx + 1,
-                yy + 1,
-                hueVector
-            );
+                batcher.DrawString
+                (
+                    Fonts.Regular,
+                    name,
+                    xx + 1,
+                    yy + 1,
+                    hueVector
+                );
 
-            hueVector = new Vector3(uohue, 1f, 1f);
+                hueVector = new Vector3(uohue, 1f, 1f);
 
-            batcher.DrawString
-            (
-                Fonts.Regular,
-                name,
-                xx,
-                yy,
-                hueVector
-            );
+                batcher.DrawString
+                (
+                    Fonts.Regular,
+                    name,
+                    xx,
+                    yy,
+                    hueVector
+                );
+            }
         }
 
         if (_showGroupBar)
@@ -3429,9 +3628,29 @@ public class WorldMapGump : ResizableGump
             if (button == MouseButtonType.Right && HotKeys.IsPressed(HotKeyRegistrar.WorldMapPathfindId) && !Keyboard.Alt)
             {
                 CanvasToWorld(x, y, out int wX, out int wY);
+                int mapIndex = _world.Map.Index;
+
+                // The append modifier (Shift by default, rebindable) extends the active route:
+                // search from the end of the current path to the new point and append the result
+                // (A->B->C) instead of restarting from the player.
+                bool append = HotKeys.IsPressed(HotKeyRegistrar.WorldMapPathfindAppendId)
+                              && _navDest.HasValue
+                              && _world.Player?.Pathfinder != null
+                              && _world.Player.Pathfinder.AutoWalking;
+
+                if (append)
+                {
+                    StartNavPath(mapIndex, _navPlannedEnd.X, _navPlannedEnd.Y, _navPlannedEndZ, wX, wY,
+                                 firstAttempt: true, append: true);
+                    return;
+                }
+
                 _navDest = new Point(wX, wY);
                 _navDestSetTime = Environment.TickCount64;
                 _navPath = null;
+                _navPlannedEnd = new Point(wX, wY);
+                _navPlannedEndZ = _world.Player.Z;
+                _navSegments = 1;
                 ClearGoToMarker();
 
                 // Fresh nav session: clear any dynamic-block memory from a previous run,
@@ -3447,8 +3666,8 @@ public class WorldMapGump : ResizableGump
                 }
                 _navReplansLeft = MaxNavReplans;
 
-                int mapIndex = _world.Map.Index;
-                StartNavPath(mapIndex, _world.Player.X, _world.Player.Y, _world.Player.Z, wX, wY, firstAttempt: true);
+                StartNavPath(mapIndex, _world.Player.X, _world.Player.Y, _world.Player.Z, wX, wY,
+                             firstAttempt: true, append: false);
                 return;
             }
 
@@ -3480,10 +3699,12 @@ public class WorldMapGump : ResizableGump
 
     /// <summary>
     /// Dispatches a WorldMapPathfinder search and hands the result to the walker.
-    /// Registers an on-step-failed hook so dynamic obstacles get added to the dynamic-block
-    /// set and the search retried up to MAX_NAV_REPLANS times.
+    /// When <paramref name="append"/> is set the result is chained onto the route currently
+    /// being walked (multi-segment A-&gt;B-&gt;C) instead of replacing it. For fresh (non-append)
+    /// paths it registers an on-step-failed hook so dynamic obstacles get added to the
+    /// dynamic-block set and the search retried up to MAX_NAV_REPLANS times.
     /// </summary>
-    private void StartNavPath(int mapIndex, int startX, int startY, sbyte startZ, int destX, int destY, bool firstAttempt)
+    private void StartNavPath(int mapIndex, int startX, int startY, sbyte startZ, int destX, int destY, bool firstAttempt, bool append)
     {
         var houseMultis = BuildHouseMultiSnapshot();
 
@@ -3491,10 +3712,18 @@ public class WorldMapGump : ResizableGump
         {
             if (path == null || path.Count == 0)
             {
+                if (append)
+                {
+                    // Couldn't extend the route — leave the existing path intact.
+                    GameActions.Print("Can't extend the path there.");
+                    return;
+                }
+
                 if (firstAttempt)
                     GameActions.Print("Can't find a path there.");
                 _navDest = null;
                 _navPath = null;
+                _navSegments = 0;
                 return;
             }
 
@@ -3505,7 +3734,33 @@ public class WorldMapGump : ResizableGump
                 pathPoints.Add((p.X, p.Y, p.Z, p.Direction));
                 navRender.Add(new Point(p.X, p.Y));
             }
+
+            var last = path[path.Count - 1];
+
+            // Extend the active route without restarting the walk.
+            if (append && _world.Player.Pathfinder.AppendComputedPath(pathPoints))
+            {
+                if (_navPath == null)
+                    _navPath = navRender;
+                else
+                    _navPath.AddRange(navRender);
+
+                _navDest = new Point(last.X, last.Y);
+                _navDestSetTime = Environment.TickCount64;
+                _navPlannedEnd = new Point(last.X, last.Y);
+                _navPlannedEndZ = (sbyte)last.Z;
+                _navSegments++;
+                return;
+            }
+
+            // Fresh path (or an append that found nothing to attach to because the previous
+            // route had already finished): replace whatever was there.
             _navPath = navRender;
+            _navDest = new Point(last.X, last.Y);
+            _navDestSetTime = Environment.TickCount64;
+            _navPlannedEnd = new Point(last.X, last.Y);
+            _navPlannedEndZ = (sbyte)last.Z;
+            _navSegments = 1;
 
             // Unsubscribe any stale handler from a previous plan before registering the new one.
             if (_navStepFailedHandler != null)
@@ -3513,10 +3768,24 @@ public class WorldMapGump : ResizableGump
 
             _navStepFailedHandler = (blockX, blockY) =>
             {
+                // Multi-segment routes can't be locally replanned around a block without
+                // skipping waypoints, so a blocked step clears the entire route.
+                if (_navSegments > 1)
+                {
+                    if (_navStepFailedHandler != null)
+                        _world.Player.Pathfinder.OnComputedPathStepFailed -= _navStepFailedHandler;
+                    _navStepFailedHandler = null;
+                    _navDest = null;
+                    _navPath = null;
+                    _navSegments = 0;
+                    return;
+                }
+
                 if (_navReplansLeft <= 0 || !_navDest.HasValue)
                 {
                     _navDest = null;
                     _navPath = null;
+                    _navSegments = 0;
                     return;
                 }
 
@@ -3525,7 +3794,7 @@ public class WorldMapGump : ResizableGump
 
                 var dest = _navDest.Value;
                 StartNavPath(_world.Map.Index, _world.Player.X, _world.Player.Y, _world.Player.Z,
-                             dest.X, dest.Y, firstAttempt: false);
+                             dest.X, dest.Y, firstAttempt: false, append: false);
             };
             _world.Player.Pathfinder.OnComputedPathStepFailed += _navStepFailedHandler;
 
