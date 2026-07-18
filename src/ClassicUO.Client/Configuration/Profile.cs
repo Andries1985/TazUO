@@ -194,7 +194,7 @@ namespace ClassicUO.Configuration
         public int MobileHPType { get; set => SetProperty(ref field, value); }     // 0 = %, 1 = line, 2 = both
         public int MobileHPShowWhen { get; set => SetProperty(ref field, value); } // 0 = Always, 1 - <100%
         public bool DrawRoofs { get; set => SetProperty(ref field, value); } = true;
-        public int MobileDepthSliceStep { get; set => SetProperty(ref field, value); } = 0;
+        public int MobileDepthSliceStep { get; set => SetProperty(ref field, value); } = 1;
         public bool TreeToStumps { get; set => SetProperty(ref field, value); }
         public bool EnableCaveBorder { get; set => SetProperty(ref field, value); }
         public bool HideVegetation { get; set => SetProperty(ref field, value); }
@@ -249,6 +249,11 @@ namespace ClassicUO.Configuration
         [SqlSetting(SettingsScope.Char, Constants.SqlSettings.BANDAGE_JOURNAL_MESSAGES, "")]
         public partial string BandageAgentJournalMessages { get; set; }
 
+        // Semicolon-separated list of poll ids the user has already voted on (see PollsWindow / FirebasePollsManager).
+        [JsonIgnore]
+        [SqlSetting(SettingsScope.Global, Constants.SqlSettings.VOTED_POLLS, "")]
+        public partial string VotedPolls { get; set; }
+
         public bool EnableDeathScreen { get; set => SetProperty(ref field, value); } = true;
         public bool EnableBlackWhiteEffect { get; set => SetProperty(ref field, value); } = true;
         public ushort HiddenBodyHue { get; set => SetProperty(ref field, value); } = 0x038E;
@@ -280,6 +285,7 @@ namespace ClassicUO.Configuration
         public bool GameWindowLock { get; set => SetProperty(ref field, value); }
         public bool GameWindowFullSize { get; set => SetProperty(ref field, value); }
         public bool WindowBorderless { get; set => SetProperty(ref field, value); } = false;
+        public bool BorderlessWindow { get; set => SetProperty(ref field, value); } = false;
         [JsonConverter(typeof(Point2Converter))] public Point GameWindowSize { get; set => SetProperty(ref field, value); } = new Point(800, 680);
         [JsonConverter(typeof(Point2Converter))] public Point TopbarGumpPosition { get; set => SetProperty(ref field, value); } = new Point(0, 0);
         public bool TopbarGumpIsMinimized { get; set => SetProperty(ref field, value); }
@@ -441,6 +447,8 @@ namespace ClassicUO.Configuration
         public bool WorldMapShowMouseCoordinates { get; set => SetProperty(ref field, value); } = true;
         public bool WorldMapShowCorpse { get; set => SetProperty(ref field, value); } = true;
         public bool WorldMapShowSextantCoordinates { get; set => SetProperty(ref field, value); } = false;
+        public int WorldMapSextantBaseX { get; set => SetProperty(ref field, value); } = 1323;
+        public int WorldMapSextantBaseY { get; set => SetProperty(ref field, value); } = 1624;
         public bool WorldMapShowMobiles { get; set => SetProperty(ref field, value); } = true;
         public bool WorldMapShowPlayerName { get; set => SetProperty(ref field, value); } = true;
         public bool WorldMapShowPlayerBar { get; set => SetProperty(ref field, value); } = true;
@@ -541,18 +549,34 @@ namespace ClassicUO.Configuration
         public int CoolDownX { get; set => SetProperty(ref field, value); } = 50;
         public int CoolDownY { get; set => SetProperty(ref field, value); } = 50;
 
+        // The Condition_* lists and CoolDownConditionCount below are the legacy cooldown-bar storage.
+        // They have been superseded by cooldownbars.json (see CooldownBarsConfig) and are retained only so
+        // existing profiles can be migrated on load. Do not use them in new code.
+        private const string CooldownMigratedMessage = "Migrated to cooldownbars.json (CooldownBarsConfig); retained only for one-time migration of existing profiles.";
+
+        [Obsolete(CooldownMigratedMessage)]
         public List<ushort> Condition_Hue { get; set => SetProperty(ref field, value); } = new List<ushort>();
+        [Obsolete(CooldownMigratedMessage)]
         public List<string> Condition_Label { get; set => SetProperty(ref field, value); } = new List<string>();
+        [Obsolete(CooldownMigratedMessage)]
         public List<int> Condition_Duration { get; set => SetProperty(ref field, value); } = new List<int>();
+        [Obsolete(CooldownMigratedMessage)]
         public List<string> Condition_Trigger { get; set => SetProperty(ref field, value); } = new List<string>();
+        [Obsolete(CooldownMigratedMessage)]
         public List<int> Condition_Type { get; set => SetProperty(ref field, value); } = new List<int>();
+        [Obsolete(CooldownMigratedMessage)]
         public List<bool> Condition_ReplaceIfExists { get; set => SetProperty(ref field, value); } = new List<bool>();
+        [Obsolete(CooldownMigratedMessage)]
+        public List<bool> Condition_SkipIfExists { get; set => SetProperty(ref field, value); } = new List<bool>();
+        [Obsolete(CooldownMigratedMessage)]
         public int CoolDownConditionCount
         {
+#pragma warning disable CS0618
             get
             {
                 return Condition_Hue.Count;
             }
+#pragma warning restore CS0618
             set { }
         }
         #endregion
@@ -633,6 +657,8 @@ namespace ClassicUO.Configuration
 
         public bool DisplayPartyChatOverhead { get; set => SetProperty(ref field, value); } = true;
 
+        public bool HideMacroTargetMessage { get; set => SetProperty(ref field, value); } = false;
+
         public string SelectedTTFJournalFont { get; set => SetProperty(ref field, value); } = "avadonian";
         public int SelectedJournalFontSize { get; set => SetProperty(ref field, value); } = 20;
 
@@ -702,6 +728,12 @@ namespace ClassicUO.Configuration
 
         public bool EnableAutoLoot { get; set => SetProperty(ref field, value); } = false;
         public bool AutoLootHumanCorpses { get; set => SetProperty(ref field, value); } = false;
+
+        // Auto skinning: double click a knife/dagger whose graphic is in this list to skin a targeted corpse.
+        // Graphic IDs are separated by ';' and may be hex (0x..) or decimal.
+        public bool EnableAutoSkinning { get; set => SetProperty(ref field, value); } = false;
+        public bool AutoSkinningHumanCorpses { get; set => SetProperty(ref field, value); } = false;
+        public string AutoSkinningKnifeGraphics { get; set => SetProperty(ref field, value); } = "0x2D2C;0x0F52;0x0EC4;0x0EC3;0x13F6;0x13B6";
 
         public bool ItemDatabaseEnabled { get; set => SetProperty(ref field, value); } = true;
 
@@ -1649,6 +1681,11 @@ namespace ClassicUO.Configuration
                     var smw = new ScriptManagerWindow();
                     smw.Load(xml);
                     UIManager.Add(smw);
+                    break;
+                case "ClassicUO.Game.UI.MyraWindows.PollsWindow":
+                    var polls = new PollsWindow();
+                    polls.Load(xml);
+                    UIManager.Add(polls);
                     break;
             }
         }

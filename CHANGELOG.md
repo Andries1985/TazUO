@@ -5,6 +5,10 @@ All notable changes to TazUO will be recorded here.
 ## In Development
 
 ### Features
+* Moved the Health Bars options tab from the Interface category to Gameplay > Mobiles - [P.R 714](https://github.com/PlayTazUO/TazUO/pull/714) ([bittiez](https://github.com/bittiez))
+* Added an "Import Map File" option to the world map context menu (under Map Marker Options) that copies a selected .map/.csv/.xml file into the current server's marker directory and reloads markers - [P.R 710](https://github.com/PlayTazUO/TazUO/pull/710) ([bittiez](https://github.com/bittiez))
+* Added a "Keep Existing" option to cooldown bars that preserves the running countdown instead of adding a new bar when the same rule triggers again; mutually exclusive with "Replace Existing" - [P.R 709](https://github.com/PlayTazUO/TazUO/pull/709) ([bittiez](https://github.com/bittiez))
+* Added a "Pathfind to location" option to the world map context menu (below "Go to location") that walks the player to entered map/sextant coordinates - [P.R 699](https://github.com/PlayTazUO/TazUO/pull/699) ([bittiez](https://github.com/bittiez))
 * Overhauled the options window with a new, modern UI (use command `old-options-window` to open legacy window) - [P.R #](https://github.com/PlayTazUO/TazUO/pull/#) ([yuval-po](https://github.com/yuval-po))
 * Added reorder support to CoolDown Bars - [P.R #](https://github.com/PlayTazUO/TazUO/pull/#) ([yuval-po](https://github.com/yuval-po))
 * Pet support for the bandage agent - [P.R 485](https://github.com/PlayTazUO/TazUO/pull/485) ([yuval-po](https://github.com/yuval-po))
@@ -59,8 +63,22 @@ All notable changes to TazUO will be recorded here.
 * Added list view to grid containers - [P.R 626](github.com/PlayTazUO/TazUO/pull/626) ([Nesci28](https://github.com/Nesci28))
 * World map font style now applies to both names and markers and moved to the main context menu; added a TTF Fonts menu to render names/markers with TrueType fonts and adjustable size - [P.R 655](https://github.com/PlayTazUO/TazUO/pull/655) ([bittiez](https://github.com/bittiez))
 * Added a journal option to make the journal transparent (hide border, tabs, scroll bar, and background) after 3 seconds when it is not hovered and not the active window - [P.R 670](https://github.com/PlayTazUO/TazUO/pull/670) ([bittiez](https://github.com/bittiez))
+* Rebuilt the world map Markers Manager as a Myra window with real tabs (full-path tooltips), map/zoom columns, editable map and zoom fields, and — on editable .usr/.csv files — checkbox bulk delete and bulk move of markers between files - [P.R 679](https://github.com/PlayTazUO/TazUO/pull/679) ([bittiez](https://github.com/bittiez))
+* Converted the world map "Go to location" window to a Myra window with a clear button and live decoding that shows the resolved map coordinates (from map or sextant input) as you type - [P.R 682](https://github.com/PlayTazUO/TazUO/pull/682) ([bittiez](https://github.com/bittiez))
+* Added a "Radar Map" entry to the top bar More menu that opens the radar/mini map - [P.R 686](https://github.com/PlayTazUO/TazUO/pull/686) ([bittiez](https://github.com/bittiez))
+* Added a "Button Editor" button to the new options window's Macros tab, giving access to the macro button editor (label, scale, color, graphic) - [P.R 685](https://github.com/PlayTazUO/TazUO/pull/685) ([bittiez](https://github.com/bittiez))
+* Added an option to hide the "Target: name" overhead message shown when a macro sets a target - [P.R 687](https://github.com/PlayTazUO/TazUO/pull/687) ([bittiez](https://github.com/bittiez))
+* Added a "Borderless window (no title bar)" video option that removes the window border while keeping a normal windowed size, separate from fullscreen-borderless - [P.R 680](https://github.com/PlayTazUO/TazUO/pull/680) ([bittiez](https://github.com/bittiez))
+* The Open macro type's gump list in the Macros tab is now sorted alphabetically and spaced after capitals for legibility, matching the main macro list - [P.R 688](https://github.com/PlayTazUO/TazUO/pull/688) ([bittiez](https://github.com/bittiez))
+* Added a negative search field to the nameplate manager that hides matching nameplates (the opposite of search); both search fields now accept multiple terms separated by `;` - [P.R 691](https://github.com/PlayTazUO/TazUO/pull/691) ([bittiez](https://github.com/bittiez))
+* Added auto skinning support — when a corpse is opened, a configured knife/dagger is automatically used on it through the action queue; includes enable and human-corpse toggles, an editable knife graphic list, and a "Target Skinning Weapon" button in the Auto Loot tab - [P.R 694](https://github.com/PlayTazUO/TazUO/pull/694) ([bittiez](https://github.com/bittiez))
+* Nameplate search and negative search now save per nameplate profile — switching profiles and logging out/in restore each profile's filters, and both fields are editable in the nameplate profile editor - [P.R 695](https://github.com/PlayTazUO/TazUO/pull/695) ([bittiez](https://github.com/bittiez))
+* Added new tazuo polls window - ([bittiez](https://github.com/bittiez))
+* Added a goto location input to the web map (accepts raw map or sextant coordinates) that sets the player's Go-To location - [P.R 708](https://github.com/PlayTazUO/TazUO/pull/708) ([bittiez](https://github.com/bittiez))
 
 ### Fixes
+* Fixed the nameplate overhead manager gump not resizing to fit all buttons and profile names, and now refreshes its buttons when a profile is renamed in the options window - [P.R 698](https://github.com/PlayTazUO/TazUO/pull/698) ([bittiez](https://github.com/bittiez))
+* Fixed client crash ("pointer being freed was not allocated") when deleting map markers in the marker manager, caused by leaked marker list controls whose graphics textures were freed off the render thread by the GC finalizer - [P.R 678](https://github.com/PlayTazUO/TazUO/pull/678) ([bittiez](https://github.com/bittiez))
 * Auto open doors no longer closes a door that is already open - [P.R 674](https://github.com/PlayTazUO/TazUO/pull/674) ([bittiez](https://github.com/bittiez))
 * Added a Video > Misc option to reduce mobile feet clipping through walls (character depth slice step, default now minimizes clipping) - [P.R 666](https://github.com/PlayTazUO/TazUO/pull/666) ([bittiez](https://github.com/bittiez))
 * Fixed simultaneous drag and resize occurring on resizable windows - [P.R #](https://github.com/PlayTazUO/TazUO/pull/#) ([yuval-po](https://github.com/yuval-po))
@@ -114,6 +132,8 @@ All notable changes to TazUO will be recorded here.
 * Fixed client crash (IndexOutOfRangeException) from unpaired UTF-16 surrogates in journal/text; malformed text (e.g. a truncated emoji from the server) is now sanitized before measuring instead of crashing - [P.R 659](https://github.com/PlayTazUO/TazUO/pull/659) ([bittiez](https://github.com/bittiez))
 * Show a suggested fix for the ArgumentOutOfRangeException from FetchDisplayAdapter, which happens when connected displays change at runtime (monitor unplugged/slept, dock or KVM switch, laptop lid) - [P.R 660](https://github.com/PlayTazUO/TazUO/pull/660) ([bittiez](https://github.com/bittiez))
 * Fixed container overhead text (item names/speech) being pushed off screen instead of appearing above the item - grid containers now account for the scroll offset when scaled/scrolled, and legacy containers anchor the text over the item's actual slot instead of a stale click coordinate - [P.R 667](https://github.com/PlayTazUO/TazUO/pull/667) ([bittiez](https://github.com/bittiez))
+* World map mobile dots are now colored by notoriety (matching the radar/minimap) instead of always being red - [P.R 684](https://github.com/PlayTazUO/TazUO/pull/684) ([bittiez](https://github.com/bittiez))
+* Context menu submenus now stay open until the menu is closed, an item is clicked, or another submenu is opened, and remain fully clickable when they open above the parent menu instead of closing when the mouse moves toward them - [P.R 689](https://github.com/PlayTazUO/TazUO/pull/689) ([bittiez](https://github.com/bittiez))
 
 ### Legion
 * Added ModernNineSliceGump.SetLegionTexture to go along with zip files and custom png's - Use your own png for a 9-slice texture - ([bittiez](https://github.com/bittiez))
@@ -131,6 +151,7 @@ All notable changes to TazUO will be recorded here.
 * Add option to disable corpse retry in autoloot - [P.R 525](https://github.com/PlayTazUO/TazUO/pull/525) ([bittiez](https://github.com/bittiez))
 * Corpse hueing from auto loot will now reapply when a corpse is removed and added back onto your screen - [P.R 557](https://github.com/PlayTazUO/TazUO/pull/557) ([bittiez](https://github.com/bittiez))
 * Corpse hueing from auto loot will now reapply when a corpse is removed and added back onto your screen - [P.R 607](https://github.com/PlayTazUO/TazUO/pull/607) ([bittiez](https://github.com/bittiez))
+* Moved cooldown bar rules to a dedicated `cooldownbars.json` in the profile folder (existing profiles are migrated automatically) and consolidated their configuration into the new options menu - [P.R 711](https://github.com/PlayTazUO/TazUO/pull/711) ([bittiez](https://github.com/bittiez))
 
 ---
 

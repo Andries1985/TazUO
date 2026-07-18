@@ -89,6 +89,7 @@ class ApiItem(ApiEntity):
     Opened: bool = None
     Container: int = None
     RootContainer: int = None
+    CorpseParent: int = None
     OnGround: bool = None
     RootEntity: ApiEntity = None
     __class__: str = None
@@ -3219,6 +3220,33 @@ def GetClilocString(cliloc: "int", englishOnly: "bool" = False) -> "str":
     """
     pass
 
+def GetClientBounds() -> "Any":
+    """
+     Get the bounds of the client game window.
+     This covers the entire window, including all UI and the game world.
+     Coordinates are in screen pixels.
+     Example:
+     ```py
+     bounds = API.GetClientBounds()
+     API.SysMsg(f"Window is {bounds.Width}x{bounds.Height} at {bounds.X},{bounds.Y}")
+     ```
+    
+    """
+    pass
+
+def GetViewportBounds() -> "Any":
+    """
+     Get the bounds of the game world viewport.
+     This is the area where the game world is rendered, in screen pixel coordinates.
+     Example:
+     ```py
+     vp = API.GetViewportBounds()
+     API.SysMsg(f"Viewport at {vp.X},{vp.Y} size {vp.Width}x{vp.Height}")
+     ```
+    
+    """
+    pass
+
 class EventSinkApiDeclaration:
     ""
 
@@ -3275,7 +3303,7 @@ class EventSinkApiDeclaration:
 
     def ClilocMessageReceived(self, callback: "Any") -> None:
         """
-          Not currently used. May be removed later or put into use, not sure right now
+         Invoked when a cliloc message is received from the server
         
         """
         pass
