@@ -131,6 +131,7 @@ public const string SCALE_PETS_ENABLED = "scale_pets_enabled";
             public const string IRC_AUTO_CONNECT = "irc_disable_auto_connect";
             public const string PATH_Z_LEVEL = "path_z_level";
             public const string PATHFINDING_MAX_NODES = "pathfinding_max_nodes";
+            public const string PATHFINDING_MULTI_BUFFER = "pathfinding_multi_buffer";
             public const string WORLDMAP_PATH_MAX_NODES = "worldmap_path_max_nodes";
             public const string WORLDMAP_PATH_MAX_RETRIES = "worldmap_path_max_retries";
             public const string WORLDMAP_PATH_TIMEOUT = "worldmap_path_timeout";
@@ -146,6 +147,8 @@ public const string SCALE_PETS_ENABLED = "scale_pets_enabled";
             public const string BANDAGE_JOURNAL_TRIGGER = "bandage_journal_trigger";
             public const string BANDAGE_JOURNAL_MESSAGES = "bandage_journal_messages";
             public const string VOTED_POLLS = "voted_polls";
+            public const string OVERHEADS_SCALE_WITH_ZOOM = "overheads_scale_with_zoom";
+            public const string TREE_TO_STUMPS_WITHIN_RADIUS = "tree_to_stumps_within_radius";
         }
     }
 }

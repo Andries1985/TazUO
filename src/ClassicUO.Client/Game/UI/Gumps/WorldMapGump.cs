@@ -76,7 +76,6 @@ public class WorldMapGump : ResizableGump
     private bool _freeView;
     private List<string> _hiddenMarkerFiles;
     private bool _isScrolling;
-    private bool _isTopMost;
     private bool _mapMarkersLoaded;
     private List<string> _hiddenZoneFiles;
     private ZoneSets _zoneSets = new ZoneSets();
@@ -122,7 +121,6 @@ public class WorldMapGump : ResizableGump
     private WorldMapDoubleClickAction _doubleClickAction = WorldMapDoubleClickAction.ToggleLock;
     private bool _isFullscreen;
     private Rectangle _preFullscreenBounds;
-    private bool _preFullscreenTopMost;
 
     private GumpPic _northIcon;
 
@@ -171,7 +169,7 @@ public class WorldMapGump : ResizableGump
         if (ProfileManager.CurrentProfile != null)
         {
             _last_position = ProfileManager.CurrentProfile.WorldMapPosition;
-            IsLocked = ProfileManager.CurrentProfile.WorldMapLocked;
+            SetLockStatus(ProfileManager.CurrentProfile.WorldMapLocked);
         }
 
         X = _last_position.X;
@@ -192,29 +190,6 @@ public class WorldMapGump : ResizableGump
 
     public override GumpType GumpType => GumpType.WorldMap;
     public float Zoom => _zooms[_zoomIndex];
-
-    public bool TopMost
-    {
-        get => _isTopMost;
-        set => SetTopMost(value, true);
-    }
-
-    private void SetTopMost(bool value, bool save)
-    {
-        if (_isTopMost != value)
-        {
-            _isTopMost = value;
-
-            if (save)
-            {
-                SaveSettings();
-            }
-        }
-
-        ShowBorder = _isTopMost;
-
-        LayerOrder = _isTopMost ? UILayer.Over : UILayer.Under;
-    }
 
     public bool FreeView
     {
@@ -296,7 +271,6 @@ public class WorldMapGump : ResizableGump
         _showGridIfZoomed = ProfileManager.CurrentProfile.WorldMapShowGridIfZoomed;
         _allowPositionalTarget = ProfileManager.CurrentProfile.WorldMapAllowPositionalTarget;
         _doubleClickAction = ProfileManager.CurrentProfile.WorldMapDoubleClickAction;
-        TopMost = ProfileManager.CurrentProfile.WorldMapTopMost;
         FreeView = ProfileManager.CurrentProfile.WorldMapFreeView;
     }
 
@@ -314,7 +288,6 @@ public class WorldMapGump : ResizableGump
         ProfileManager.CurrentProfile.WorldMapHeight = _isFullscreen ? _preFullscreenBounds.Height : Height;
 
         ProfileManager.CurrentProfile.WorldMapFlipMap = _flipMap;
-        ProfileManager.CurrentProfile.WorldMapTopMost = TopMost;
         ProfileManager.CurrentProfile.WorldMapFreeView = FreeView;
         ProfileManager.CurrentProfile.WorldMapShowParty = _showPartyMembers;
 
@@ -409,8 +382,6 @@ public class WorldMapGump : ResizableGump
                 )
         );
 
-        _options["top_most"] = new ContextMenuItemEntry(ResGumps.TopMost, () => { TopMost = !TopMost; }, true, _isTopMost);
-
         _options["free_view"] = new ContextMenuItemEntry(ResGumps.FreeView, () => { FreeView = !FreeView; }, true, FreeView);
 
         for (int i = 0; i < MapLoader.MAPS_COUNT; i++)
@@ -502,7 +473,7 @@ public class WorldMapGump : ResizableGump
     {
         string title = TazLang.Get("map_sextant_base_title", "Sextant Base Coordinates");
 
-        OptionsWindow existing = OptionsWindow.GetExisting(title);
+        QuickOptionsWindow existing = QuickOptionsWindow.GetExisting(title);
         if (existing != null)
         {
             existing.CenterInScreen();
@@ -514,7 +485,7 @@ public class WorldMapGump : ResizableGump
         if (profile == null)
             return;
 
-        var w = new OptionsWindow(title);
+        var w = new QuickOptionsWindow(title);
 
         w.AddLabel(TazLang.Get("map_sextant_base_desc", "Base map X,Y used to convert sextant coordinates (0° 0'N 0° 0'E)."));
 
@@ -722,7 +693,6 @@ public class WorldMapGump : ResizableGump
         ContextMenu.Add(_options["goto_location"]);
         ContextMenu.Add(_options["pathfind_location"]);
         ContextMenu.Add(_options["flip_map"]);
-        ContextMenu.Add(_options["top_most"]);
 
         var doubleClickEntry = new ContextMenuItemEntry(TazLang.Get("map_doubleclick_action", "Double click action"));
         doubleClickEntry.Add(new ContextMenuItemEntry(TazLang.Get("map_doubleclick_toggle_lock", "Toggle lock state"),
@@ -1968,6 +1938,8 @@ public class WorldMapGump : ResizableGump
                             markerFile.Hidden = true;
                         }
 
+                        int skippedMarkers = 0;
+
                         if (mapFile != null && Path.GetExtension(mapFile).ToLower().Equals(".xml")) // Ultima Mapper
                         {
                             using (var reader = new XmlTextReader(File.Open(mapFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)))
@@ -2027,15 +1999,26 @@ public class WorldMapGump : ResizableGump
                                             continue;
                                         }
 
-                                        var marker = new WMapMarker
+                                        WMapMarker marker;
+
+                                        try
                                         {
-                                            X = int.Parse(splits[0]),
-                                            Y = int.Parse(splits[1]),
-                                            MapId = int.Parse(splits[2]),
-                                            Name = string.Join(" ", splits, 3, splits.Length - 3),
-                                            Color = Color.White,
-                                            ZoomIndex = 3
-                                        };
+                                            marker = new WMapMarker
+                                            {
+                                                X = int.Parse(splits[0]),
+                                                Y = int.Parse(splits[1]),
+                                                MapId = int.Parse(splits[2]),
+                                                Name = string.Join(" ", splits, 3, splits.Length - 3),
+                                                Color = Color.White,
+                                                ZoomIndex = 3
+                                            };
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            skippedMarkers++;
+                                            Utility.Logging.Log.Warn($"Skipping malformed marker line in {Path.GetFileName(mapFile)}: \"{line}\" ({ex.Message})");
+                                            continue;
+                                        }
 
                                         string[] iconSplits = icon.Split(' ');
 
@@ -2053,7 +2036,7 @@ public class WorldMapGump : ResizableGump
                         }
                         else if (mapFile != null && Path.GetExtension(mapFile).ToLower().Equals(".usr"))
                         {
-                            markerFile.Markers = LoadUserMarkers();
+                            markerFile.Markers = LoadUserMarkers(out skippedMarkers);
                             markerFile.IsEditable = true;
                         }
                         else if (mapFile != null) //CSV x,y,mapindex,name of marker,iconname,color,zoom
@@ -2080,16 +2063,27 @@ public class WorldMapGump : ResizableGump
                                         continue;
                                     }
 
-                                    var marker = new WMapMarker
+                                    WMapMarker marker;
+
+                                    try
                                     {
-                                        X = int.Parse(splits[0]),
-                                        Y = int.Parse(splits[1]),
-                                        MapId = int.Parse(splits[2]),
-                                        Name = splits[3],
-                                        MarkerIconName = splits[4].ToLower(),
-                                        Color = GetColor(splits[5]),
-                                        ZoomIndex = splits.Length == 7 ? int.Parse(splits[6]) : 3
-                                    };
+                                        marker = new WMapMarker
+                                        {
+                                            X = int.Parse(splits[0]),
+                                            Y = int.Parse(splits[1]),
+                                            MapId = int.Parse(splits[2]),
+                                            Name = splits[3],
+                                            MarkerIconName = splits[4].ToLower(),
+                                            Color = GetColor(splits[5]),
+                                            ZoomIndex = splits.Length == 7 ? int.Parse(splits[6]) : 3
+                                        };
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        skippedMarkers++;
+                                        Utility.Logging.Log.Warn($"Skipping malformed marker line in {Path.GetFileName(mapFile)}: \"{line}\" ({ex.Message})");
+                                        continue;
+                                    }
 
                                     if (_markerIcons.TryGetValue(splits[4].ToLower(), out Texture2D value))
                                     {
@@ -2105,6 +2099,12 @@ public class WorldMapGump : ResizableGump
                         {
                             GameActions.Print(World, $"..{Path.GetFileName(mapFile)} ({markerFile.Markers.Count})", 0x2B);
                         }
+
+                        if (skippedMarkers > 0)
+                        {
+                            GameActions.Print(World, $"..{Path.GetFileName(mapFile)}: skipped {skippedMarkers} malformed marker line(s), see log for details", Constants.HUE_WARN);
+                        }
+
                         _markerFiles.Add(markerFile);
                     }
                 }
@@ -2301,7 +2301,18 @@ public class WorldMapGump : ResizableGump
     /// <returns>List of loaded Markers</returns>
     internal static List<WMapMarker> LoadUserMarkers()
     {
+        return LoadUserMarkers(out _);
+    }
+
+    /// <summary>
+    /// Load User Markers to List of Markers, reporting how many malformed lines were skipped.
+    /// </summary>
+    /// <param name="skippedLines">Number of malformed lines that were skipped.</param>
+    /// <returns>List of loaded Markers</returns>
+    internal static List<WMapMarker> LoadUserMarkers(out int skippedLines)
+    {
         var tempList = new List<WMapMarker>();
+        skippedLines = 0;
 
         using (var reader = new StreamReader(UserMarkersFilePath))
         {
@@ -2320,7 +2331,16 @@ public class WorldMapGump : ResizableGump
                 {
                     continue;
                 }
-                tempList.Add(ParseMarker(splits));
+
+                try
+                {
+                    tempList.Add(ParseMarker(splits));
+                }
+                catch (Exception ex)
+                {
+                    skippedLines++;
+                    Utility.Logging.Log.Warn($"Skipping malformed marker line in {Path.GetFileName(UserMarkersFilePath)}: \"{line}\" ({ex.Message})");
+                }
             }
         }
 
@@ -4062,7 +4082,6 @@ public class WorldMapGump : ResizableGump
             case WorldMapDoubleClickAction.ToggleLock:
             default:
                 SetLockStatus(!IsLocked);
-                TopMost = !IsLocked;
                 break;
         }
 
@@ -4085,12 +4104,9 @@ public class WorldMapGump : ResizableGump
     {
         if (!_isFullscreen)
         {
-            // Remember the current windowed bounds and top-most state so we can restore them later.
+            // Remember the current windowed bounds so we can restore them later.
             _preFullscreenBounds = new Rectangle(X, Y, Width, Height);
-            _preFullscreenTopMost = _isTopMost;
             _isFullscreen = true;
-
-            SetTopMost(true, false);
 
             X = 0;
             Y = 0;
@@ -4099,8 +4115,6 @@ public class WorldMapGump : ResizableGump
         else
         {
             _isFullscreen = false;
-
-            SetTopMost(_preFullscreenTopMost, false);
 
             X = _preFullscreenBounds.X;
             Y = _preFullscreenBounds.Y;

@@ -194,6 +194,14 @@ namespace ClassicUO.Game
                         return;
                     }
 
+                    // Clamp to a valid map index. The server may send an out-of-range
+                    // index (map change is a single byte, so 0-255), which would throw
+                    // IndexOutOfRangeException when the Map is constructed.
+                    if (value < 0 || value >= MapLoader.MAPS_COUNT)
+                    {
+                        value = 0;
+                    }
+
                     if (Map != null)
                     {
                         if (MapIndex >= 0)
@@ -206,11 +214,6 @@ namespace ClassicUO.Game
                         sbyte z = Player.Z;
 
                         Map = null;
-
-                        if (value >= MapLoader.MAPS_COUNT)
-                        {
-                            value = 0;
-                        }
 
                         Client.Game.UO.FileManager.Maps.LoadMap(value, ClientFeatures.Flags.HasFlag(CharacterListFlags.CLF_UNLOCK_FELUCCA_AREAS));
                         Map = new Map.Map(this, value);
@@ -339,7 +342,7 @@ namespace ClassicUO.Game
             if (ProfileManager.CurrentProfile == null)
             {
                 string lastChar = LastCharacterManager.GetLastCharacter(LoginScene.Account, ServerName);
-                ProfileManager.Load(ServerName, LoginScene.Account, lastChar);
+                ProfileManager.Load(ServerName, LoginScene.Account, lastChar, serial);
             }
 
             if (Player != null)

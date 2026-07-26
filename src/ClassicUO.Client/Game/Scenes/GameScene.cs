@@ -39,7 +39,7 @@ namespace ClassicUO.Game.Scenes
         private long _windowResizeStartTime = 0;
         private const int WINDOW_RESIZE_TIMEOUT_MS = 500;
         private const int TOLERANCE = 5;
-        private const float MAX_LAYER_DEPTH = 0x8000;
+        private const float MAX_LAYER_DEPTH = GameObjects.RenderDepth.FarPlane;
 
         private static readonly Lazy<BlendState> _darknessBlend = new Lazy<BlendState>(() =>
         {
@@ -245,9 +245,6 @@ namespace ClassicUO.Game.Scenes
             if(ProfileManager.CurrentProfile.EnableCaveBorder)
                 StaticFilters.ApplyCaveTileBorder();
 
-            // if(!ProfileManager.CurrentProfile.DisableConnectToIrcOnLogin)
-            //     TazUOChatManager.Instance.Init();
-
             if (ProfileManager.CurrentProfile.VoiceRecognitionEnabled)
                 VoiceRecognitionManager.Instance.InitializeAsync(ProfileManager.CurrentProfile.VoiceModelPath, startListeningAfter: true);
         }
@@ -376,8 +373,6 @@ namespace ClassicUO.Game.Scenes
 
             Instance = null;
 
-            TazUOChatManager.Instance.Dispose();
-
             GridContainerSaveData.Instance.Save();
             GridContainerSaveData.Reset();
             JournalFilterManager.Instance.Save();
@@ -434,6 +429,7 @@ namespace ClassicUO.Game.Scenes
             SpellVisualRangeManager.Instance.Save();
             SpellVisualRangeManager.Instance.OnSceneUnload();
             AutoLootManager.Instance.OnSceneUnload();
+            GridHighlightData.Unload();
             AutoSkinningManager.Instance.OnSceneUnload();
             FriendsListManager.Instance.OnSceneUnload();
 
@@ -1130,10 +1126,15 @@ namespace ClassicUO.Game.Scenes
 
         private float GetActiveScale() => Math.Max(0.0001f, Camera.Zoom);
 
+        public override bool DrawsOwnBackground => true;
+
         public override bool Draw(UltimaBatcher2D batcher)
         {
             if (!_world.InGame)
             {
+                // No world/light targets are rendered on this path, so nothing discards the screen
+                // target - draw the background directly (GameController skips it for this scene).
+                Client.Game.DrawWindowBackground(batcher);
                 return false;
             }
 
@@ -1190,8 +1191,21 @@ namespace ClassicUO.Game.Scenes
             }
 
             Profiler.EnterContext("DrawOverlays");
-            batcher.Begin(null, Camera.ViewTransformMatrix);
+
+            // Overheads (names, health bars, overhead text) can optionally be drawn in screen
+            // space (identity transform) so they keep a constant on-screen size regardless of the
+            // camera zoom. Their world anchors are converted to screen space per-object so they
+            // still follow the zoomed world. When scaling is enabled they are drawn under the
+            // camera transform exactly as before. This only affects the camera zoom scale, not any
+            // other (global) game scaling.
+            bool overheadsScaleWithZoom = ProfileManager.CurrentProfile?.OverheadsScaleWithZoom ?? true;
+
+            batcher.Begin(null, overheadsScaleWithZoom ? Camera.ViewTransformMatrix : Matrix.Identity);
             DrawOverheads(batcher);
+            batcher.End();
+
+            // The selection rectangle always tracks the world, so keep it under the camera transform.
+            batcher.Begin(null, Camera.ViewTransformMatrix);
             DrawSelection(batcher);
             batcher.End();
 
@@ -1225,6 +1239,11 @@ namespace ClassicUO.Game.Scenes
             Profiler.EnterContext("PrepareLights");
             bool canDrawLights = PrepareLightsRendering(batcher, ref _worldRtMatrix);
             Profiler.ExitContext("PrepareLights");
+
+            // The world/light render-target swaps above rebind (and discard) the screen target,
+            // wiping any background drawn before the scene. Redraw it now - behind the world
+            // composite below and all gumps drawn afterwards.
+            Client.Game.DrawWindowBackground(batcher);
 
             gd.Viewport = cameraViewport;
 
@@ -1268,6 +1287,10 @@ namespace ClassicUO.Game.Scenes
             batcher.Begin(null, matrix);
             batcher.SetBrightlight(ProfileManager.CurrentProfile.TerrainShadowsLevel * 0.1f);
             batcher.SetStencil(DepthStencilState.Default);
+
+            // Map world depth [0, FarPlane] across the entire depth buffer so tile depth values use
+            // the full 24-bit precision instead of only a fraction of it. Higher depth = nearer.
+            batcher.SetProjectionDepthRange(-GameObjects.RenderDepth.FarPlane, 0f);
 
             RenderedObjectsCount = 0;
             Profiler.EnterContext("Statics");
@@ -1314,6 +1337,9 @@ namespace ClassicUO.Game.Scenes
             }
 
             //GameController.DrawFlushCounts(batcher, 200, 200);
+
+            // Restore the default projection depth range for all other (non-world) batcher passes.
+            batcher.ResetProjectionDepthRange();
 
             batcher.End();
 
@@ -1621,6 +1647,10 @@ namespace ClassicUO.Game.Scenes
             {
                 return false;
             }
+
+            // Death-splash path returns early without rendering the world, so nothing discards the
+            // screen target here - draw the background so the splash sits on it like every other path.
+            Client.Game.DrawWindowBackground(batcher);
 
             batcher.Begin();
             _youAreDeadText.Draw(

@@ -4,6 +4,7 @@ using ClassicUO.Assets;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Scenes;
+using ClassicUO.Game.UI.Controls;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
@@ -20,6 +21,15 @@ namespace ClassicUO.Game.GameObjects
         private int _characterFrameStartY;
         private int _startCharacterWaistY;
         private int _startCharacterKneesY;
+        private TextBox _nameText;
+
+        // Extra vertical space to reserve above the overhead name/title so speech and
+        // damage text drawn by other systems (Mobile.UpdateTextCoordsV, OverheadDamage)
+        // doesn't overlap it.
+        internal int NameOverheadTextExtraHeight =>
+            ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.ShowMobileNameOverhead && _nameText != null
+                ? _nameText.Height + 5
+                : 0;
 
         public override bool Draw(UltimaBatcher2D batcher, int posX, int posY, float depth)
         {
@@ -486,12 +496,96 @@ namespace ClassicUO.Game.GameObjects
                     }
                 }
             }
+            
+            // drawY + FrameInfo.Y is the top of the drawn sprite.
+            int spriteTopY = drawY + FrameInfo.Y;
+            
+            if (profile.ShowMobileHealthbar)
+            {
+                spriteTopY -= 5;
+                DrawHealthbar(batcher, drawX, spriteTopY, depth);
+            }
+
+            if (profile.ShowMobileNameOverhead)
+            {
+                if (_nameText == null)
+                {
+                    string name = Name;
+
+                    if (World.OPL.TryGetNameAndData(this, out string oplname, out string opldata))
+                        if (oplname.NotNullNotEmpty())
+                            name = oplname;
+
+                    if(name.NotNullNotEmpty())
+                        _nameText = TextBox.GetOne(
+                            name, 
+                            profile.OverheadChatFont, 
+                            profile.OverheadChatFontSize, 
+                            Notoriety.GetHue(NotorietyFlag), 
+                            TextBox.RTLOptions.DefaultCenterStroked(profile.OverheadChatWidth));
+                }
+                else
+                {
+                    _nameText.Draw(batcher, drawX - (_nameText.Width >> 1), spriteTopY - _nameText.Height, depth);
+                }
+            }
 
             FrameInfo.X = Math.Abs(FrameInfo.X);
             FrameInfo.Y = Math.Abs(FrameInfo.Y);
             FrameInfo.Width = FrameInfo.X + FrameInfo.Width;
             FrameInfo.Height = FrameInfo.Y + FrameInfo.Height;
             return true;
+        }
+
+        private const int HEALTHBAR_WIDTH = 60;
+        private const int HEALTHBAR_HEIGHT = 5;
+
+        private void DrawHealthbar(UltimaBatcher2D batcher, int x, int y, float depth)
+        {
+            // Centered horizontally on the sprite, placed above the sprite.
+            int barX = x - (HEALTHBAR_WIDTH / 2);
+            int barY = y;
+
+            // Match the character's own draw depth so the bar sorts together with the mobile.
+            float barDepth = depth + 1f;
+
+            // Background
+            batcher.Draw(
+                SolidColorTextureCache.GetTexture(Color.Black),
+                new Rectangle(barX, barY, HEALTHBAR_WIDTH, HEALTHBAR_HEIGHT),
+                ShaderHueTranslator.GetHueVector(0, false, 1f),
+                barDepth
+            );
+
+            float hitPercentage = HitsMax > 0 ? (float)Hits / HitsMax : 1f;
+            hitPercentage = Math.Clamp(hitPercentage, 0f, 1f);
+
+            int fillWidth = (int)((HEALTHBAR_WIDTH - 2) * hitPercentage);
+
+            if (fillWidth > 0)
+            {
+                ushort barHue;
+
+                if (IsPoisoned)
+                {
+                    barHue = 63;
+                }
+                else if (IsYellowHits)
+                {
+                    barHue = 53;
+                }
+                else
+                {
+                    barHue = Notoriety.GetHue(NotorietyFlag);
+                }
+
+                batcher.Draw(
+                    SolidColorTextureCache.GetTexture(Color.White),
+                    new Rectangle(barX + 1, barY + 1, fillWidth, HEALTHBAR_HEIGHT - 2),
+                    ShaderHueTranslator.GetHueVector(barHue, false, 1f),
+                    barDepth + 0.01f
+                );
+            }
         }
 
         private ushort GetAnimationInfo(Item item, bool isGargoyle)

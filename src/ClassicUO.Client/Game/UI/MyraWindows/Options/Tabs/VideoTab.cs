@@ -239,6 +239,11 @@ public static class VideoTab
                 TazLang.Get("mog_videotab_zoom_returndefaultzoom"),
                 new Accessor<bool>(() => profile.RestoreScaleAfterUnpressCtrl),
                 search: new SearchMetadata(TazLang.Get("mog_videotab_zoom_returndefaultzoom"), Keywords: [TazLang.Get("mog_kw_restore"), TazLang.Get("mog_kw_ctrl")])
+            ),
+            Option.Checkbox(
+                TazLang.Get("mog_videotab_zoom_overheadsscale"),
+                new Accessor<bool>(() => profile.OverheadsScaleWithZoom),
+                search: new SearchMetadata(TazLang.Get("mog_videotab_zoom_overheadsscale"), Keywords: [TazLang.Get("mog_kw_zoom"), TazLang.Get("mog_kw_scale")])
             )
         );
     }
@@ -275,6 +280,16 @@ public static class VideoTab
                     profile.StatusGumpScale = Math.Clamp(newValue / 100, 0.5f, 3.0f);
                 }),
                 search: new SearchMetadata(TazLang.Get("gumpscaling_statusgumpscaling", "Status gump scaling"), Keywords: [TazLang.Get("mog_kw_scale")])
+            ),
+            Option.Slider(
+                TazLang.Get("gumpscaling_skillgumpscaling", "Skills gump scaling"),
+                50,
+                300,
+                new Accessor<float>(() => (int)(profile.SkillsGumpScale * 100), newValue =>
+                {
+                    profile.SkillsGumpScale = Math.Clamp(newValue / 100, 0.5f, 3.0f);
+                }),
+                search: new SearchMetadata(TazLang.Get("gumpscaling_skillgumpscaling", "Skills gump scaling"), Keywords: [TazLang.Get("mog_kw_scale")])
             ),
             Option.Slider(
                 TazLang.Get("gumpscaling_contextmenuscaling", "Context menu scaling"),

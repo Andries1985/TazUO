@@ -110,7 +110,12 @@ public partial class GridContainer : ResizableGump
             get
             {
                 string status = GetEnabledDisabledText(_autoSortContainer);
-                string sortModeText = _sortMode == GridSortMode.Name ? TazLang.Get("gridcontainer_sortmode_name", "Name") : TazLang.Get("gridcontainer_sortmode_graphichue", "Graphic + Hue");
+                string sortModeText = _sortMode switch
+                {
+                    GridSortMode.Name => TazLang.Get("gridcontainer_sortmode_name", "Name"),
+                    GridSortMode.Layer => TazLang.Get("gridcontainer_sortmode_layer", "Layer"),
+                    _ => TazLang.Get("gridcontainer_sortmode_graphichue", "Graphic + Hue")
+                };
                 return TazLang.Get("gridcontainer_sort_tooltip", new string[] { sortModeText, status });
             }
         }
@@ -532,7 +537,21 @@ public partial class GridContainer : ResizableGump
         {
             // If the container has no stored preference and was not opened in a specific mode, use the global default
             if (_gridContainerEntry.UseOriginalContainer == null && UseOldContainerStyle == null)
+            {
+                // Corpses can override the global "open all containers in original style" preference
+                // via their own dedicated setting.
+                if (_isCorpse)
+                {
+                    switch (ProfileManager.CurrentProfile.CorpseContainerStyle)
+                    {
+                        case CorpseContainerStyle.Grid: return false;
+                        case CorpseContainerStyle.Original: return true;
+                        // CorpseContainerStyle.OldGridLoot falls through to the global default
+                    }
+                }
+
                 return ProfileManager.CurrentProfile.GridContainersDefaultToOldStyleView;
+            }
 
             // Next, if the open request was made with a specific mode (i.e., useGridStyle != nul), use that,
             // otherwise, fallback to the stored preference (which, if we got here is *not* null, or we'd fall into the default case above)
@@ -692,6 +711,15 @@ public partial class GridContainer : ResizableGump
                 UpdateItems(true);
                 _gridContainerEntry.UpdateSaveDataEntry(this);
             }, true, _sortMode == GridSortMode.Name));
+
+            control.Add(new ContextMenuItemEntry(TazLang.Get("gridcontainer_sortbylayer", "Sort by Layer"), () =>
+            {
+                _sortMode = GridSortMode.Layer;
+                _sortContents.ContextMenu = GenSortContextMenu();
+                _sortContents.SetTooltip(SortButtonTooltip);
+                UpdateItems(true);
+                _gridContainerEntry.UpdateSaveDataEntry(this);
+            }, true, _sortMode == GridSortMode.Layer));
 
             return control;
         }
@@ -874,23 +902,30 @@ public partial class GridContainer : ResizableGump
         /// <param name="e">The mouse event's arguments</param>
         private void OnBackgroundMouseUp(object sender, MouseEventArgs e)
         {
-            // Check whether we're trying to drop an item on the background
-            if (e.Button != MouseButtonType.Left || !Client.Game.UO.GameCursor.ItemHold.Enabled)
+            if (e.Button != MouseButtonType.Left)
                 return;
 
             // Verify the sender is actually what we expect it to be
             if (sender is not Control { MouseIsOver: true })
                 return;
 
-            // Issue a direct drop item command and let the underlying `UpdateContainerItem`
-            // mechanisms take care of actual placement
-            GameActions.DropItem(
-                Client.Game.UO.GameCursor.ItemHold.Serial,
-                0xFFFF,
-                0xFFFF,
-                0,
-                LocalSerial
-            );
+            if (Client.Game.UO.GameCursor.ItemHold.Enabled)
+            {
+                // Issue a direct drop item command and let the underlying `UpdateContainerItem`
+                // mechanisms take care of actual placement
+                GameActions.DropItem(
+                    Client.Game.UO.GameCursor.ItemHold.Serial,
+                    0xFFFF,
+                    0xFFFF,
+                    0,
+                    LocalSerial
+                );
+            }
+            else if (World.TargetManager.IsTargeting && !ProfileManager.CurrentProfile.DisableTargetingGridContainers)
+            {
+                // Let a target cursor pick the bag itself, matching how an empty grid slot behaves
+                World.TargetManager.Target(LocalSerial);
+            }
         }
 
         protected override void OnMouseExit(int x, int y)

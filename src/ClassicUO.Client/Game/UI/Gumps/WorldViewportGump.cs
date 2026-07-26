@@ -34,7 +34,7 @@ namespace ClassicUO.Game.UI.Gumps
             _savedSize;
         private readonly GameScene _scene;
         private readonly SystemChatControl _systemChatControl;
-        private List<(string, ushort)>? _userNotifications = null;
+        private List<(string, ushort)> _userNotifications = null;
 
         private static Texture2D damageWindowOutline = SolidColorTextureCache.GetTexture(Color.White);
         public static Vector3 DamageWindowOutlineHue = ShaderHueTranslator.GetHueVector(32);
@@ -131,6 +131,13 @@ namespace ClassicUO.Game.UI.Gumps
                 _userNotifications.Add(("Warning: It looks like your UO folder is stored inside TazUO, this is discouraged as you may accidentally have your UO files deleted.", Constants.HUE_ERROR));
             }
 
+            while (ConfigurationResolver.CorruptFiles.TryDequeue(out string corruptFile))
+            {
+                _userNotifications ??= new();
+                _userNotifications.Add(($"Warning: The configuration file '{Path.GetFileName(corruptFile)}' was corrupt and could not be loaded. " +
+                                        $"Default settings were used and a backup was saved to '{Path.GetFileName(corruptFile)}.corrupt'.", Constants.HUE_ERROR));
+            }
+
             // Community poll reminder is fetched asynchronously; kick it off before starting the flush
             // timer so a fast result lands in the same batch as the notifications above.
             QueueUnvotedPollsNotification();
@@ -171,24 +178,21 @@ namespace ClassicUO.Game.UI.Gumps
         /// shows a reminder. The fetch is asynchronous, so the message is added to the pending
         /// notification batch while it is still open, otherwise printed directly once we are in-world.
         /// </summary>
-        private void QueueUnvotedPollsNotification()
-        {
-            Task.Run(async () =>
-            {
-                string message = await FirebasePollsManager.GetUnvotedNotificationAsync();
+        private void QueueUnvotedPollsNotification() => Task.Run(async () =>
+                                                                 {
+                                                                     string message = await FirebasePollsManager.GetUnvotedNotificationAsync();
 
-                if (string.IsNullOrEmpty(message))
-                    return;
+                                                                     if (string.IsNullOrEmpty(message))
+                                                                         return;
 
-                MainThreadQueue.InvokeOnMainThread(() =>
-                {
-                    if (_userNotifications != null)
-                        _userNotifications.Add((message, Constants.HUE_WARN));
-                    else if (World.Instance != null)
-                        GameActions.Print(message, Constants.HUE_WARN);
-                });
-            });
-        }
+                                                                     MainThreadQueue.InvokeOnMainThread(() =>
+                                                                     {
+                                                                         if (_userNotifications != null)
+                                                                             _userNotifications.Add((message, Constants.HUE_WARN));
+                                                                         else if (World.Instance != null)
+                                                                             GameActions.Print(message, Constants.HUE_WARN);
+                                                                     });
+                                                                 });
 
         public override void Update()
         {

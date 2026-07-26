@@ -12,7 +12,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml;
-using ClassicUO.Utility.Logging;
 using Color = Microsoft.Xna.Framework.Color;
 using Point = Microsoft.Xna.Framework.Point;
 using Rectangle = Microsoft.Xna.Framework.Rectangle;
@@ -692,7 +691,7 @@ namespace ClassicUO.Game.UI.Gumps
                         ClearSelection();
                     }
 
-                    removed.Destroy();
+                    removed?.Destroy();
                 }
 
                 string timestampText = $"{time:t}";
@@ -899,11 +898,16 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     return y < 0 ? 0 : entry.TextLength;
                 }
-
-                int lineIndex = line.GetGlyphIndexByX(x) ?? (x <= 0 ? 0 : line.Count);
-                int lineStart = entry.GetTextIndexFromRawOffset(line.TextStartIndex);
-
-                return Math.Clamp(lineStart + lineIndex, 0, entry.TextLength);
+                try {
+                    int lineIndex = line.GetGlyphIndexByX(x) ?? (x <= 0 ? 0 : line.Count);
+                    int lineStart = entry.GetTextIndexFromRawOffset(line.TextStartIndex);
+                    return Math.Clamp(lineStart + lineIndex, 0, entry.TextLength);
+                }
+                catch(Exception)
+                {
+                    int lineStart = entry.GetTextIndexFromRawOffset(line.TextStartIndex);
+                    return Math.Clamp(lineStart, 0, entry.TextLength);
+                }
             }
 
             private void DrawSelection(UltimaBatcher2D batcher, JournalData entry, int x, int y)
@@ -1136,7 +1140,7 @@ namespace ClassicUO.Game.UI.Gumps
             private void Reset()
             {
                 foreach (JournalData _ in journalDatas)
-                    _.Destroy();
+                    _?.Destroy();
 
                 journalDatas.Clear();
                 ClearSelection();

@@ -23,6 +23,7 @@ using static ClassicUO.Configuration.ProfileManager;
 
 namespace ClassicUO.Game.UI.Gumps
 {
+    [Obsolete("Use OptionsWindow instead. This will be removed in the future.")]
     public class ModernOptionsGump : BaseOptionsGump
     {
         private List<SettingsOption> _options = new List<SettingsOption>();
@@ -531,17 +532,17 @@ namespace ClassicUO.Game.UI.Gumps
             (
                 c = new ComboBoxWithLabel
                 (World,
-                    TazLang.Get("mog_general_gridloot"), 0, ThemeSettings.COMBO_BOX_WIDTH,
+                    TazLang.Get("mog_tazuo_corpsecontainerstyle"), 0, ThemeSettings.COMBO_BOX_WIDTH,
                     new string[]
                     {
-                        TazLang.Get("mog_general_gridlootoptdisable"), TazLang.Get("mog_general_gridlootoptonly"),
-                        TazLang.Get("mog_general_gridlootoptboth")
-                    }, profile.GridLootType,
-                    (s, n) => { profile.GridLootType = s; }
+                        TazLang.Get("mog_tazuo_corpsestyleopt_grid"), TazLang.Get("mog_tazuo_corpsestyleopt_original"),
+                        TazLang.Get("mog_tazuo_corpsestyleopt_oldgridloot"), TazLang.Get("mog_tazuo_corpsestyleopt_oldgridlootandcontainer")
+                    }, (int)profile.CorpseContainerStyle,
+                    (s, n) => { profile.CorpseContainerStyle = (CorpseContainerStyle)s; }
                 ), true, page
             );
 
-            c.SetTooltip(TazLang.Get("mog_general_gridloottooltip"));
+            c.SetTooltip(TazLang.Get("mog_tazuo_tooltipcorpsecontainerstyle"));
 
             content.BlankLine();
 
@@ -770,6 +771,12 @@ namespace ClassicUO.Game.UI.Gumps
             content.AddToRight
             (new CheckboxWithLabel(TazLang.Get("mog_general_treestostump"), isChecked: profile.TreeToStumps, valueChanged: (b) => { profile.TreeToStumps = b; }),
                 true, page);
+
+            content.Indent();
+            content.AddToRight
+            (new CheckboxWithLabel(TazLang.Get("mog_general_treestostumpradius"), isChecked: profile.TreeToStumpsWithinRadius, valueChanged: (b) => { profile.TreeToStumpsWithinRadius = b; }),
+                true, page);
+            content.RemoveIndent();
 
             content.BlankLine();
 
@@ -3103,8 +3110,15 @@ namespace ClassicUO.Game.UI.Gumps
 
             content.AddToRight
             (
-                new CheckboxWithLabel(TazLang.Get("mog_tazuo_enablegridcontainers"), 0, profile.UseGridLayoutContainerGumps,
-                    (b) => { profile.UseGridLayoutContainerGumps = b; }), true, page
+                new ComboBoxWithLabel
+                (World,
+                    TazLang.Get("mog_general_containerstyle"), 0, ThemeSettings.COMBO_BOX_WIDTH,
+                    new string[]
+                    {
+                        TazLang.Get("mog_containerstyleopt_grid"), TazLang.Get("mog_containerstyleopt_original")
+                    }, (int)profile.ContainerStyle,
+                    (s, n) => { profile.ContainerStyle = (ContainerStyle)s; }
+                ), true, page
             );
 
             content.BlankLine();
@@ -4326,6 +4340,12 @@ namespace ClassicUO.Game.UI.Gumps
             content.BlankLine();
 
             content.AddToRight
+            (new CheckboxWithLabel(TazLang.Get("mog_tazuo_ignoretooltipoverridesformobiles"), 0, profile.ToolTipOverride_IgnoreMobiles, b => { profile.ToolTipOverride_IgnoreMobiles = b; }),
+                true, page);
+
+            content.BlankLine();
+
+            content.AddToRight
             (new HttpClickableLink("Tooltip Overrides Wiki", "https://github.com/PlayTazUO/TazUO/wiki/TazUO.Tooltip-Override", ThemeSettings.TEXT_FONT_COLOR),
                 true, page);
 
@@ -4341,7 +4361,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (e.Button == Input.MouseButtonType.Left)
                 {
-                    UIManager.Add(new TooltipConfigGump());
+                    MyraWindows.TooltipOverrideWindow.Show(World.Instance);
                 }
             };
 
@@ -4781,6 +4801,20 @@ namespace ClassicUO.Game.UI.Gumps
                         //Must be cast even though VS thinks it's redundant.
                         double v = (double)i / (double)100;
                         profile.StatusGumpScale = v > 0 ? v : 1f;
+                    }
+                ), true, page
+            );
+
+            content.AddToRight
+            (
+                new SliderWithLabel
+                (
+                    TazLang.Get("gumpscaling_skillgump", "Skills Gump"), 0, ThemeSettings.SLIDER_WIDTH, 50, 300,
+                    (int)(profile.SkillsGumpScale * 100), (i) =>
+                    {
+                        //Must be cast even though VS thinks it's redundant.
+                        double v = (double)i / (double)100;
+                        profile.SkillsGumpScale = v > 0 ? v : 1f;
                     }
                 ), true, page
             );

@@ -2,6 +2,7 @@
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
+using ClassicUO.Game.Managers.Hotkeys;
 using ClassicUO.Game.Scenes;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
@@ -20,6 +21,7 @@ using ClassicUO.Common.Enums;
 using ClassicUO.Game.UI.Gumps.SpellBar;
 using ClassicUO.LegionScripting;
 using static SDL3.SDL;
+using ClassicUO.Game.UI;
 
 namespace ClassicUO.Game.Managers
 {
@@ -52,7 +54,29 @@ namespace ClassicUO.Game.Managers
         };
 
 
-        public MacroManager(World world) { _world = world; }
+        public MacroManager(World world)
+        {
+            _world = world;
+            EventSink.JournalEntryAdded += OnJournalEntryAdded;
+        }
+
+        private void OnJournalEntryAdded(object sender, JournalEntry e)
+        {
+            if (e == null || string.IsNullOrEmpty(e.Text) || _world?.Player == null)
+            {
+                return;
+            }
+
+            for (var macro = (Macro)Items; macro != null; macro = (Macro)macro.Next)
+            {
+                if (macro.HasJournalTriggers && macro.MatchesJournalTrigger(e.Text) && macro.Items is MacroObject macroObject)
+                {
+                    SetMacroToExecute(macroObject);
+                    WaitForTargetTimer = 0;
+                    break;
+                }
+            }
+        }
 
         public long WaitForTargetTimer { get; set; }
 
@@ -104,7 +128,7 @@ namespace ClassicUO.Game.Managers
             }
         }
 
-        public void Save(string? path = null)
+        public void Save(string path = null)
         {
             List<Macro> list = GetAllMacros();
 
@@ -2400,16 +2424,16 @@ namespace ClassicUO.Game.Managers
                     break;
 
                 case MacroType.CloseCorpses:
-                    int? gridLootType = ProfileManager.CurrentProfile?.GridLootType; // 0 = none, 1 = only grid, 2 = both
+                    CorpseContainerStyle corpseStyle = ProfileManager.CurrentProfile?.CorpseContainerStyle ?? CorpseContainerStyle.Grid;
 
-                    if (gridLootType == 0 || gridLootType == 2)
+                    if (corpseStyle is CorpseContainerStyle.Original or CorpseContainerStyle.OldGridLootAndContainer)
                         UIManager.ForEach<ContainerGump>(g =>
                         {
                             if (g.Graphic == ContainerGump.CORPSES_GUMP)
                                 g.Dispose();
                         });
 
-                    if (gridLootType == 1 || gridLootType == 2)
+                    if (corpseStyle is CorpseContainerStyle.OldGridLoot or CorpseContainerStyle.OldGridLootAndContainer)
                         UIManager.ForEach<GridLootGump>(g =>
                         {
                             g.Dispose();
@@ -2489,8 +2513,7 @@ namespace ClassicUO.Game.Managers
                     break;
 
                 case MacroType.ToggleHotkeys:
-                    ProfileManager.CurrentProfile.DisableHotkeys = !ProfileManager.CurrentProfile.DisableHotkeys;
-                    GameActions.Print($"Hotkeys {(ProfileManager.CurrentProfile.DisableHotkeys ? "disabled" : "enabled")}.");
+                    HotKeyRegistrar.ToggleHotkeysEnabled();
                     break;
 
 
@@ -2561,7 +2584,7 @@ namespace ClassicUO.Game.Managers
         /// </summary>
         private Item GetHoveredItem()
         {
-            for (var control = UIManager.MouseOverControl; control != null && control is not Gump; control = control.Parent)
+            for (IGui control = UIManager.MouseOverControl; control != null && control is not Gump; control = control.Parent)
             {
                 if (!SerialHelper.IsItem(control.LocalSerial))
                     continue;
@@ -2716,6 +2739,76 @@ namespace ClassicUO.Game.Managers
         public bool Alt { get; set; }
         public bool Ctrl { get; set; }
         public bool Shift { get; set; }
+
+        private string _journalTriggers = string.Empty;
+
+        /// <summary>
+        /// Semicolon (;) separated list of journal messages that will trigger this macro when received.
+        /// A macro is triggered when a journal entry contains any one of these substrings (case-insensitive).
+        /// </summary>
+        public string JournalTriggers
+        {
+            get => _journalTriggers;
+            set
+            {
+                _journalTriggers = value ?? string.Empty;
+                HasJournalTriggers = !string.IsNullOrWhiteSpace(_journalTriggers);
+            }
+        }
+
+        /// <summary>
+        /// Cached flag indicating this macro has at least one journal trigger configured.
+        /// Used as a cheap pre-check so journal processing can skip macros without triggers.
+        /// </summary>
+        public bool HasJournalTriggers { get; private set; }
+
+        /// <summary>
+        /// Returns true when the given journal text matches one of this macro's configured journal triggers.
+        /// </summary>
+        public bool MatchesJournalTrigger(string text)
+        {
+            if (!HasJournalTriggers || string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
+            string[] triggers = _journalTriggers.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            foreach (string trigger in triggers)
+            {
+                if (!string.IsNullOrEmpty(trigger) && text.Contains(trigger, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public HotkeyBinding GetBinding() => new()
+        {
+            Key = Key,
+            Ctrl = Ctrl,
+            Shift = Shift,
+            Alt = Alt,
+            MouseButton = MouseButton,
+            WheelScroll = WheelScroll,
+            WheelUp = WheelUp,
+            ControllerButtons = ControllerButtons
+        };
+
+        public void ApplyBinding(HotkeyBinding binding)
+        {
+            Key = binding.Key;
+            Ctrl = binding.Ctrl;
+            Shift = binding.Shift;
+            Alt = binding.Alt;
+            MouseButton = binding.MouseButton;
+            WheelScroll = binding.WheelScroll;
+            WheelUp = binding.WheelUp;
+            ControllerButtons = binding.ControllerButtons;
+        }
+
         public bool HideLabel = false;
         public ushort Hue = 0x00;
         public ushort? Graphic = null;
@@ -2779,6 +2872,7 @@ namespace ClassicUO.Game.Managers
             writer.WriteAttributeString("hue", Hue.ToString());
             writer.WriteAttributeString("graphic", Graphic.HasValue ? Graphic.ToString() : string.Empty);
             writer.WriteAttributeString("scale", Scale.ToString());
+            writer.WriteAttributeString("journaltriggers", JournalTriggers ?? string.Empty);
 
             writer.WriteStartElement("actions");
 
@@ -2828,7 +2922,12 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            Key = (SDL_Keycode)int.Parse(xml.GetAttribute("key"));
+            if (!Enum.TryParse(xml.GetAttribute("key"), out SDL_Keycode mainKey))
+                mainKey = (int)SDL_Keycode.SDLK_UNKNOWN;
+            
+
+
+            Key = mainKey;
             Alt = bool.Parse(xml.GetAttribute("alt"));
             Ctrl = bool.Parse(xml.GetAttribute("ctrl"));
             Shift = bool.Parse(xml.GetAttribute("shift"));
@@ -2841,6 +2940,11 @@ namespace ClassicUO.Game.Managers
             if (ushort.TryParse(xml.GetAttribute("graphic"), out ushort graphic))
             {
                 Graphic = graphic;
+            }
+
+            if (xml.HasAttribute("journaltriggers"))
+            {
+                JournalTriggers = xml.GetAttribute("journaltriggers");
             }
 
             if (xml.HasAttribute("mousebutton"))

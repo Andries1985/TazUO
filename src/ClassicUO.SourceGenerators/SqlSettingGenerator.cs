@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -29,6 +30,14 @@ namespace ClassicUO.Configuration
         public SettingsScope Scope { get; }
         public string Key { get; }
         public object DefaultValue { get; }
+
+        /// <summary>
+        ///     Optional name of a method (static or instance, on the Profile class) invoked on the
+        ///     incoming value before it is stored, e.g. to clamp it. The method must take a single
+        ///     parameter of the property type and return the property type:
+        ///     <c>T OnSet(T value)</c>. The generated setter runs it before the change comparison.
+        /// </summary>
+        public string OnSet { get; set; }
     }
 }
 ";
@@ -72,6 +81,14 @@ namespace ClassicUO.Configuration
             // Argument 2: default value (typed constant, boxed)
             object defaultRaw = attr.ConstructorArguments[2].Value;
 
+            // Optional named argument: OnSet = name of a transform/clamp method.
+            string onSet = null;
+            foreach (KeyValuePair<string, TypedConstant> na in attr.NamedArguments)
+            {
+                if (na.Key == "OnSet" && na.Value.Value is string s && s.Length > 0)
+                    onSet = s;
+            }
+
             string typeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
             string fullTypeName = prop.Type.SpecialType != SpecialType.None
                 ? GetPrimitiveTypeName(prop.Type.SpecialType)
@@ -87,7 +104,8 @@ namespace ClassicUO.Configuration
                     Key = key,
                     DefaultValueLiteral = "default",
                     ContainingNamespace = containingType.ContainingNamespace?.ToDisplayString() ?? "ClassicUO.Configuration",
-                    IsUnsupportedType = true
+                    IsUnsupportedType = true,
+                    OnSetMethod = onSet
                 };
             }
 
@@ -101,7 +119,8 @@ namespace ClassicUO.Configuration
                 Key = key,
                 DefaultValueLiteral = defaultLiteral,
                 ContainingNamespace = containingType.ContainingNamespace?.ToDisplayString() ?? "ClassicUO.Configuration",
-                IsUnsupportedType = false
+                IsUnsupportedType = false,
+                OnSetMethod = onSet
             };
         }
 
@@ -110,10 +129,12 @@ namespace ClassicUO.Configuration
             switch (st)
             {
                 case SpecialType.System_Boolean: return "bool";
+                case SpecialType.System_Byte:    return "byte";
                 case SpecialType.System_Int32:   return "int";
                 case SpecialType.System_UInt32:  return "uint";
                 case SpecialType.System_Int16:   return "short";
                 case SpecialType.System_UInt16:  return "ushort";
+                case SpecialType.System_UInt64:  return "ulong";
                 case SpecialType.System_Single:  return "float";
                 case SpecialType.System_Double:  return "double";
                 case SpecialType.System_String:  return "string";
@@ -127,10 +148,12 @@ namespace ClassicUO.Configuration
             switch (typeName)
             {
                 case "bool":
+                case "byte":
                 case "int":
                 case "uint":
                 case "short":
                 case "ushort":
+                case "ulong":
                 case "float":
                 case "double":
                 case "string":
@@ -151,8 +174,8 @@ namespace ClassicUO.Configuration
             switch (typeName)
             {
                 case "bool":   return (bool)value ? "true" : "false";
-                case "float":  return ((float)(double)value).ToString("R") + "f";
-                case "double": return ((double)value).ToString("R") + "d";
+                case "float":  return Convert.ToSingle(value).ToString("R") + "f";
+                case "double": return Convert.ToDouble(value).ToString("R") + "d";
                 case "string": return "\"" + value.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
                 default:       return value.ToString();
             }
@@ -186,10 +209,12 @@ namespace ClassicUO.Configuration
             switch (typeName)
             {
                 case "bool":   return $"bool.TryParse({rawVar}, out bool {varName})";
+                case "byte":   return $"byte.TryParse({rawVar}, out byte {varName})";
                 case "int":    return $"int.TryParse({rawVar}, out int {varName})";
                 case "uint":   return $"uint.TryParse({rawVar}, out uint {varName})";
                 case "short":  return $"short.TryParse({rawVar}, out short {varName})";
                 case "ushort": return $"ushort.TryParse({rawVar}, out ushort {varName})";
+                case "ulong":  return $"ulong.TryParse({rawVar}, out ulong {varName})";
                 case "float":  return $"float.TryParse({rawVar}, out float {varName})";
                 case "double": return $"double.TryParse({rawVar}, out double {varName})";
                 case "string": return null; // no TryParse needed
@@ -271,6 +296,8 @@ namespace ClassicUO.Configuration
                 sb.AppendLine("            get;");
                 sb.AppendLine("            set");
                 sb.AppendLine("            {");
+                if (!string.IsNullOrEmpty(m.OnSetMethod))
+                    sb.AppendLine($"                value = {m.OnSetMethod}(value);");
                 sb.AppendLine("                if (field != value)");
                 sb.AppendLine("                {");
                 sb.AppendLine($"                    _ = Client.Settings.SetAsync(SettingsScope.{scopeName}, \"{m.Key}\", value);");
@@ -290,11 +317,12 @@ namespace ClassicUO.Configuration
             // Group by scope ordinal
             var byScope = valid.GroupBy(m => m.ScopeOrdinal).ToDictionary(g => g.Key, g => g.ToList());
 
-            // Global / Account / Server: bulk dict load
-            foreach (int scopeOrdinal in new[] { 3, 1, 2 }) // Global, Account, Server
+            // All 4 scopes: bulk dict load. Always emit all four methods (even if empty)
+            // so callers can unconditionally load every scope without checking which ones are in use.
+            foreach (int scopeOrdinal in new[] { 3, 1, 2, 0 }) // Global, Account, Server, Char
             {
                 if (!byScope.TryGetValue(scopeOrdinal, out List<SqlSettingModel> group))
-                    continue;
+                    group = new List<SqlSettingModel>();
 
                 string scopeName = ScopeName(scopeOrdinal);
                 sb.AppendLine($"        internal void LoadGenerated{scopeName}SqlSettings(System.Collections.Generic.Dictionary<string, string> kvp)");
@@ -321,19 +349,6 @@ namespace ClassicUO.Configuration
                 sb.AppendLine();
             }
 
-            // Char: individual async loads
-            if (byScope.TryGetValue(0, out List<SqlSettingModel> charGroup))
-            {
-                sb.AppendLine("        internal void LoadGeneratedCharSqlSettings()");
-                sb.AppendLine("        {");
-                foreach (SqlSettingModel m in charGroup)
-                {
-                    sb.AppendLine($"            _ = Client.Settings.GetAsyncOnMainThread(SettingsScope.Char, \"{m.Key}\", {m.DefaultValueLiteral}, _v => {{ {m.PropertyName} = _v; }});");
-                }
-                sb.AppendLine("        }");
-                sb.AppendLine();
-            }
-
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
@@ -350,5 +365,6 @@ namespace ClassicUO.Configuration
         public string DefaultValueLiteral { get; set; }
         public string ContainingNamespace { get; set; }
         public bool IsUnsupportedType { get; set; }
+        public string OnSetMethod { get; set; }
     }
 }

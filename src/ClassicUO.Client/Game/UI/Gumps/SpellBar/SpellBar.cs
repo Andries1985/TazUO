@@ -127,10 +127,10 @@ public class SpellBar : Gump
         rowLabel.Y = (Height - rowLabel.Height) >> 1;
         Add(rowLabel);
 
-        PNGLoader.Instance.TryGetEmbeddedTexture("upicon.png", out Microsoft.Xna.Framework.Graphics.Texture2D upTexture);
+        ExternalImageLoader.Instance.TryGetEmbeddedTexture("upicon.png", out Microsoft.Xna.Framework.Graphics.Texture2D upTexture);
         var up = new EmbeddedGumpPic(Width - 31, 0, upTexture, 148);
         up.MouseUp += (sender, e) => { ChangeRow(false); };
-        PNGLoader.Instance.TryGetEmbeddedTexture("downicon.png", out Microsoft.Xna.Framework.Graphics.Texture2D downTexture);
+        ExternalImageLoader.Instance.TryGetEmbeddedTexture("downicon.png", out Microsoft.Xna.Framework.Graphics.Texture2D downTexture);
         var down = new EmbeddedGumpPic(Width - 31, Height - 16, downTexture, 148);
         down.MouseUp += (sender, e) => { ChangeRow(true); };
 
@@ -669,6 +669,14 @@ public class SpellBar : Gump
                     icon.IsVisible = false;
                     SetTooltip(string.Empty);
                 }
+            }
+            else if (slot != null && slot.Type == SpellBarSlotType.Spell)
+            {
+                // Toggle moves (e.g. Ninjitsu Backstab, Ki Attack) report on/off via ActiveSpellIcons; keep the highlight in sync.
+                bool active = World.ActiveSpellIcons.IsActive((ushort)slot.CurrentSpellID);
+                ushort wanted = (ushort)(active ? 38 : 0);
+                if (icon.Hue != wanted)
+                    icon.Hue = wanted;
             }
 
             if (!base.Draw(batcher, x, y))
