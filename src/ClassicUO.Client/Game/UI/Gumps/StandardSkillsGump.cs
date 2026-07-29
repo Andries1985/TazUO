@@ -107,7 +107,7 @@ namespace ClassicUO.Game.UI.Gumps
                 (
                     World.Player.Skills.Sum(s => s.Value).ToString("F1"),
                     false,
-                    600,
+                    1300,
                     0,
                     3
                 ) { X = _bottomComment.X + _bottomComment.Width + S(5), Y = _bottomComment.Y - S(5) }
@@ -166,7 +166,7 @@ namespace ClassicUO.Game.UI.Gumps
             Add(_resetGroups = new NiceButton(_scrollArea.X + S(25), _scrollArea.Y + S(7), S(100), S(18),
                                               ButtonAction.Activate, ResGumps.ResetGroups,
                                               unicode: false,
-                                              font: 6)
+                                              font: 1)
             {
                 ButtonParameter = 1,
                 IsSelectable = false,
@@ -452,13 +452,13 @@ namespace ClassicUO.Game.UI.Gumps
                 Add(_button);
                 _button.ApplyScale(_gump.UIScale, scalePosition: false);
 
-                int width = Client.Game.UO.FileManager.Fonts.GetWidthASCII(6, group.Name);
+                int width = Client.Game.UO.FileManager.Fonts.GetWidthASCII(1, group.Name);
 
                 Add
                 (
                     _textbox = new StbTextBox
                     (
-                        6,
+                        1,
                         -1,
                         S(200),
                         false,
@@ -682,7 +682,7 @@ namespace ClassicUO.Game.UI.Gumps
                     _textbox.SetText(text);
                 }
 
-                int width = Client.Game.UO.FileManager.Fonts.GetWidthASCII(6, text);
+                int width = Client.Game.UO.FileManager.Fonts.GetWidthASCII(1, text);
                 int xx = width + 11 + 16;
 
                 if (xx > 0)
@@ -853,7 +853,7 @@ namespace ClassicUO.Game.UI.Gumps
                     _buttonStatus = new Button(1, graphic, graphic, graphic)
                     {
                         ButtonAction = ButtonAction.Activate,
-                        X = S(251),
+                        X = S(244),
                         ContainsByBounds = true
                     };
 
@@ -861,11 +861,11 @@ namespace ClassicUO.Game.UI.Gumps
                     _buttonStatus.ApplyScale(_gump.UIScale, scalePosition: false);
 
                     Label name;
-                    Add(name = new Label(skill.Name, false, 0x0288, font: 9));
+                    Add(name = new Label(skill.Name, false, 1300, font: 9));
                     name.X = S(22);
                     name.SetInternalScale(_gump.UIScale);
 
-                    Add(_value = new Label("", false, 0x0288, font: 9));
+                    Add(_value = new Label("", false, 1300, font: 9));
                     _value.SetInternalScale(_gump.UIScale);
 
                     UpdateValueText(false, false);
@@ -953,7 +953,7 @@ namespace ClassicUO.Game.UI.Gumps
                     }
 
                     _value.Text = $"{val:F1}";
-                    _value.X = S(250) - _value.Width;
+                    _value.X = S(250) - _value.Width - 4;
                 }
             }
 
