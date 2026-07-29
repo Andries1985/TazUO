@@ -155,6 +155,14 @@ public sealed partial class Profile
         public partial bool CounterBarShowHotkeys { get; set; }
 
         [JsonIgnore]
+        [SqlSetting(SettingsScope.Global, "counter_bar__disable_item_scaling", false)]
+        public partial bool CounterBarDisableItemScaling { get; set; }
+
+        [JsonIgnore]
+        [SqlSetting(SettingsScope.Global, "counter_bar__disable_icon_scaling", false)]
+        public partial bool CounterBarDisableIconScaling { get; set; }
+
+        [JsonIgnore]
         [SqlSetting(SettingsScope.Global, "nearby_loot_conceals_container_on_open", true)]
         public partial bool NearbyLootConcealsContainerOnOpen { get; set; }
 
@@ -388,4 +396,9 @@ public sealed partial class Profile
         [JsonIgnore]
         [SqlSetting(SettingsScope.Global, "auto_loot_human_corpses", false)]
         public partial bool AutoLootHumanCorpses { get; set; }
+
+        // When true, in-game lights gently ebb and flow like a mild candle flame.
+        [JsonIgnore]
+        [SqlSetting(SettingsScope.Global, "candle_flicker_lights", true)]
+        public partial bool CandleFlickerLights { get; set; }
 }
