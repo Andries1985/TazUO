@@ -114,13 +114,13 @@ namespace ClassicUO.Game.UI.Gumps
                         texts[i],
                         1,
                         true,
-                        0,
-                        0x0036
+                        1153,
+                        1300
                     )
                     {
                         ButtonAction = ButtonAction.Activate,
                         X = startX,
-                        Y = 1,
+                        Y = 2,
                         FontCenter = true
                     },
                     1
@@ -138,13 +138,13 @@ namespace ClassicUO.Game.UI.Gumps
                 TazLang.Get("topbargump_assistant", "Assistant"),
                 1,
                 true,
-                0,
-                0x0036
+                1153,
+                1300
             )
             {
                 ButtonAction = ButtonAction.Activate,
                 X = startX,
-                Y = 1,
+                Y = 2,
                 FontCenter = true
             }, 1);
             assistant.MouseUp += (s, e) =>
@@ -161,13 +161,13 @@ namespace ClassicUO.Game.UI.Gumps
                 TazLang.Get("topbargump_legionscript", "Legion Script"),
                 1,
                 true,
-                0,
-                0x0036
+                1153,
+                1300
             )
             {
                 ButtonAction = ButtonAction.Activate,
                 X = startX,
-                Y = 1,
+                Y = 2,
                 FontCenter = true
             }, 1);
             lscript.MouseUp += (s, e) => {
@@ -187,13 +187,13 @@ namespace ClassicUO.Game.UI.Gumps
                     TazLang.Get("topbargump_more", "More +"),
                     1,
                     true,
-                    0,
-                    0x0036
+                    1153,
+                    1300
                 )
                 {
                     ButtonAction = ButtonAction.Activate,
                     X = startX,
-                    Y = 1,
+                    Y = 2,
                     FontCenter = true
                 },
                 1
@@ -302,13 +302,13 @@ namespace ClassicUO.Game.UI.Gumps
                         TazLang.Get("topbargump_xmlgumps", "Xml Gumps"),
                         1,
                         true,
-                        0,
-                        0x0036
+                        1153,
+                        1300
                     )
                     {
                         ButtonAction = ButtonAction.Activate,
                         X = startX,
-                        Y = 1,
+                        Y = 2,
                         FontCenter = true
                     },
                     1
