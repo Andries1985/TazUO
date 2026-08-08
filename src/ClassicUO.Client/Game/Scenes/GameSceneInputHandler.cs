@@ -10,7 +10,6 @@ using ClassicUO.Game.Managers.Hotkeys;
 using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Network;
-using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using SDL3;
@@ -438,6 +437,10 @@ namespace ClassicUO.Game.Scenes
                 return false;
             }
 
+            // Drop focus from other inputs the instant the world is pressed, not just on release,
+            // so a press-and-hold (e.g. hold-to-walk) also releases the previously focused field.
+            UIManager.RestoreSystemChatFocus();
+
             if (_world.CustomHouseManager != null)
             {
                 HandleHouseManagerMouseDown();
@@ -540,11 +543,7 @@ namespace ClassicUO.Game.Scenes
                 return false;
             }
 
-            if (UIManager.SystemChat != null && !UIManager.SystemChat.IsFocused)
-            {
-                UIManager.KeyboardFocusControl = null;
-                UIManager.SystemChat.SetFocus();
-            }
+            UIManager.RestoreSystemChatFocus();
 
             if (!ProfileManager.CurrentProfile.DisableAutoMove && _rightMousePressed)
             {
@@ -1044,7 +1043,7 @@ namespace ClassicUO.Game.Scenes
                             _world.Player.AddMessage
                             (
                                 MessageType.Label,
-                                ResGeneral.Pathfinding,
+                                TazLang.Get("pathfinding"),
                                 3,
                                 0,
                                 false,
@@ -1059,7 +1058,7 @@ namespace ClassicUO.Game.Scenes
                         _world.Player.AddMessage
                         (
                             MessageType.Label,
-                            ResGeneral.Pathfinding,
+                            TazLang.Get("pathfinding"),
                             3,
                             0,
                             false,
@@ -1100,7 +1099,7 @@ namespace ClassicUO.Game.Scenes
                         {
                             _world.Player.AddMessage(
                                 MessageType.Label,
-                                ResGeneral.Pathfinding,
+                                TazLang.Get("pathfinding"),
                                 3,
                                 0,
                                 false,
@@ -1114,7 +1113,7 @@ namespace ClassicUO.Game.Scenes
                     {
                         _world.Player.AddMessage(
                             MessageType.Label,
-                            ResGeneral.Pathfinding,
+                            TazLang.Get("pathfinding"),
                             3,
                             0,
                             false,

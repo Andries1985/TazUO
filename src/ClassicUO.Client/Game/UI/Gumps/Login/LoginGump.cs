@@ -8,7 +8,6 @@ using ClassicUO.Game.UI.MyraWindows;
 using ClassicUO.Input;
 using ClassicUO.Assets;
 using ClassicUO.Renderer;
-using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using SDL3;
@@ -108,7 +107,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label(ResGumps.Account, false, HUE, font: 2)
+                    new Label(TazLang.Get("account"), false, HUE, font: 2)
                     {
                         X = 183,
                         Y = 345
@@ -117,7 +116,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
                 Add
                 (
-                    new Label(ResGumps.Password, false, HUE, font: 2)
+                    new Label(TazLang.Get("password"), false, HUE, font: 2)
                     {
                         X = 183,
                         Y = 385
@@ -146,7 +145,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         0x00D2,
                         0x00D3,
-                        ResGumps.Autologin,
+                        TazLang.Get("autologin"),
                         1,
                         0x0386,
                         false
@@ -163,7 +162,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         0x00D2,
                         0x00D3,
-                        ResGumps.SaveAccount,
+                        TazLang.Get("save_account"),
                         1,
                         0x0386,
                         false
@@ -242,7 +241,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         0x00D2,
                         0x00D3,
-                        ResGumps.Autologin,
+                        TazLang.Get("autologin"),
                         9,
                         0x0481,
                         false
@@ -259,7 +258,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                     (
                         0x00D2,
                         0x00D3,
-                        ResGumps.SaveAccount,
+                        TazLang.Get("save_account"),
                         9,
                         0x0481,
                         false
@@ -424,6 +423,21 @@ namespace ClassicUO.Game.UI.Gumps.Login
             {
                 _textboxAccount.SetKeyboardFocus();
             }
+
+#if DEBUG
+            var loadTimeLabel = new Label
+            (
+                $"Asset load: {Client.Game.UO.FileManager.LoadTime.TotalMilliseconds:F0} ms",
+                false,
+                0x034E,
+                font: 9
+            )
+            {
+                Y = 5
+            };
+            loadTimeLabel.X = 640 - loadTimeLabel.Width - 5;
+            Add(loadTimeLabel);
+#endif
 
             Add
             (

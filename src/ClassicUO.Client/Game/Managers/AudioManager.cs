@@ -42,7 +42,7 @@ namespace ClassicUO.Game.Managers
             try
             {
                 if(!System.Diagnostics.Debugger.IsAttached)
-                    new DynamicSoundEffectInstance(0, AudioChannels.Mono).Dispose();
+                    new DynamicSoundEffectInstance(1000, AudioChannels.Mono).Dispose();
                 else //Fix for rider debugging not having audio apparently
                     _canReproduceAudio = false;
             }
@@ -499,7 +499,7 @@ namespace ClassicUO.Game.Managers
             if (_currentAmbient != null)
             {
                 _currentAmbient.IsLooping = false;
-                _currentAmbient.Stop();
+                _currentAmbient.Dispose();
                 _currentAmbient = null;
             }
 
@@ -518,7 +518,7 @@ namespace ClassicUO.Game.Managers
             {
                 LinkedListNode<UOSound> next = first.Next;
 
-                first.Value.Stop();
+                first.Value.Dispose();
 
                 _currentSounds.Remove(first);
 
@@ -590,7 +590,7 @@ namespace ClassicUO.Game.Managers
 
                 if (!first.Value.IsPlaying(Time.Ticks))
                 {
-                    first.Value.Stop();
+                    first.Value.Dispose();
                     _currentSounds.Remove(first);
                 }
 

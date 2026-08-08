@@ -100,14 +100,8 @@ public class MyraControl : IGui
     private void DesktopOnTouchUp(object sender, EventArgs e) =>
         OnMouseUp(Mouse.Position.X, Mouse.Position.Y, MouseButtonType.Left);
 
-    private void DesktopOnTouchDown(object sender, EventArgs e)
-    {
-        if (!Mouse.LButtonPressed && Mouse.RButtonPressed){
-            Dispose();
-            return;
-        }
+    private void DesktopOnTouchDown(object sender, EventArgs e) =>
         OnMouseDown(Mouse.Position.X, Mouse.Position.Y, MouseButtonType.Left);
-    }
 
     private void DesktopOnWidgetGotKeyboardFocus(object sender, GenericEventArgs<Widget> e)
     {
@@ -160,7 +154,7 @@ public class MyraControl : IGui
     public int ActivePage { get; set; }
     public List<IGui> Children { get; } = new();
     public ClickPriority Priority { get; set; }
-    public bool CanCloseWithRightClick { get; } = true;
+    public bool CanCloseWithRightClick { get; set; } = true;
     public bool IsModal { get; } = false;
     public float Alpha { get; set; }
     public bool WantUpdateSize { get; set; }
@@ -281,14 +275,9 @@ public class MyraControl : IGui
 
         batcher.FlushBatch(); //Required to draw myra on top of already drawn gumps
 
-        // Myra processes its own mouse/keyboard input inside Desktop.Render(). If we only ran
-        // that for the top-most window, the very first click on a background window would be spent
-        // by the UIManager promoting it to top-most (see UIManager.OnMouseButtonDown) and Myra would
-        // never see the click as a widget press. By also running the input pass while this is the
-        // window under the cursor (MouseOverControl, set during UIManager.Update() before Draw()),
-        // the click is passed through to Myra on the same frame, and hover frames keep Myra's mouse
-        // baseline fresh so the down-edge is detected. Only one window is ever MouseOverControl
-        // (front-most hit), so this does not cause click-through to overlapped windows.
+        // Desktop.Render() runs Myra's input pass. Running it for MouseOverControl too (not just
+        // the top-most window) keeps the first click on a background window from being eaten by
+        // UIManager promoting it to top-most. Only one window is MouseOverControl, so no click-through.
         try
         {
             if (IsTopMost || ReferenceEquals(UIManager.MouseOverControl, this))
@@ -344,6 +333,7 @@ public class MyraControl : IGui
     {
         if (IsDisposed)
             return;
+        IsFocused = false;
         _disposeRequested = true;
     }
 
@@ -380,6 +370,13 @@ public class MyraControl : IGui
     public virtual void OnFocusLost()
     {
         IsFocused = false;
+
+        // A click inside an open context menu is the menu being used, not focus loss.
+        // Closing it here would detach it mid-press and the click would never complete.
+        if (_desktop.ContextMenu is { Visible: true } contextMenu &&
+            contextMenu.ContainsGlobalPoint(new Point(Mouse.Position.X + ParentX, Mouse.Position.Y + ParentY)))
+            return;
+
         _desktop.FocusedKeyboardWidget = null;
         _desktop.HideContextMenu();
     }
@@ -419,8 +416,8 @@ public class MyraControl : IGui
     /// <summary>This is not in use here. Use _rootWindow events instead.</summary>
     public void InvokeMouseWheel(MouseEventType delta) { }
 
-    /// <summary>This is not in use here. Use _rootWindow events instead.</summary>
-    public void InvokeMouseCloseGumpWithRClick() { }
+    /// <summary>Right-click close is handled by UIManager through the IGui close flow.</summary>
+    public void InvokeMouseCloseGumpWithRClick() => CloseWithRightClick();
 
     /// <summary>This is not in use here. Use _rootWindow events instead.</summary>
     public void InvokeDragBegin(Point position) { }
@@ -431,7 +428,7 @@ public class MyraControl : IGui
 
     public virtual void HitTest(Point position, ref IGui res)
     {
-        if (!IsVisible || !IsEnabled || IsDisposed || !AcceptMouseInput)
+        if (!IsVisible || !IsEnabled || IsDisposed || !AcceptMouseInput || _disposeRequested)
             return;
 
         if (
@@ -450,7 +447,11 @@ public class MyraControl : IGui
     /// <summary>This is not in use here. Use _rootWindow events instead.</summary>
     public void ChangePage(int pageIndex) { }
 
-    public void CloseWithRightClick() => Dispose();
+    public void CloseWithRightClick()
+    {
+        if (CanCloseWithRightClick)
+            Dispose();
+    }
 
     public bool Contains(int x, int y)
     {
@@ -462,13 +463,9 @@ public class MyraControl : IGui
 
         if (_desktop.ContextMenu is { Visible: true } contextMenu)
         {
-            var realBounds = new Rectangle(
-                contextMenu.Left,
-                contextMenu.Top,
-                contextMenu.Bounds.Width,
-                contextMenu.Bounds.Height
-            );
-            if (realBounds.Contains(x + ParentX, y + ParentY))
+            // ContainsGlobalPoint is what Myra uses for IsTouchInside; a hand-rolled rect from
+            // Left/Top/Bounds disagrees with it (margin/alignment) and drops clicks in the menu.
+            if (contextMenu.ContainsGlobalPoint(new Point(x + ParentX, y + ParentY)))
                 return true;
         }
 

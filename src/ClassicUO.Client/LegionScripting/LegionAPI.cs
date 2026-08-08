@@ -61,6 +61,7 @@ namespace ClassicUO.LegionScripting
         private readonly System.Threading.Lock _hookLock = new();
 
         private volatile bool _disposed;
+        private readonly CancellationToken _cachedToken;
 
         #endregion
 
@@ -80,15 +81,16 @@ namespace ClassicUO.LegionScripting
             ArgumentNullException.ThrowIfNull(callbackChannel);
             _scriptFile = script;
             CallbackChannel = callbackChannel;
+            _cachedToken = CancellationToken.Token;
             Events = new EventSinkApi(this);
             Gumps = new ApiUiGump(this);
         }
 
         #region MainThread Helpers
 
-        private T OnMain<T>(Func<T> func) => MainThreadQueue.InvokeOnMainThread(func, CancellationToken.Token);
-        private void OnMain(Action action) => MainThreadQueue.InvokeOnMainThread(action, CancellationToken.Token);
-        private T BubblingOnMain<T>(Func<T> func) => MainThreadQueue.BubblingInvokeOnMainThread(func, CancellationToken.Token);
+        private T OnMain<T>(Func<T> func) => MainThreadQueue.InvokeOnMainThread(func, _cachedToken);
+        private void OnMain(Action action) => MainThreadQueue.InvokeOnMainThread(action, _cachedToken);
+        private T BubblingOnMain<T>(Func<T> func) => MainThreadQueue.BubblingInvokeOnMainThread(func, _cachedToken);
 
         #endregion
 
@@ -1339,7 +1341,7 @@ namespace ClassicUO.LegionScripting
         /// <param name="name">The name of the organizer configuration to run</param>
         /// <param name="source">Optional serial of the source container (0 for default)</param>
         /// <param name="destination">Optional serial of the destination container (0 for default)</param>
-        public void Organizer(string name, uint source = 0, uint destination = 0)
+        public void Organizer(string name, uint source = 0, uint destination = 0) => OnMain(() =>
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -1348,13 +1350,13 @@ namespace ClassicUO.LegionScripting
             }
 
             OrganizerAgent.Instance.RunOrganizer(name, source, destination);
-        }
+        });
 
         /// <summary>
         /// Executes a client command as if typed in the game console
         /// </summary>
         /// <param name="command">The command to execute (including any arguments)</param>
-        public void ClientCommand(string command)
+        public void ClientCommand(string command) => OnMain(() =>
         {
             if (string.IsNullOrEmpty(command))
             {
@@ -1365,7 +1367,7 @@ namespace ClassicUO.LegionScripting
             string[] split = command.Split(' ');
 
             World.Instance.CommandManager.Execute(split[0], split);
-        }
+        });
 
         /// <summary>
         /// Check if a buff is active.
@@ -1942,6 +1944,53 @@ namespace ClassicUO.LegionScripting
         /// <param name="hue">Hue to color the cooldown bar</param>
         public void CreateCooldownBar(double seconds, string text, ushort hue) => OnMain
             (() => { Game.Managers.CoolDownBarManager.AddCoolDownBar(World, TimeSpan.FromSeconds(seconds), text, hue, false); });
+
+        /// <summary>
+        /// Updates an existing cooldown bar. Only the provided values are applied.
+        /// Example:
+        /// ```py
+        /// API.UpdateCooldown("Healing", maxValue=10, currentValue=5)
+        /// ```
+        /// </summary>
+        /// <param name="name">Name of the cooldown bar to update</param>
+        /// <param name="maxValue">New total duration in seconds. Omit or pass -1 to leave unchanged</param>
+        /// <param name="currentValue">New remaining time in seconds. Omit or pass -1 to leave unchanged</param>
+        public void UpdateCooldown(string name, double maxValue = -1, double currentValue = -1) => OnMain
+            (() => { Game.Managers.CoolDownBarManager.UpdateCoolDownBar(name, maxValue > 0 ? TimeSpan.FromSeconds(maxValue) : null, currentValue > 0 ? TimeSpan.FromSeconds(currentValue) : null); });
+
+        /// <summary>
+        /// Restarts the countdown of an existing cooldown bar to its full duration.
+        /// Example:
+        /// ```py
+        /// API.RestartCooldown("Healing")
+        /// ```
+        /// </summary>
+        /// <param name="name">Name of the cooldown bar to restart</param>
+        public void RestartCooldown(string name) => OnMain
+            (() => { Game.Managers.CoolDownBarManager.RestartCoolDownBar(name); });
+
+        /// <summary>
+        /// Deletes an existing cooldown bar.
+        /// Example:
+        /// ```py
+        /// API.DeleteCooldown("Healing")
+        /// ```
+        /// </summary>
+        /// <param name="name">Name of the cooldown bar to delete</param>
+        public void DeleteCooldown(string name) => OnMain
+            (() => { Game.Managers.CoolDownBarManager.DeleteCoolDownBar(name); });
+
+        /// <summary>
+        /// Checks whether a cooldown bar with the given name exists.
+        /// Example:
+        /// ```py
+        /// if API.CooldownExists("Healing"):
+        /// ```
+        /// </summary>
+        /// <param name="name">Name of the cooldown bar to check</param>
+        /// <returns>True if the cooldown bar exists, false otherwise</returns>
+        public bool CooldownExists(string name) => OnMain
+            (() => Game.Managers.CoolDownBarManager.CoolDownBarExists(name));
 
         /// <summary>
         /// Adds an item or mobile to your ignore list.
@@ -3035,7 +3084,7 @@ namespace ClassicUO.LegionScripting
         /// </summary>
         /// <param name="ID">Gump ID, blank to use the last gump.</param>
         /// <returns></returns>
-        public string GetGumpContents(uint ID = uint.MaxValue)
+        public string GetGumpContents(uint ID = uint.MaxValue) => OnMain(() =>
         {
             if (World.Player == null)
                 return string.Empty;
@@ -3056,7 +3105,7 @@ namespace ClassicUO.LegionScripting
             }
 
             return allControlsText;
-        }
+        });
 
         /// <summary>
         /// Get a gump by ID.
@@ -3105,13 +3154,13 @@ namespace ClassicUO.LegionScripting
         /// <returns></returns>
         public bool WaitForGump(uint ID = uint.MaxValue, double delay = 5)
         {
-            if (World.Player == null)
+            if (OnMain(() => World.Player) == null)
                 return false;
 
             DateTime expire = DateTime.UtcNow.AddSeconds(delay);
 
             if (ID == uint.MaxValue)
-                ID = World.Player.LastGumpID;
+                ID = OnMain(() => World.Player.LastGumpID);
 
             while (!OnMain(() => UIManager.GetGumpServer(ID) != null) && !StopRequested)
             {
@@ -3184,7 +3233,7 @@ namespace ClassicUO.LegionScripting
         /// ```
         /// </summary>
         /// <returns>true/false</returns>
-        public bool PrimaryAbilityActive() => World.Player != null && ((byte)World.Player.PrimaryAbility & 0x80) != 0;
+        public bool PrimaryAbilityActive() => OnMain(() => World.Player != null && ((byte)World.Player.PrimaryAbility & 0x80) != 0);
 
         /// <summary>
         /// Check if your secondary ability is active.
@@ -3195,7 +3244,7 @@ namespace ClassicUO.LegionScripting
         /// ```
         /// </summary>
         /// <returns>true/false</returns>
-        public bool SecondaryAbilityActive() => World.Player != null && ((byte)World.Player.SecondaryAbility & 0x80) != 0;
+        public bool SecondaryAbilityActive() => OnMain(() => World.Player != null && ((byte)World.Player.SecondaryAbility & 0x80) != 0);
 
         /// <summary>
         /// Gets your currently available ability names.
@@ -3203,13 +3252,13 @@ namespace ClassicUO.LegionScripting
         /// The full list of known abilities can be obtained via the `KnownAbilityNames` API
         /// </summary>
         /// <returns>The returned array will be [PrimaryAbility, SecondaryAbility] or an empty array if no ability is available</returns>
-        public string[] CurrentAbilityNames()
+        public string[] CurrentAbilityNames() => OnMain<string[]>(() =>
         {
             if (World?.Player == null)
                 return [];
 
             return [World.Player.PrimaryAbility.GetName(), World.Player.SecondaryAbility.GetName()];
-        }
+        });
 
         /// <summary>
         /// Gets an array of all known ability names
@@ -3462,7 +3511,7 @@ namespace ClassicUO.LegionScripting
         {
             seconds = Math.Clamp(seconds, 0, 30);
 
-            Task.Delay(TimeSpan.FromSeconds(seconds), cancellationToken: CancellationToken.Token).Wait(cancellationToken: CancellationToken.Token);
+            Task.Delay(TimeSpan.FromSeconds(seconds), cancellationToken: _cachedToken).Wait(cancellationToken: _cachedToken);
 
             if (StopRequested)
                 throw new ThreadInterruptedException();
@@ -4063,8 +4112,8 @@ namespace ClassicUO.LegionScripting
         /// <summary>
         /// Use API.Gumps.CreateGumpTextBox instead.
         /// </summary>
-        public ApiUiTtfTextInputField CreateGumpTextBox(string text = "", int width = 200, int height = 30, bool multiline = false)
-            => Gumps.CreateGumpTextBox(text, width, height, multiline);
+        public ApiUiTtfTextInputField CreateGumpTextBox(string text = "", int width = 200, int height = 30, bool multiline = false, float fontSize = 20)
+            => Gumps.CreateGumpTextBox(text, width, height, multiline, fontSize);
         /// <summary>
         /// Use API.Gumps.CreateGumpTTFLabel instead.
         /// </summary>
@@ -4092,7 +4141,7 @@ namespace ClassicUO.LegionScripting
         /// <summary>
         /// Use API.Gumps.CreateModernGump instead.
         /// </summary>
-        public ApiUiNineSliceGump CreateModernGump(int x, int y, int width, int height, bool resizable = true, int minWidth = 50, int minHeight = 50, object onResized = null) => new ApiUiNineSliceGump(this, x, y, width, height, resizable, minWidth, minHeight, onResized);
+        public ApiUiNineSliceGump CreateModernGump(int x, int y, int width, int height, bool resizable = true, int minWidth = 50, int minHeight = 50, object onResized = null) => Gumps.CreateModernGump(x, y, width, height, resizable, minWidth, minHeight, onResized);
         /// <summary>
         /// Use API.Gumps.AddControlOnClick instead.
         /// </summary>
@@ -4395,7 +4444,7 @@ namespace ClassicUO.LegionScripting
         {
             if (string.IsNullOrEmpty(name))
             {
-                GameActions.Print(World, "Var's must have a name.", 32);
+                OnMain(() => GameActions.Print(World, "Var's must have a name.", 32));
                 return;
             }
 
@@ -4415,7 +4464,7 @@ namespace ClassicUO.LegionScripting
         {
             if (string.IsNullOrEmpty(name))
             {
-                GameActions.Print(World, "Var's must have a name.", 32);
+                OnMain(() => GameActions.Print(World, "Var's must have a name.", 32));
                 return;
             }
 
@@ -4436,7 +4485,7 @@ namespace ClassicUO.LegionScripting
         {
             if (string.IsNullOrEmpty(name))
             {
-                GameActions.Print(World, "Var's must have a name.", 32);
+                OnMain(() => GameActions.Print(World, "Var's must have a name.", 32));
                 return defaultValue;
             }
 
