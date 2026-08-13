@@ -6,7 +6,6 @@ description: ApiUiGump class documentation
 ## Properties
 *No properties found.*
 
-*No fields found.*
 
 ## Enums
 *No enums found.*
@@ -37,7 +36,7 @@ description: ApiUiGump class documentation
 ---
 
 ### CreateModernGump
-`(x, y, width, height, resizable, minWidth, minHeight, onResized)`
+`(x, y, width, height, resizable, minWidth, minHeight, onResized, keepOpen)`
  Creates a modern nine-slice gump using ModernUIConstants for consistent styling.
  The gump uses the standard modern UI panel texture and border size internally.
 
@@ -54,6 +53,7 @@ description: ApiUiGump class documentation
 | `minWidth` | `int` | ✅ Yes | Minimum width (default: 50) |
 | `minHeight` | `int` | ✅ Yes | Minimum height (default: 50) |
 | `onResized` | `object` | ✅ Yes | Optional callback function called when the gump is resized |
+| `keepOpen` | `bool` | ✅ Yes |  |
 
 **Return Type:** `ApiUiNineSliceGump`
 
@@ -181,6 +181,31 @@ description: ApiUiGump class documentation
 
 ---
 
+### LegionTextureControl
+`(textureName, width, height)`
+ Create an image control that displays a named PNG texture loaded from a ZIP archive.
+ Place the PNG anywhere inside the ZIP (outside gumps/ and art/ folders) and reference it by its path within the archive.
+ Example:
+ ```py
+ # In your zip: icons/sword.png
+ img = API.Gumps.LegionTextureControl("icons/sword.png")
+ img.SetPos(10, 10)
+ g.Add(img)
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `textureName` | `string` | ❌ No | The PNG path within the ZIP, e.g. "icons/sword.png" or just "sword.png" if at the root |
+| `width` | `int` | ✅ Yes | Display width in pixels; 0 uses the image's natural width |
+| `height` | `int` | ✅ Yes | Display height in pixels; 0 uses the image's natural height |
+
+**Return Type:** `ApiUiLegionTexture`
+
+---
+
 ### CreateGumpButton
 `(text, hue, normal, pressed, hover)`
  Create a button for gumps.
@@ -268,7 +293,7 @@ description: ApiUiGump class documentation
 ---
 
 ### CreateGumpTextBox
-`(text, width, height, multiline)`
+`(text, width, height, multiline, fontSize)`
  Create a text area control.
  Example:
  ```py
@@ -303,6 +328,7 @@ description: ApiUiGump class documentation
 | `width` | `int` | ✅ Yes |  |
 | `height` | `int` | ✅ Yes |  |
 | `multiline` | `bool` | ✅ Yes |  |
+| `fontSize` | `float` | ✅ Yes | TTF font size, default is 20 |
 
 **Return Type:** `ApiUiTtfTextInputField`
 

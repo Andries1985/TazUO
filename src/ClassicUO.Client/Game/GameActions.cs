@@ -4,6 +4,7 @@ using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.Managers.Hotkeys;
 using ClassicUO.Game.Managers.SpellVisualRange;
 using ClassicUO.Game.Managers.Structs;
 using ClassicUO.Game.Scenes;
@@ -13,13 +14,14 @@ using ClassicUO.Game.UI.MyraWindows;
 using ClassicUO.Input;
 using ClassicUO.LegionScripting;
 using ClassicUO.Network;
-using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
 using static ClassicUO.Network.AsyncNetClient;
 
 namespace ClassicUO.Game;
+
+using NewOptionsWindow = UI.MyraWindows.Options.OptionsWindow;
 
 internal static class GameActions
 {
@@ -33,7 +35,7 @@ internal static class GameActions
     {
         if (!player.IsDead)
         {
-            if (war && ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.EnableMusic)
+            if (war && ProfileManager.GlobalSettings != null && ProfileManager.GlobalSettings.EnableMusic)
             {
                 Client.Game.Audio.PlayMusic((RandomHelper.GetValue(0, 3) % 3) + 38, true);
             }
@@ -64,9 +66,9 @@ internal static class GameActions
     {
         ScriptManagerWindow window = ScriptManagerWindow.Instance;
 
-        if (window != null && window.IsVisible)
+        if (window != null && window.IsVisible && !window.IsDisposed)
         {
-            window.IsVisible = false;
+            window.Dispose();
             return true;
         }
 
@@ -161,23 +163,52 @@ internal static class GameActions
     }
 
     /// <summary>
-    ///
+    /// Closes a currently opened settings window.
+    /// Note that this method attempts to close only the setting window currently defined as 'in-use' by the <see cref="Profile.UseNewOptionsWindow"/> property
     /// </summary>
     /// <returns>False if no settings are open</returns>
-    internal static bool CloseSettings()
+    internal static bool CloseSettings() =>
+        ProfileManager.CurrentProfile?.UseNewOptionsWindow == false
+            ? CloseSingletonGump<ModernOptionsGump>()
+            : CloseSingletonGump<NewOptionsWindow>();
+
+    private static bool CloseSingletonGump<TGump>() where TGump : class, IGui
     {
-        Gump g = UIManager.GetGump<ModernOptionsGump>();
+        TGump g = UIManager.GetGump<TGump>();
+        if (g == null)
+            return false;
 
-        if (g != null)
-        {
-            g.Dispose();
-            return true;
-        }
-
-        return false;
+        g.Dispose();
+        return true;
     }
 
     internal static void OpenSettings(World world, int page = 0)
+    {
+        // Default to new window if unset
+        if (ProfileManager.CurrentProfile?.UseNewOptionsWindow == false)
+            ShowLegacyOptionsGump(world, page);
+        else
+            ShowNewOptionsGump();
+    }
+
+    /// <summary>
+    /// Creates or opens the new options window
+    /// </summary>
+    public static void ShowNewOptionsGump()
+    {
+        NewOptionsWindow existing = UIManager.GetGump<NewOptionsWindow>();
+        if (existing == null)
+            UIManager.Add(new NewOptionsWindow());
+        else
+            existing.BringOnTop();
+    }
+
+    /// <summary>
+    /// Creates or opens the legacy options window
+    /// </summary>
+    /// <param name="world">The world instance the gump belongs to</param>
+    /// <param name="page">The specific page to open</param>
+    public static void ShowLegacyOptionsGump(World world, int page = 0)
     {
         ModernOptionsGump opt = UIManager.GetGump<ModernOptionsGump>();
 
@@ -549,6 +580,7 @@ internal static class GameActions
         return true;
     }
 
+    private static uint _lastAttackQuery;
     internal static void Attack(World world, uint serial)
     {
         if (ProfileManager.CurrentProfile is { EnabledCriminalActionQuery:true })
@@ -557,10 +589,28 @@ internal static class GameActions
 
             if (m != null && (world.Player.NotorietyFlag == NotorietyFlag.Innocent || world.Player.NotorietyFlag == NotorietyFlag.Ally) && m.NotorietyFlag == NotorietyFlag.Innocent && m != world.Player)
             {
+                bool shouldAdd = true;
+
+                UIManager.ForEach<QuestionGump>(g =>
+                {
+                    if (g.Type == QuestionGump.QuestionType.Attack && _lastAttackQuery == serial){
+                        shouldAdd = false;
+                        return;
+                    }
+
+                    if (g.Type == QuestionGump.QuestionType.Attack && _lastAttackQuery != serial)
+                        g.Dispose();    
+                });
+                
+                if (!shouldAdd)
+                    return;
+
+                _lastAttackQuery = serial;
+
                 var messageBox = new QuestionGump
                 (
                     world,
-                    ResGeneral.ThisMayFlagYouCriminal,
+                    TazLang.Get("this_may_flag_you_criminal"),
                     s =>
                     {
                         if (s)
@@ -568,7 +618,7 @@ internal static class GameActions
                             Socket.Send_AttackRequest(serial);
                         }
                     }
-                );
+                ){ Type = QuestionGump.QuestionType.Attack };
 
                 UIManager.Add(messageBox);
                 return;
@@ -653,6 +703,10 @@ internal static class GameActions
                 if (!intercepted)
                     // Run the actual send only if the interceptor yielded control back, otherwise, the auto manager would have handled the 'send' part
                     Socket.Send_DoubleClick(serial);
+
+                // Even when manual queueing is disabled, keep the action queue timer in sync so forced-queue actions remain properly spaced.
+                if (!ignoreQueue)
+                    GlobalActionCooldown.BeginCooldown();
             }
         }
 
@@ -744,6 +798,13 @@ internal static class GameActions
 
     internal static void Print(World world, string message, ushort hue = 946, MessageType type = MessageType.Regular, byte font = 3, bool unicode = true)
     {
+        // World may be null if called before the world is initialized
+        if (world == null)
+        {
+            Log.Warn($"GameActions.Print called with null world: {message}");
+            return;
+        }
+
         if (type == MessageType.ChatSystem)
         {
             world.MessageManager.HandleMessage
@@ -782,7 +843,16 @@ internal static class GameActions
         MessageType type = MessageType.Regular,
         byte font = 3,
         bool unicode = true
-    ) => world.MessageManager.HandleMessage
+    )
+    {
+        // World may be null if called before the world is initialized
+        if (world == null)
+        {
+            Log.Warn($"GameActions.Print called with null world: {message}");
+            return;
+        }
+
+        world.MessageManager.HandleMessage
         (
             entity,
             message,
@@ -794,6 +864,7 @@ internal static class GameActions
             unicode,
             Settings.GlobalSettings.Language
         );
+    }
 
     internal static void SayParty(string message, uint serial = 0)
     {
@@ -845,7 +916,7 @@ internal static class GameActions
 
         if (amount <= -1 && item.Amount > 1 && item.ItemData.IsStackable)
         {
-            if (ProfileManager.CurrentProfile.HoldShiftToSplitStack == Keyboard.Shift)
+            if (ProfileManager.CurrentProfile.HoldShiftToSplitStack == HotKeys.IsPressed(HotKeyRegistrar.SplitStackId))
             {
                 SplitMenuGump gump = UIManager.GetGump<SplitMenuGump>(item);
 
@@ -877,7 +948,13 @@ internal static class GameActions
         Client.Game.UO.GameCursor.ItemHold.IsGumpTexture = isGump;
 
         if (!ProfileManager.CurrentProfile.QueueManualItemMoves || skipQueue)
+        {
             Socket.Send_PickUpRequest(item, (ushort)amount);
+
+            // Even when manual queueing is disabled, keep the action queue timer in sync so forced-queue actions remain properly spaced.
+            if (!skipQueue)
+                GlobalActionCooldown.BeginCooldown();
+        }
 
         ScriptingInfoGump.AddOrUpdateInfo("Last Picked Up Item", $"0x{item.Serial:X}");
         ScriptingInfoGump.AddOrUpdateInfo("Last Object Graphic", $"0x{item.Graphic:X}");
@@ -930,6 +1007,11 @@ internal static class GameActions
                                             (sbyte)z,
                                             container);
             }
+
+            // Even when manual queueing is disabled, keep the action queue timer in sync so forced-queue actions remain properly spaced.
+            // 'force' drops come from the queue itself (MoveRequest.Execute), which already manages the cooldown.
+            if (!force)
+                GlobalActionCooldown.BeginCooldown();
         }
     }
 
@@ -950,6 +1032,9 @@ internal static class GameActions
             Client.Game.UO.GameCursor.ItemHold.Enabled = false;
             Client.Game.UO.GameCursor.ItemHold.Dropped = true;
             Client.Game.UO.GameCursor.ItemHold.Clear();
+
+            // Even when manual queueing is disabled, keep the action queue timer in sync so forced-queue actions remain properly spaced.
+            GlobalActionCooldown.BeginCooldown();
         }
     }
 
@@ -1304,7 +1389,7 @@ internal static class GameActions
 
         if (!world.Items.Contains(bag))
         {
-            Print(world, ResGeneral.GrabBagNotFound);
+            Print(world, TazLang.Get("grab_bag_not_found"));
             ProfileManager.CurrentProfile.GrabBagSerial = 0;
             bag = backpack.Serial;
         }

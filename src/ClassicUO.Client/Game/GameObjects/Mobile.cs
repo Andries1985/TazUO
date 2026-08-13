@@ -6,7 +6,6 @@ using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Gumps;
-using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Collections;
 using Microsoft.Xna.Framework;
@@ -16,66 +15,6 @@ namespace ClassicUO.Game.GameObjects
 {
     public partial class Mobile : Entity
     {
-        //private static readonly QueuedPool<Mobile> _pool = new QueuedPool<Mobile>(
-        //    Constants.PREDICTABLE_CHUNKS,
-        //    mobile =>
-        //    {
-        //        mobile.IsDestroyed = false;
-        //        mobile.Graphic = 0;
-        //        mobile.Steps.Clear();
-        //        mobile.Offset = Vector3.Zero;
-        //        mobile.SpeedMode = CharacterSpeedType.Normal;
-        //        mobile.Race = 0;
-        //        mobile.Hits = 0;
-        //        mobile.HitsMax = 0;
-        //        mobile.Mana = 0;
-        //        mobile.ManaMax = 0;
-        //        mobile.Stamina = 0;
-        //        mobile.StaminaMax = 0;
-        //        mobile.NotorietyFlag = 0;
-        //        mobile.IsRenamable = false;
-        //        mobile.Flags = 0;
-        //        mobile.IsFemale = false;
-        //        mobile.InWarMode = false;
-        //        mobile.IsRunning = false;
-        //        mobile._animationInterval = 0;
-        //        mobile.AnimationFrameCount = 0;
-        //        mobile._animationRepeateMode = 1;
-        //        mobile._animationRepeatModeCount = 1;
-        //        mobile._animationRepeat = false;
-        //        mobile.AnimationFromServer = false;
-        //        mobile._isAnimationForwardDirection = false;
-        //        mobile.LastStepSoundTime = 0;
-        //        mobile.StepSoundOffset = 0;
-        //        mobile.Title = string.Empty;
-        //        mobile._animationGroup = 0xFF;
-        //        mobile._isDead = false;
-        //        mobile._isSA_Poisoned = false;
-        //        mobile._lastAnimationIdleDelay = 0;
-        //        mobile.X = 0;
-        //        mobile.Y = 0;
-        //        mobile.Z = 0;
-        //        mobile.Direction = 0;
-        //        mobile.LastAnimationChangeTime = Time.Ticks;
-        //        mobile.TextContainer?.Clear();
-        //        mobile.HitsPercentage = 0;
-        //        mobile.IsFlipped = false;
-        //        mobile.FrameInfo = Rectangle.Empty;
-        //        mobile.ObjectHandlesStatus = ObjectHandlesStatus.NONE;
-        //        mobile.AlphaHue = 0;
-        //        mobile.AllowedToDraw = true;
-        //        mobile.IsClicked = false;
-        //        mobile.RemoveFromTile();
-        //        mobile.Clear();
-        //        mobile.Next = null;
-        //        mobile.Previous = null;
-        //        mobile.Name = null;
-        //        mobile.ExecuteAnimation = true;
-        //        mobile.HitsRequest = HitsRequestStatus.None;
-
-        //        mobile.CalculateRandomIdleTime();
-        //    }
-        //);
 
         private static readonly byte[,] _animationIdle =
         {
@@ -107,6 +46,10 @@ namespace ClassicUO.Game.GameObjects
         private ushort _animationRepeateMode = 1;
         private ushort _animationRepeatModeCount = 1;
 
+        // Smooths the per-frame animation offset that anchors overhead text so it doesn't jitter (-1 = uninitialized).
+        private float _smoothedTextAnimOffset = -1f;
+        private uint _lastTextCoordUpdate;
+
         public Mobile(World world, uint serial) : base(world, serial)
         {
             LastAnimationChangeTime = Time.Ticks;
@@ -116,6 +59,18 @@ namespace ClassicUO.Game.GameObjects
         public Mobile(World world) : base(world, 0) { }
 
         private readonly Item[] _equippedLayers = new Item[30];
+
+        public override void NameUpdated()
+        {
+            base.NameUpdated();
+            _nameText = null;
+        }
+
+        public override void OPLUpdated(ItemProperty newProps)
+        {
+            base.OPLUpdated(newProps);
+            _nameText = null;
+        }
 
         public override void PushToBack(LinkedObject item)
         {
@@ -175,7 +130,10 @@ namespace ClassicUO.Game.GameObjects
         }
 
         public bool IsFlying =>
-            Client.Game.UO.Version >= ClientVersion.CV_7000 && (Flags & Flags.Poisoned) != 0;
+            Client.Game.UO.Version >= ClientVersion.CV_7000 && (Flags & Flags.Flying) != 0;
+
+        public bool IsFlyingAnimationEnabled =>
+            IsFlying && (!IsGargoyle || !(_profile ?? Profile.DefaultPreviewProfile).DisableGargoyleFlyingAnimation);
 
         public virtual bool InWarMode
         {
@@ -197,7 +155,7 @@ namespace ClassicUO.Game.GameObjects
             {
                 Item it = Mount;
 
-                if (it != null && !IsDrivingBoat && it.GetGraphicForAnimation() != 0xFFFF)
+                if (it != null && !IsDead && !IsDrivingBoat && it.GetGraphicForAnimation() != 0xFFFF)
                 {
                     return true;
                 }
@@ -287,6 +245,33 @@ namespace ClassicUO.Game.GameObjects
         }
 
         public void SetSAPoison(bool value) => _isSA_Poisoned = value;
+
+        /// <summary>
+        /// Enables auto follow mode with this mobile as the target.
+        /// </summary>
+        /// <param name="showMessage">Whether to display the "Now following" overhead message.</param>
+        public void Follow(bool showMessage = true)
+        {
+            if (ProfileManager.CurrentProfile == null)
+                return;
+
+            if (showMessage)
+            {
+                World.MessageManager.HandleMessage
+                (
+                    World.Player,
+                    TazLang.Get("now_following"),
+                    string.Empty,
+                    0,
+                    MessageType.Regular,
+                    3,
+                    TextType.CLIENT
+                );
+            }
+
+            ProfileManager.CurrentProfile.FollowingMode = true;
+            ProfileManager.CurrentProfile.FollowingTarget = Serial;
+        }
 
         private void CalculateRandomIdleTime()
         {
@@ -518,7 +503,7 @@ namespace ClassicUO.Game.GameObjects
                         return;
                     }
 
-                    if (IsGargoyle && IsFlying)
+                    if (IsGargoyle && IsFlyingAnimationEnabled)
                     {
                         if (RandomHelper.GetValue(0, 2) != 0)
                         {
@@ -581,7 +566,7 @@ namespace ClassicUO.Game.GameObjects
         private void ProcessFootstepsSound()
         {
             if (
-                ProfileManager.CurrentProfile.EnableFootstepsSound
+                (ProfileManager.GlobalSettings == null || ProfileManager.GlobalSettings.EnableFootstepsSound)
                 && IsHuman
                 && !IsHidden
                 && !IsDead
@@ -846,7 +831,7 @@ namespace ClassicUO.Game.GameObjects
                             if (Z - step.Z >= 22)
                             {
                                 // oUCH!!!!
-                                AddMessage(MessageType.Label, ResGeneral.Ouch, TextType.CLIENT);
+                                AddMessage(MessageType.Label, TazLang.Get("ouch"), TextType.CLIENT);
                             }
 
                             if (
@@ -893,7 +878,11 @@ namespace ClassicUO.Game.GameObjects
                         Offset.X = 0;
                         Offset.Y = 0;
                         Offset.Z = 0;
-                        Steps.RemoveFromFront();
+
+                        if (Steps.Count != 0)
+                        {
+                            Steps.RemoveFromFront();
+                        }
 
                         if (Steps.Count == 0)
                         {
@@ -982,7 +971,7 @@ namespace ClassicUO.Game.GameObjects
                 return;
             }
 
-            int offY = NameOverheadGump.CurrentHeight;
+            int offY = NameOverheadGump.CurrentHeight + NameOverheadTextExtraHeight;
 
             bool health = ProfileManager.CurrentProfile.ShowMobilesHP;
             int alwaysHP = ProfileManager.CurrentProfile.MobileHPShowWhen;
@@ -990,7 +979,7 @@ namespace ClassicUO.Game.GameObjects
 
             Point p = RealScreenPosition;
 
-            if (IsGargoyle && IsFlying)
+            if (IsGargoyle && IsFlyingAnimationEnabled)
             {
                 p.Y -= 22;
             }
@@ -1015,8 +1004,12 @@ namespace ClassicUO.Game.GameObjects
                 out int height
             );
 
+            // height/centerY change every animation frame and bounce the text; smooth the anchor so it glides instead of jumping.
+            int targetAnimOffset = height + centerY + 8;
+            int smoothedAnimOffset = SmoothTextAnimOffset(targetAnimOffset);
+
             p.X += (int)Offset.X + 22;
-            p.Y += (int)(Offset.Y - Offset.Z - (height + centerY + 8));
+            p.Y += (int)(Offset.Y - Offset.Z - smoothedAnimOffset);
             // Removed Camera.WorldToScreen() - text is now transformed by worldRTMatrix during rendering
 
             if (ObjectHandlesStatus == ObjectHandlesStatus.DISPLAYING)
@@ -1052,6 +1045,32 @@ namespace ClassicUO.Game.GameObjects
             }
 
             FixTextCoordinatesInScreen();
+        }
+
+        // Frame-rate independent exponential smoothing of the text anchor offset; advances at most once per game tick.
+        private int SmoothTextAnimOffset(int target)
+        {
+            // First use or a large jump (mount/dismount, morph, graphic swap): snap instead of sliding across the gap.
+            if (_smoothedTextAnimOffset < 0f || Math.Abs(target - _smoothedTextAnimOffset) > 40f)
+            {
+                _smoothedTextAnimOffset = target;
+                _lastTextCoordUpdate = Time.Ticks;
+                return target;
+            }
+
+            uint now = Time.Ticks;
+            float dt = (now - _lastTextCoordUpdate) / 1000f;
+
+            if (dt > 0f)
+            {
+                // ~200ms to converge; higher speed = snappier, lower = smoother.
+                const float SPEED = 12f;
+                float t = 1f - MathF.Exp(-SPEED * dt);
+                _smoothedTextAnimOffset += (target - _smoothedTextAnimOffset) * t;
+                _lastTextCoordUpdate = now;
+            }
+
+            return (int)MathF.Round(_smoothedTextAnimOffset);
         }
 
         public override void CheckGraphicChange(byte animIndex = 0)
@@ -1145,6 +1164,8 @@ namespace ClassicUO.Game.GameObjects
 
                 //_pool.ReturnOne(this);
             }
+
+            _nameText?.Dispose();
         }
 
         public struct Step

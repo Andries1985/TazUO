@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ClassicUO.Configuration;
@@ -12,7 +12,6 @@ using ClassicUO.Game.Managers;
 using ClassicUO.Utility.Logging;
 using IronPython.Hosting;
 using Microsoft.Scripting.Hosting;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using ClassicUO.Game.UI.MyraWindows;
 using ClassicUO.LegionScripting.ApiClasses;
@@ -23,11 +22,6 @@ using SourceCodeKind = Microsoft.Scripting.SourceCodeKind;
 
 namespace ClassicUO.LegionScripting
 {
-    [JsonSerializable(typeof(LScriptSettings))]
-    public partial class LScriptJsonContext : JsonSerializerContext
-    {
-    }
-
     internal static class LegionScripting
     {
         public static string ScriptPath;
@@ -199,6 +193,9 @@ namespace ClassicUO.LegionScripting
 
             foreach (string file in subgroups)
                 HandleScriptsInDirectory(file); //No third level supported, ignore directories
+
+            foreach (ScriptFile sf in LoadedScripts)
+                sf.ReadFromFile();
         }
 
         private static void AddScriptFromFile(string path)
@@ -238,10 +235,55 @@ namespace ClassicUO.LegionScripting
                     AddScriptFromFile(file);
                     loadedScripts.Add(file);
                 }
+                else if (file.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) && File.Exists(file))
+                    HandleScriptsInZip(file, loadedScripts);
                 else if (Directory.Exists(file)) groups.Add(file);
             }
 
             return groups;
+        }
+
+        private static void HandleScriptsInZip(string zipPath, HashSet<string> loadedScripts)
+        {
+            try
+            {
+                using ZipArchive archive = ZipFile.OpenRead(zipPath);
+
+                foreach (ZipArchiveEntry entry in archive.Entries)
+                {
+                    if (string.IsNullOrEmpty(entry.Name)) continue; // directory entry
+
+                    string entryName = entry.FullName.Replace('\\', '/');
+                    string ext = Path.GetExtension(entry.Name);
+
+                    if (!ext.Equals(".py", StringComparison.OrdinalIgnoreCase) &&
+                        !ext.Equals(".cs", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    string[] segments = entryName.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                    if (segments.Length == 0 || segments.Length > 3) continue;
+
+                    // Skip if any path segment (dir or file) starts with _ or .
+                    bool hasHiddenSegment = false;
+                    foreach (string seg in segments)
+                        if (seg.StartsWith("_") || seg.StartsWith(".")) { hasHiddenSegment = true; break; }
+                    if (hasHiddenSegment || entry.Name == "API.py") continue;
+
+                    string group    = segments.Length >= 2 ? segments[0] : string.Empty;
+                    string subGroup = segments.Length == 3 ? segments[1] : string.Empty;
+
+                    string syntheticKey = $"{zipPath}::{entryName}";
+                    if (loadedScripts.Contains(syntheticKey)) continue;
+
+                    LoadedScripts.Add(new ZipScriptFile(_world, zipPath, entryName, group, subGroup));
+                    loadedScripts.Add(syntheticKey);
+                }
+
+                ClassicUO.Assets.ExternalImageLoader.Instance.RegisterZipPNGs(archive);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error loading scripts from zip '{zipPath}': {ex}");
+            }
         }
 
         public static void SetAutoPlay(ScriptFile script, bool global, bool enabled)
@@ -336,53 +378,26 @@ namespace ClassicUO.LegionScripting
 
         private static void LoadLScriptSettings()
         {
-            string path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "lscript.json");
+            LScriptSettings = JsonSave<LScriptSettings>.Load();
 
-            try
+            for (int i = 0; i < LScriptSettings.CharAutoStartScripts.Count; i++)
             {
-                if (File.Exists(path))
-                {
-                    LScriptSettings = JsonSerializer.Deserialize(File.ReadAllText(path), LScriptJsonContext.Default.LScriptSettings);
-
-                    for (int i = 0; i < LScriptSettings.CharAutoStartScripts.Count; i++)
-                    {
-                        KeyValuePair<string, List<string>> val = LScriptSettings.CharAutoStartScripts.ElementAt(i);
-                        val.Value.RemoveAll(script => LoadedScripts.All(s => s.FileName != script));
-                    }
-
-                    LScriptSettings.GlobalAutoStartScripts.RemoveAll(script => LoadedScripts.All(s => s.FileName != script));
-
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Unexpected error: {ex}");
+                KeyValuePair<string, List<string>> val = LScriptSettings.CharAutoStartScripts.ElementAt(i);
+                val.Value.RemoveAll(script => LoadedScripts.All(s => s.FileName != script));
             }
 
-            LScriptSettings = new LScriptSettings();
+            LScriptSettings.GlobalAutoStartScripts.RemoveAll(script => LoadedScripts.All(s => s.FileName != script));
         }
 
         private static void SaveScriptSettings()
         {
-            string path = Path.Combine(CUOEnviroment.ExecutablePath, "Data", "lscript.json");
-
-            string json = JsonSerializer.Serialize(LScriptSettings, LScriptJsonContext.Default.LScriptSettings);
-
-            try
-            {
-                File.WriteAllText(path, json);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error saving lscript settings: {e}");
-            }
+            LScriptSettings?.Save();
         }
 
         public static void Unload()
         {
             while (RunningScripts.Count > 0)
-                StopScript(RunningScripts[0]);
+                StopScript(RunningScripts[0], force: true);
 
             PyThreads.Clear();
 
@@ -404,9 +419,9 @@ namespace ClassicUO.LegionScripting
 
                 // Route to correct executor based on script type
                 if (script.Type == ScriptFile.ScriptType.CSharp)
-                    script.ScriptThread = new Thread(() => ExecuteCSharpScript(script)) { Name = $"Legion: {script.FileName}" };
+                    script.ScriptThread = new Thread(() => ExecuteCSharpScript(script)) { Name = $"Legion: {script.FileName}", IsBackground = true };
                 else
-                    script.ScriptThread = new Thread(() => ExecutePythonScript(script)) { Name = $"Legion: {script.FileName}" };
+                    script.ScriptThread = new Thread(() => ExecutePythonScript(script)) { Name = $"Legion: {script.FileName}", IsBackground = true };
 
                 if(!PyThreads.TryAdd(script.ScriptThread.ManagedThreadId, script))
                     PyThreads[script.ScriptThread.ManagedThreadId] = script;
@@ -433,7 +448,16 @@ namespace ClassicUO.LegionScripting
             catch (OperationCanceledException) { }
             catch (Exception e)
             {
-                ShowScriptError(script, e);
+                try
+                {
+                    ShowScriptError(script, e);
+                }
+                // Formatting the error runs IronPython dynamic code that takes internal locks.
+                // If the script is stopped at that exact moment (StopScript -> Thread.Interrupt),
+                // the interrupt surfaces here as a ThreadInterruptedException/ThreadAbortException.
+                // Swallow it so tearing down an already-errored script never crashes the client.
+                catch (ThreadInterruptedException) { }
+                catch (ThreadAbortException) { }
             }
 
             MainThreadQueue.EnqueueAction(() => { StopScript(script); });
@@ -484,7 +508,7 @@ namespace ClassicUO.LegionScripting
         /// <param name="e">The thrown error</param>
         private static void ShowScriptError(ScriptFile script, Exception e)
         {
-            GameActions.Print(_world, $"Legion Script '{script.FileName}' encountered an error.", Constants.HUE_ERROR);
+            MainThreadQueue.EnqueueAction(() => GameActions.Print(_world, $"Legion Script '{script.FileName}' encountered an error.", Constants.HUE_ERROR));
 
             ExceptionOperations eo = script.PythonEngine.GetService<ExceptionOperations>();
             if (eo != null)
@@ -496,6 +520,8 @@ namespace ClassicUO.LegionScripting
 
                 MatchCollection matches = exParserRx.Matches(formattedEx);
                 var errorLocations = new List<ScriptErrorLocation>();
+
+                ScriptErrorLocation? last = null;
 
                 bool first = true;
                 foreach (Match match in matches)
@@ -515,7 +541,12 @@ namespace ClassicUO.LegionScripting
                     if (filePath.TryReadFileLines(out string[] fileLines))
                         lineContent = GetContents(fileLines, first? lineNumber - 1 : lineNumber);
 
-                    errorLocations.Add(new ScriptErrorLocation(fileName, filePath, lineNumber, lineContent));
+                    var sel = new ScriptErrorLocation(fileName, filePath, lineNumber, lineContent);
+
+                    if(last != null && !sel.Equals(last))
+                        errorLocations.Add(sel);
+                    
+                    last = sel;
 
                     first = false;
                 }
@@ -523,10 +554,10 @@ namespace ClassicUO.LegionScripting
                 if (errorLocations.Count > 0)
                     MainThreadQueue.EnqueueAction(() => { new ScriptErrorWindow(new ScriptErrorDetails(e.Message, errorLocations, script)); });
                 else
-                    GameActions.Print(_world, formattedEx, Constants.HUE_ERROR);
+                    MainThreadQueue.EnqueueAction(() => GameActions.Print(_world, formattedEx, Constants.HUE_ERROR));
             }
             else
-                GameActions.Print(_world, e.Message, Constants.HUE_ERROR);
+                MainThreadQueue.EnqueueAction(() => GameActions.Print(_world, e.Message, Constants.HUE_ERROR));
 
             if (e.InnerException != null)
                 ShowScriptError(script, e.InnerException);
@@ -559,7 +590,7 @@ namespace ClassicUO.LegionScripting
 
         private static void ShowCSharpCompilationError(ScriptFile script, CompilationErrorException e)
         {
-            GameActions.Print(_world, $"Legion Script '{script.FileName}' has compilation errors.", Constants.HUE_ERROR);
+            MainThreadQueue.EnqueueAction(() => GameActions.Print(_world, $"Legion Script '{script.FileName}' has compilation errors.", Constants.HUE_ERROR));
 
             var errorLocations = new List<ScriptErrorLocation>();
 
@@ -592,17 +623,17 @@ namespace ClassicUO.LegionScripting
                     .Where(d => d.Severity == DiagnosticSeverity.Error)
                     .Select(d => d.GetMessage()));
 
-                new ScriptErrorWindow(new ScriptErrorDetails(errorMsg, errorLocations, script));
+                MainThreadQueue.EnqueueAction(() => { new ScriptErrorWindow(new ScriptErrorDetails(errorMsg, errorLocations, script)); });
             }
             else
             {
-                GameActions.Print(_world, e.Message, Constants.HUE_ERROR);
+                MainThreadQueue.EnqueueAction(() => GameActions.Print(_world, e.Message, Constants.HUE_ERROR));
             }
         }
 
         private static void ShowCSharpRuntimeError(ScriptFile script, Exception e)
         {
-            GameActions.Print(_world, $"Legion Script '{script.FileName}' encountered a runtime error.", Constants.HUE_ERROR);
+            MainThreadQueue.EnqueueAction(() => GameActions.Print(_world, $"Legion Script '{script.FileName}' encountered a runtime error.", Constants.HUE_ERROR));
 
             // Unwrap AggregateException if present
             Exception actualException = e;
@@ -643,26 +674,41 @@ namespace ClassicUO.LegionScripting
 
             if (errorLocations.Count > 0)
             {
-                new ScriptErrorWindow(new ScriptErrorDetails(actualException.Message, errorLocations, script));
+                MainThreadQueue.EnqueueAction(() => { new ScriptErrorWindow(new ScriptErrorDetails(actualException.Message, errorLocations, script)); });
             }
             else
             {
-                GameActions.Print(_world, actualException.Message, Constants.HUE_ERROR);
+                MainThreadQueue.EnqueueAction(() => GameActions.Print(_world, actualException.Message, Constants.HUE_ERROR));
             }
         }
 
-        public static void StopScript(ScriptFile script)
+        public static void StopScript(ScriptFile script, bool force = false)
         {
             if (script == null) return;
+
+            LegionAPI api = script.ScopedApi;
+
+            // If the script registered an OnStop callback, give it a chance to run before we
+            // tear everything down. The callback only runs while the script keeps calling
+            // API.ProcessCallbacks, so we can't force it - we wait for it to complete or for a
+            // maximum of 5 seconds, whichever comes first. Skipped when force is requested
+            // (e.g. during client shutdown).
+            if (!force && script.ScriptThread is { IsAlive: true } && api is { StopRequested: false } && api.HasPendingStopCallback)
+            {
+                if (api.BeginStopCallback())
+                    WaitForStopCallbackThenStop(script);
+
+                return;
+            }
 
             RunningScripts.Remove(script);
 
             if (script.ScriptThread is { IsAlive: true })
             {
-                if (script.ScopedApi != null)
+                if (api != null)
                 {
-                    script.ScopedApi.StopRequested = true;
-                    script.ScopedApi.CancellationToken.Cancel();
+                    api.StopRequested = true;
+                    api.CancellationToken.Cancel();
                 }
 
                 if (script.PythonEngine != null)
@@ -684,6 +730,45 @@ namespace ClassicUO.LegionScripting
                 script.ScriptThread = null;
                 ScriptStopped?.Invoke(null, script);
             }
+        }
+
+        /// <summary>
+        /// Waits (without blocking the main thread) for a script's OnStop callback to finish,
+        /// or for a maximum of 5 seconds, then performs the actual stop.
+        /// </summary>
+        private static void WaitForStopCallbackThenStop(ScriptFile script)
+        {
+            LegionAPI api = script.ScopedApi;
+            DateTime start = DateTime.UtcNow;
+
+            var timer = new System.Timers.Timer(100) { AutoReset = true };
+
+            timer.Elapsed += (_, _) =>
+            {
+                bool completed = api == null || api.OnStopCompleted;
+                bool timedOut = (DateTime.UtcNow - start).TotalSeconds >= 5;
+
+                if (!completed && !timedOut)
+                    return;
+
+                timer.Stop();
+                timer.Dispose();
+
+                MainThreadQueue.EnqueueAction(() =>
+                {
+                    // The script may have already stopped on its own during the grace period.
+                    if (!RunningScripts.Contains(script))
+                        return;
+
+                    // Ensure the delayed path is not taken again on the follow-up stop.
+                    if (script.ScopedApi != null)
+                        script.ScopedApi.StopRequested = true;
+
+                    StopScript(script);
+                });
+            };
+
+            timer.Start();
         }
 
         /// <summary>
@@ -790,15 +875,8 @@ namespace ClassicUO.LegionScripting
                                   </Project>
                                   """;
 
-            try
-            {
-                File.WriteAllText(Path.Combine(CUOEnviroment.ExecutablePath, "LegionScripts", "_ScriptContext.cs"), scriptContext);
-                File.WriteAllText(Path.Combine(CUOEnviroment.ExecutablePath, "LegionScripts", "LegionScripts.csproj"), csProj);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex.ToString());
-            }
+            FileSystemHelper.WriteAllTextSafe(Path.Combine(CUOEnviroment.ExecutablePath, "LegionScripts", "_ScriptContext.cs"), scriptContext);
+            FileSystemHelper.WriteAllTextSafe(Path.Combine(CUOEnviroment.ExecutablePath, "LegionScripts", "LegionScripts.csproj"), csProj);
         }
     }
 }

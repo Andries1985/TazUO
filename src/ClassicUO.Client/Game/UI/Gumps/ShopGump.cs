@@ -10,11 +10,11 @@ using ClassicUO.Input;
 using ClassicUO.Assets;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
-using ClassicUO.Resources;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using ClassicUO.Renderer.Animations;
+using ClassicUO.Game.Managers.Hotkeys;
 
 namespace ClassicUO.Game.UI.Gumps
 {
@@ -487,7 +487,7 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            int total = Keyboard.Shift ? shopItem.Amount : 1;
+            int total = HotKeys.IsPressed(HotKeyRegistrar.ShopBulkId) ? shopItem.Amount : 1;
 
             if (
                 _transactionItems.TryGetValue(
@@ -525,7 +525,7 @@ namespace ClassicUO.Game.UI.Gumps
         {
             var transactionItem = (TransactionItem)sender;
 
-            int total = Keyboard.Shift ? transactionItem.Amount : 1;
+            int total = HotKeys.IsPressed(HotKeyRegistrar.ShopBulkId) ? transactionItem.Amount : 1;
 
             if (transactionItem.Amount > 0)
             {
@@ -655,7 +655,7 @@ namespace ClassicUO.Game.UI.Gumps
                     return;
                 }
 
-                string subname = string.Format(ResGumps.Item0Price1, itemName, Price);
+                string subname = string.Format(TazLang.Get("item0_price1"), itemName, Price);
 
                 Add(
                     _name = new Label(
@@ -760,7 +760,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 _name.Text = new_name
                     ? $"{s}: {Price}"
-                    : string.Format(ResGumps.Item0Price1, s, Price);
+                    : string.Format(TazLang.Get("item0_price1"), s, Price);
                 WantUpdateSize = false;
             }
 

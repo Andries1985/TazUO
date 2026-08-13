@@ -5,7 +5,6 @@ using ClassicUO.Configuration;
 using ClassicUO.Game;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.Managers;
-using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework.Graphics;
@@ -13,6 +12,7 @@ using SDL3;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace ClassicUO
 {
@@ -96,6 +96,7 @@ namespace ClassicUO
 
         public void Unload()
         {
+            Sounds?.DisposeAll();
             FileManager.Dispose();
             World?.Map?.Destroy();
         }
@@ -103,6 +104,15 @@ namespace ClassicUO
 
         private void LoadUOFiles()
         {
+            Task<bool> skipServerSelectTask = Client.Settings.GetAsync(SettingsScope.Global, Constants.SqlSettings.SKIP_SERVER_SELECTION, false);
+
+            TazLang.Load(Settings.GlobalSettings.UILanguage);
+
+            // This provides Myra searchable combobox localization context.
+            // Basically, it allows for better developer ergonomics by negating the need to manually
+            // set localize string like tooltips, hints, etc. for every usage.
+            Game.UI.MyraWindows.Widgets.Search.SearchableComboBoxLocalization.Install();
+
             string clientPath = Settings.GlobalSettings.UltimaOnlineDirectory;
             Log.Trace($"Ultima Online installation folder: {clientPath}");
 
@@ -120,7 +130,7 @@ namespace ClassicUO
             if (!Directory.Exists(clientPath))
             {
                 Log.Error("Invalid client directory: " + clientPath);
-                Client.ShowErrorMessage(string.Format(ResErrorMessages.ClientPathIsNotAValidUODirectory, clientPath));
+                Client.ShowErrorMessage(string.Format(TazLang.Get("client_path_is_not_avalid_uodirectory"), clientPath));
 
                 throw new InvalidClientDirectory($"'{clientPath}' is not a valid directory");
             }
@@ -134,7 +144,7 @@ namespace ClassicUO
                 if (!ClientVersionHelper.TryParseFromFile(Path.Combine(clientPath, "client.exe"), out clientVersionText) || !ClientVersionHelper.IsClientVersionValid(clientVersionText, out clientVersion))
                 {
                     Log.Error("Invalid client version: " + clientVersionText);
-                    Client.ShowErrorMessage(string.Format(ResGumps.ImpossibleToDefineTheClientVersion0, clientVersionText));
+                    Client.ShowErrorMessage(string.Format(TazLang.Get("impossible_to_define_the_client_version0"), clientVersionText));
 
                     throw new InvalidClientVersion($"Invalid client version: '{clientVersionText}'");
                 }
@@ -180,12 +190,35 @@ namespace ClassicUO
                 Protocol |= ClientFlags.CF_SA;
             }
 
+            skipServerSelectTask.Wait();
+            Settings.GlobalSettings.SkipServerSelect = skipServerSelectTask.Result || CUOEnviroment.SkipServerSelect;
+
             Log.Trace($"Client path: '{clientPath}'");
             Log.Trace($"Client version: {clientVersion}");
             Log.Trace($"Protocol: {Protocol}");
 
             FileManager = new UOFileManager(clientVersion, clientPath);
-            FileManager.Load(Settings.GlobalSettings.UseVerdata, Settings.GlobalSettings.Language, Settings.GlobalSettings.MapsLayouts);
+
+            try
+            {
+                FileManager.Load(Settings.GlobalSettings.UseVerdata, Settings.GlobalSettings.Language, Client.Game.GraphicsDevice, Settings.GlobalSettings.MapsLayouts);
+            }
+            catch (FileNotFoundException ex)
+            {
+                string missing = !string.IsNullOrEmpty(ex.FileName) ? ex.FileName : ex.Message;
+
+                Log.Error($"Missing required UO data file while loading: {ex}");
+
+                Client.ShowErrorMessage(
+                    "A required Ultima Online data file could not be found:\n\n" +
+                    $"{missing}\n\n" +
+                    "Please verify your UO data files are present in:\n" +
+                    $"{clientPath}");
+
+                // Exit cleanly so the global unhandled-exception handler does not
+                // generate a crash log/report for what is a missing-files setup issue.
+                Environment.Exit(0);
+            }
 
             StaticFilters.Load(FileManager.TileData);
             BuffTable.Load();
@@ -238,5 +271,41 @@ namespace ClassicUO
         }
 
         public static void ShowErrorMessage(string msg) => SDL.SDL_ShowSimpleMessageBox(SDL.SDL_MessageBoxFlags.SDL_MESSAGEBOX_ERROR, "ERROR", msg, IntPtr.Zero);
+
+        /// <summary>
+        /// Guidance shown when the graphics shaders fail to compile. This almost always indicates an
+        /// environment problem (outdated/unavailable OpenGL) rather than a bug in the shader itself.
+        /// </summary>
+        public const string GraphicsShaderHelpMessage =
+            "TazUO could not compile its graphics shaders. This almost always means your system's OpenGL " +
+            "support is too old or unavailable - common causes are running over Remote Desktop, running in a " +
+            "virtual machine without 3D acceleration, or missing/outdated GPU drivers.\n\n" +
+            "Try: update your GPU drivers, run on the local console (not Remote Desktop), or change the renderer " +
+            "in settings (e.g. Vulkan).\n\n" +
+            "You can also try launching TazUO with a different graphics driver by adding one of the following " +
+            "command-line arguments:\n" +
+            "     -force_driver 1   (OpenGL)\n" +
+            "     -force_driver 2   (Vulkan)\n" +
+            "     -force_driver 3   (SDL/FNA auto-select)\n" +
+            "   Try each one in turn until the client starts successfully.";
+
+        /// <summary>
+        /// Returns true when the exception was raised while compiling an effect/shader (e.g. the
+        /// MOJOSHADER_compileEffect failures produced by FNA3D when the host's OpenGL is unsupported).
+        /// </summary>
+        public static bool IsShaderCompileFailure(Exception ex)
+        {
+            for (Exception e = ex; e != null; e = e.InnerException)
+            {
+                if (e.Message != null &&
+                    (e.Message.Contains("MOJOSHADER", StringComparison.OrdinalIgnoreCase) ||
+                     e.Message.Contains("compileEffect", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

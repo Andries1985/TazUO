@@ -13,15 +13,8 @@ All methods, properties, enums, etc need to pre prefaced with `API.` for example
  `API.Msg("An example")`.
 :::
 
-:::tip[API.py File]
-If you download the [API.py](https://github.com/PlayTazUO/TazUO/blob/dev/src/ClassicUO.Client/LegionScripting/docs/API.py) file, put it in the same folder as your python scripts and add `import API` to your script, that will enable some mild form of autocomplete in an editor like VS Code.  
 
-You can now type `-updateapi` in game to download the latest API.py file.
-:::
-
-[Additional notes](../notes/)  
-
-*This was generated on `5/21/26`.*
+*This was generated on `8/8/26`.*
 
 ## Properties
 ### `Events`
@@ -105,6 +98,28 @@ You can now type `-updateapi` in game to download the latest API.py file.
  The graphic of the last targeting object
 
 
+### `LastSpellIndex`
+
+**Type:** `int`
+
+ The index of the last spell cast by the player.
+ Example:
+ ```py
+ API.SysMsg("Last spell index: " + str(API.LastSpellIndex))
+ ```
+
+
+### `LastSpellName`
+
+**Type:** `string`
+
+ The name of the last spell cast by the player.
+ Example:
+ ```py
+ API.SysMsg("Last spell: " + API.LastSpellName)
+ ```
+
+
 ### `Found`
 
 **Type:** `uint`
@@ -177,7 +192,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
  Use this when you need to wait for players to click buttons.
  Example:
  ```py
- while True:
+ while not API.StopRequested:
    API.ProcessCallbacks()
    API.Pause(0.1)
  ```
@@ -201,7 +216,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
  def on_shift_a():
      API.SysMsg("SHIFT+A pressed!")
  API.OnHotKey("SHIFT+A", on_shift_a)
- while True:
+ while not API.StopRequested:
    API.ProcessCallbacks()
    API.Pause(0.1)
  ```
@@ -218,7 +233,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 | Name | Type | Optional | Description |
 | --- | --- | --- | --- |
 | `key` | `string` | ❌ No | Key combination to listen for, e.g. "CTRL+SHIFT+F1". |
-| `callback` | `object` | ✅ Yes | Python function to invoke when the hotkey is pressed.<br>         If `null` , the hotkey will be unregistered. |
+| `callback` | `object` | ✅ Yes | Python function to invoke when the hotkey is pressed.<br>         If None, the hotkey will be unregistered. |
 
 **Return Type:** `void` *(Does not return anything)*
 
@@ -237,7 +252,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 | --- | --- | --- | --- |
 | `delayMs` | `uint` | ❌ No | The delay, in milliseconds, after which to invoke the callback.<br>         <br/>  The minimum delay is 5ms. |
 | `callback` | `Action` | ❌ No | The callback to invoke |
-| `timesToRepeat` | `int` | ✅ Yes | The number of times the callback the callback should be repeated after the initial invocation.<br>         Repeated invocations respect the requested delay.<br>         A negative number means "forever", 0 means "do not repeat" (i.e., invoke once) and positive numbers mean "repeat N times".<br>         A repeat of '9', for example, will result in 10 total invocations (1 initial + 9 repeats). |
+| `timesToRepeat` | `int` | ✅ Yes | The number of times the callback should be repeated after the initial invocation.<br>         Repeated invocations respect the requested delay.<br>         A negative number means "forever", 0 means "do not repeat" (i.e., invoke once), and positive numbers mean "repeat N times".<br>         A repeat of '9', for example, will result in 10 total invocations (1 initial + 9 repeats). |
 
 **Return Type:** `uint`
 
@@ -508,6 +523,29 @@ You can now type `-updateapi` in game to download the latest API.py file.
 
 ---
 
+### ContextMenu
+`(serial, entry, timeout)`
+ Send a context menu(right click menu) response by matching the entry text.
+ This opens the menu, finds the entry whose text matches, and responds with the correct index.
+ The match is case-insensitive and matches the first entry that contains the given text.
+ Example:
+ ```py
+ API.ContextMenu(API.Player, "Open Paperdoll")
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `serial` | `uint` | ❌ No |  |
+| `entry` | `string` | ❌ No | The text of the menu entry to select |
+| `timeout` | `double` | ✅ Yes | Seconds to wait for the menu to appear |
+
+**Return Type:** `bool`
+
+---
+
 ### MenuResponseCurrent
 `(index, itemGraphic, itemHue)`
  Send a response to the currently open menu (uses the latest MenuGump).
@@ -742,7 +780,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 
 ### GetHeldItem
 
- Retrieves data of the currently held item on the game cursor.
+ Retrieves serial of the currently held item on the game cursor.
 
 
 **Return Type:** `uint`
@@ -953,6 +991,60 @@ You can now type `-updateapi` in game to download the latest API.py file.
 
 
 **Return Type:** `ApiBuff[]`
+
+---
+
+### ActiveSpells
+
+ Get a list of spell ids for spells that are currently toggled on/active.
+ These are toggle spells/moves (for example Ninjitsu or Bushido moves) that the server
+ reports as active, the same ones the spell bar highlights.
+ Example:
+ ```py
+ for spellId in API.ActiveSpells():
+     API.SysMsg("Active spell id: " + str(spellId))
+ ```
+
+
+**Return Type:** `int[]`
+
+---
+
+### ActiveSpellNames
+
+ Get a list of names for spells that are currently toggled on/active.
+ These are toggle spells/moves (for example Ninjitsu or Bushido moves) that the server
+ reports as active, the same ones the spell bar highlights.
+ Example:
+ ```py
+ for name in API.ActiveSpellNames():
+     API.SysMsg("Active spell: " + name)
+ ```
+
+
+**Return Type:** `string[]`
+
+---
+
+### IsSpellActive
+`(spell)`
+ Check if a toggle spell/move is currently active.
+ You can pass a spell name (for example "Confidence") or a spell id.
+ These are toggle spells/moves that the server reports as active, the same ones the spell bar highlights.
+ Example:
+ ```py
+ if API.IsSpellActive("Confidence"):
+     API.SysMsg("Confidence is active!")
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `spell` | `object` | ❌ No | The spell name or spell id to check. |
+
+**Return Type:** `bool`
 
 ---
 
@@ -1348,6 +1440,84 @@ You can now type `-updateapi` in game to download the latest API.py file.
 | `hue` | `ushort` | ❌ No | Hue to color the cooldown bar |
 
 **Return Type:** `void` *(Does not return anything)*
+
+---
+
+### UpdateCooldown
+`(name, maxValue, currentValue)`
+ Updates an existing cooldown bar. Only the provided values are applied.
+ Example:
+ ```py
+ API.UpdateCooldown("Healing", maxValue=10, currentValue=5)
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | ❌ No | Name of the cooldown bar to update |
+| `maxValue` | `double` | ✅ Yes | New total duration in seconds. Omit or pass -1 to leave unchanged |
+| `currentValue` | `double` | ✅ Yes | New remaining time in seconds. Omit or pass -1 to leave unchanged |
+
+**Return Type:** `void` *(Does not return anything)*
+
+---
+
+### RestartCooldown
+`(name)`
+ Restarts the countdown of an existing cooldown bar to its full duration.
+ Example:
+ ```py
+ API.RestartCooldown("Healing")
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | ❌ No | Name of the cooldown bar to restart |
+
+**Return Type:** `void` *(Does not return anything)*
+
+---
+
+### DeleteCooldown
+`(name)`
+ Deletes an existing cooldown bar.
+ Example:
+ ```py
+ API.DeleteCooldown("Healing")
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | ❌ No | Name of the cooldown bar to delete |
+
+**Return Type:** `void` *(Does not return anything)*
+
+---
+
+### CooldownExists
+`(name)`
+ Checks whether a cooldown bar with the given name exists.
+ Example:
+ ```py
+ if API.CooldownExists("Healing"):
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | ❌ No | Name of the cooldown bar to check |
+
+**Return Type:** `bool`
 
 ---
 
@@ -1781,7 +1951,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 
 ### RequestAnyTarget
 `(timeout)`
- Prompts the player to target any object in the game world, including an `Item` , `Mobile` , `Land` tile, `Static` , or `Multi` .
+ Prompts the player to target any object in the game world, including an Item, Mobile, Land tile, Static, or Multi.
  Waits for the player to select a target within a given timeout period.
 
 
@@ -1789,7 +1959,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 
 | Name | Type | Optional | Description |
 | --- | --- | --- | --- |
-| `timeout` | `double` | ✅ Yes | The maximum time, in seconds, to wait for a valid target selection.<br>         If the timeout expires without a selection, the method returns `null` . |
+| `timeout` | `double` | ✅ Yes | The maximum time, in seconds, to wait for a valid target selection.<br>         If the timeout expires without a selection, the method returns null. |
 
 **Return Type:** `ApiGameObject`
 
@@ -2424,6 +2594,25 @@ You can now type `-updateapi` in game to download the latest API.py file.
 
 ---
 
+### PlaySound
+`(index)`
+ Play a sound effect locally (only audible to you).
+ Example:
+ ```py
+ API.PlaySound(0x13E)
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `index` | `int` | ❌ No | The sound effect ID to play |
+
+**Return Type:** `void` *(Does not return anything)*
+
+---
+
 ### InJournalAny
 `(msgs, clearMatches)`
  Check if the journal contains *any* of the strings in this list.
@@ -2517,6 +2706,41 @@ You can now type `-updateapi` in game to download the latest API.py file.
  API.Stop()
  ```
 
+
+**Return Type:** `void` *(Does not return anything)*
+
+---
+
+### OnStop
+`(callback)`
+ Register an optional callback to run when this script is being stopped.
+ When set, stopping the script will be delayed until this callback has been
+ processed, or until a maximum of 5 seconds have passed.
+
+ Callbacks only run while the script is calling `API.ProcessCallbacks`,
+ so make sure your script keeps calling it (for example in its main loop) for
+ the OnStop callback to actually run before the timeout elapses.
+
+ Example:
+ ```py
+ def on_stop():
+   API.SysMsg("Cleaning up before stopping...")
+ API.OnStop(on_stop)
+ while not API.StopRequested:
+   API.ProcessCallbacks()
+   API.Pause(0.1)
+ ```
+ To unregister, call with no callback:
+ ```py
+ API.OnStop()
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `callback` | `object` | ✅ Yes | The function to invoke when the script is stopping, or `null` to unregister. |
 
 **Return Type:** `void` *(Does not return anything)*
 
@@ -3094,7 +3318,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 ---
 
 ### CreateGumpTextBox
-`(text, width, height, multiline)`
+`(text, width, height, multiline, fontSize)`
  Use API.Gumps.CreateGumpTextBox instead.
 
 
@@ -3106,6 +3330,7 @@ You can now type `-updateapi` in game to download the latest API.py file.
 | `width` | `int` | ✅ Yes |  |
 | `height` | `int` | ✅ Yes |  |
 | `multiline` | `bool` | ✅ Yes |  |
+| `fontSize` | `float` | ✅ Yes |  |
 
 **Return Type:** `ApiUiTtfTextInputField`
 
@@ -3305,11 +3530,11 @@ You can now type `-updateapi` in game to download the latest API.py file.
 ---
 
 ### ToggleScript
-`(scriptName)`
+`(scriptPath)`
  Toggle another script on or off.
  Example:
  ```py
- API.ToggleScript("MyScript.py")
+ API.ToggleScript("mygroup/MyScript.py")
  ```
 
 
@@ -3317,39 +3542,83 @@ You can now type `-updateapi` in game to download the latest API.py file.
 
 | Name | Type | Optional | Description |
 | --- | --- | --- | --- |
-| `scriptName` | `string` | ❌ No | Full name including extension. Can be .py or .lscript. |
+| `scriptPath` | `string` | ❌ No | The script's path relative to the LegionScripts folder (e.g. "mygroup/MyScript.py"). Use a path returned by ListRunningScripts" to avoid ambiguity between scripts that share a file name. |
 
 **Return Type:** `void` *(Does not return anything)*
 
 ---
 
 ### PlayScript
-`(scriptName)`
+`(scriptPath)`
  Play a legion script.
+ Example:
+ ```py
+ API.PlayScript("mygroup/MyScript.py")
+ ```
 
 
 **Parameters:**
 
 | Name | Type | Optional | Description |
 | --- | --- | --- | --- |
-| `scriptName` | `string` | ❌ No | This is the file name including extension. |
+| `scriptPath` | `string` | ❌ No | The script's path relative to the LegionScripts folder (e.g. "mygroup/MyScript.py"). Use a path returned by ListRunningScripts to avoid ambiguity between scripts that share a file name. |
 
 **Return Type:** `void` *(Does not return anything)*
 
 ---
 
 ### StopScript
-`(scriptName)`
+`(scriptPath)`
  Stop a legion script.
+ Example:
+ ```py
+ API.StopScript("mygroup/MyScript.py")
+ ```
 
 
 **Parameters:**
 
 | Name | Type | Optional | Description |
 | --- | --- | --- | --- |
-| `scriptName` | `string` | ❌ No | This is the file name including extension. |
+| `scriptPath` | `string` | ❌ No | The script's path relative to the LegionScripts folder (e.g. "mygroup/MyScript.py"). Use a path returned by ListRunningScripts to avoid ambiguity between scripts that share a file name. |
 
 **Return Type:** `void` *(Does not return anything)*
+
+---
+
+### ListRunningScripts
+
+ Get the paths of all currently running legion scripts.
+ The paths are relative to the LegionScripts folder and can be passed
+ straight back to PlayScript, StopScript, ToggleScript or IsScriptRunning.
+ Example:
+ ```py
+ for path in API.ListRunningScripts():
+     API.SysMsg(path)
+ ```
+
+
+**Return Type:** `IList<string>`
+
+---
+
+### IsScriptRunning
+`(scriptPath)`
+ Check if a legion script is currently running.
+ Example:
+ ```py
+ if not API.IsScriptRunning("mygroup/MyScript.py"):
+     API.PlayScript("mygroup/MyScript.py")
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `scriptPath` | `string` | ❌ No | The script's path relative to the LegionScripts folder (e.g. "mygroup/MyScript.py"). Use a path returned by ListRunningScripts to avoid ambiguity between scripts that share a file name. |
+
+**Return Type:** `bool`
 
 ---
 
@@ -3554,6 +3823,62 @@ You can now type `-updateapi` in game to download the latest API.py file.
 | `identifier` | `uint` | ✅ Yes | An identified number if you want multiple arrows. |
 
 **Return Type:** `void` *(Does not return anything)*
+
+---
+
+### GetClilocString
+`(cliloc, englishOnly)`
+ Get the string for a cliloc number.
+ Example:
+ ```py
+ text = API.GetClilocString(1020000)
+ if text:
+   API.SysMsg(text)
+
+ # Force English regardless of client language setting
+ text = API.GetClilocString(1020000, englishOnly=True)
+ ```
+
+
+**Parameters:**
+
+| Name | Type | Optional | Description |
+| --- | --- | --- | --- |
+| `cliloc` | `int` | ❌ No | The cliloc number |
+| `englishOnly` | `bool` | ✅ Yes | True to always return the English string, ignoring the client language setting |
+
+**Return Type:** `string`
+
+---
+
+### GetClientBounds
+
+ Get the bounds of the client game window.
+ This covers the entire window, including all UI and the game world.
+ Coordinates are in screen pixels.
+ Example:
+ ```py
+ bounds = API.GetClientBounds()
+ API.SysMsg(f"Window is {bounds.Width}x{bounds.Height} at {bounds.X},{bounds.Y}")
+ ```
+
+
+**Return Type:** `Rectangle`
+
+---
+
+### GetViewportBounds
+
+ Get the bounds of the game world viewport.
+ This is the area where the game world is rendered, in screen pixel coordinates.
+ Example:
+ ```py
+ vp = API.GetViewportBounds()
+ API.SysMsg(f"Viewport at {vp.X},{vp.Y} size {vp.Width}x{vp.Height}")
+ ```
+
+
+**Return Type:** `Rectangle`
 
 ---
 

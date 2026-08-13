@@ -1,4 +1,5 @@
 using ClassicUO.Assets;
+using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using FontStashSharp;
 using Microsoft.Xna.Framework;
@@ -15,13 +16,18 @@ public static class MyraStyle
     public const int STANDARD_SPACING = 3;
     public const int STANDARD_BORDER_ALPHA = 125;
     public static Color GridBorderColor { get; } = new Color(0, 0, 0, STANDARD_BORDER_ALPHA);
+    public static SpriteFontBase UiFont => _uiFont;
 
-    private static Color TazUO_Orange = new(0.667f, 0.412f, 0.051f, 1f);
+    public static int UiFontSize => ProfileManager.CurrentProfile == null ? 16 : ProfileManager.CurrentProfile.OptionsFontSize;
+    public static SpriteFontBase GetUiFont(int sizeOffset) =>
+        TrueTypeLoader.Instance.GetFont(ProfileManager.CurrentProfile == null ? EmbeddedFontNames.IBM_PLEX : ProfileManager.CurrentProfile.OptionsFont, UiFontSize + sizeOffset);
+
+    private static Color TazUO_Orange = new (0.306f, 0.271f, 0.251f, 0.9f);
 
     private static SpriteFontBase _uiFont;
     private static NinePatchRegion _ninePatchPanel;
-    private static NinePatchRegion _ninePatchButtonUp;
-    private static NinePatchRegion _ninePatchButtonDown;
+    public static NinePatchRegion NinePatchButtonUp;
+    public static NinePatchRegion NinePatchButtonDown;
     private static NinePatchRegion _ninePatchButtonDangerUp;
     private static NinePatchRegion _ninePatchButtonDangerDown;
     private static TextureRegion _skillUpButton;
@@ -35,12 +41,12 @@ public static class MyraStyle
             ModernUIConstants.ModernUIPanel.Bounds,
             new Thickness(ModernUIConstants.ModernUIPanel_BorderSize)
         );
-        _ninePatchButtonUp = new NinePatchRegion(
+        NinePatchButtonUp = new NinePatchRegion(
             ModernUIConstants.ModernUIButtonUp,
             ModernUIConstants.ModernUIButtonUp.Bounds,
             new Thickness(ModernUIConstants.ModernUIButton_BorderSize)
         );
-        _ninePatchButtonDown = new NinePatchRegion(
+        NinePatchButtonDown = new NinePatchRegion(
             ModernUIConstants.ModernUIButtonDown,
             ModernUIConstants.ModernUIButtonUp.Bounds,
             new Thickness(ModernUIConstants.ModernUIButton_BorderSize)
@@ -60,7 +66,7 @@ public static class MyraStyle
         _skillDownButton = new TextureRegion(ModernUIConstants.ModernUISkillDown);
         _skillLockBtn = new TextureRegion(ModernUIConstants.ModernUISkillLock);
 
-        _uiFont = TrueTypeLoader.Instance.GetFont(EmbeddedFontNames.IBM_PLEX, 16);
+        _uiFont = TrueTypeLoader.Instance.GetFont(ProfileManager.CurrentProfile == null ? EmbeddedFontNames.IBM_PLEX : ProfileManager.CurrentProfile.OptionsFont, UiFontSize);
 
         //Window style
         WindowStyle style = Stylesheet.Current.WindowStyle;
@@ -83,8 +89,8 @@ public static class MyraStyle
 
         ImageTextButtonStyle tabItemStyle = tabControlStyle.TabItemStyle;
         tabItemStyle.Background = new SolidBrush(Color.Transparent);
-        tabItemStyle.OverBackground = new SolidBrush(new Color(170, 105, 13, 80));
-        tabItemStyle.PressedBackground = new SolidBrush(new Color(170, 105, 13, 160));
+        tabItemStyle.OverBackground = new SolidBrush(new Color(129, 120, 115, 150)); // lighter hover tone, matches combo/menu hover; selected uses the darker TazUO_Orange
+        tabItemStyle.PressedBackground = new SolidBrush(TazUO_Orange);
         tabItemStyle.Border = new SolidBrush(new Color(0, 0, 0, STANDARD_BORDER_ALPHA));
         tabItemStyle.BorderThickness = new Thickness(1, 1, 1, 0); // remove bottom border to avoid overlap
         tabItemStyle.Margin = new Thickness(1, 0);
@@ -94,20 +100,23 @@ public static class MyraStyle
         SliderStyle sStyle = Stylesheet.Current.HorizontalSliderStyle;
         sStyle.Background = new SolidBrush(new Color(50, 49, 56, 50));
         sStyle.OverBackground = new SolidBrush(new Color(50, 49, 56, 150));
-        sStyle.KnobStyle.ImageStyle.Background = new SolidBrush(TazUO_Orange);
-        sStyle.KnobStyle.ImageStyle.OverBackground = new SolidBrush(TazUO_Orange);
-        sStyle.KnobStyle.ImageStyle.FocusedBackground = new SolidBrush(TazUO_Orange);
+
+        Color sliderMainColor = new(0.506f, 0.471f, 0.451f, 0.9f);
+        sStyle.KnobStyle.ImageStyle.Background = new SolidBrush(sliderMainColor);
+        sStyle.KnobStyle.ImageStyle.OverBackground = new SolidBrush(sliderMainColor);
+        sStyle.KnobStyle.ImageStyle.FocusedBackground = new SolidBrush(sliderMainColor);
         sStyle.KnobStyle.ImageStyle.PressedImage = null;
         sStyle.KnobStyle.ImageStyle.Image = null;
-        sStyle.Width = 100;
-        sStyle.Height = 20;
+        sStyle.KnobStyle.ImageStyle.Height = 30;
+        sStyle.Width = 175;
+        sStyle.Height = 30;
 
         //Button
         ButtonStyle s = Stylesheet.Current.ButtonStyle;
         //s.Background = new SolidBrush(TazUO_Orange);
-        s.Background = _ninePatchButtonUp;
-        s.OverBackground = _ninePatchButtonDown;
-        s.PressedBackground = _ninePatchButtonDown;
+        s.Background = NinePatchButtonUp;
+        s.OverBackground = NinePatchButtonDown;
+        s.PressedBackground = NinePatchButtonDown;
         s.MinWidth = 1;
         s.MinHeight = 1;
         s.Padding = new Thickness(5);
@@ -127,23 +136,24 @@ public static class MyraStyle
         inputStyle.Font = _uiFont;
 
         ScrollViewerStyle svStyle = Stylesheet.Current.ScrollViewerStyle;
-        svStyle.VerticalScrollBackground = new TextureRegion(ModernUIConstants.ModernUIVerticalScrollbar);
+        svStyle.VerticalScrollBackground = new NinePatchRegion(ModernUIConstants.ModernUIVerticalScrollbar, ModernUIConstants.ModernUIVerticalScrollbar.Bounds, new Thickness(1));
+
         svStyle.VerticalScrollKnob = new TextureRegion(ModernUIConstants.ModernUIVerticalScrollbarKnob);
 
-        svStyle.HorizontalScrollBackground = new TextureRegion(ModernUIConstants.ModernUIHorizontalScrollbar);
+        svStyle.HorizontalScrollBackground = new NinePatchRegion(ModernUIConstants.ModernUIHorizontalScrollbar, ModernUIConstants.ModernUIHorizontalScrollbar.Bounds, new Thickness(1));
         svStyle.HorizontalScrollKnob = new TextureRegion(ModernUIConstants.ModernUIHorizontalScrollbarKnob);
 
         ComboBoxStyle comboStyle = Stylesheet.Current.ComboBoxStyle;
         comboStyle.Padding = new Thickness(3);
         comboStyle.Background = new SolidBrush(new Color(21, 21, 21, 75));
-        comboStyle.OverBackground = new SolidBrush(new Color(170, 105, 13, 80));
-        comboStyle.ListBoxStyle.Background = new SolidBrush("#242941");
+        comboStyle.OverBackground = new SolidBrush(new Color(0.506f, 0.471f, 0.451f, 0.9f));
+        comboStyle.ListBoxStyle.Background = new SolidBrush(TazUO_Orange);
         comboStyle.LabelStyle.Font = _uiFont;
 
         ImageTextButtonStyle comboItemStyle = comboStyle.ListBoxStyle.ListItemStyle;
         comboItemStyle.Background = new SolidBrush(Color.Transparent);
-        comboItemStyle.OverBackground = new SolidBrush(new Color(170, 105, 13, 80));
-        comboItemStyle.PressedBackground = new SolidBrush(new Color(170, 105, 13, 160));
+        comboItemStyle.OverBackground = new SolidBrush(new Color(0.306f, 0.271f, 0.251f, 0.7f));
+        comboItemStyle.PressedBackground = new SolidBrush(new Color(0.506f, 0.471f, 0.451f, 0.9f));
 
         comboItemStyle.Padding = new Thickness(2);
         comboItemStyle.LabelStyle.Font = _uiFont;
@@ -151,10 +161,10 @@ public static class MyraStyle
         MenuStyle menuStyle = Stylesheet.Current.VerticalMenuStyle;
         menuStyle.Padding = new Thickness(0);
         menuStyle.Margin = new Thickness(0);
-        menuStyle.Background = new SolidBrush("#242941");
-        menuStyle.Border = new SolidBrush(TazUO_Orange);
-        menuStyle.SelectionBackground = new SolidBrush(new Color(170, 105, 13, 160));
-        menuStyle.SelectionHoverBackground = new SolidBrush(new Color(170, 105, 13, 80));
+        menuStyle.Background = new SolidBrush(TazUO_Orange);
+        menuStyle.Border = new SolidBrush(new Color(11, 11, 11, 230));
+        menuStyle.SelectionBackground = new SolidBrush(new Color(0.306f, 0.271f, 0.251f, 0.9f));
+        menuStyle.SelectionHoverBackground = new SolidBrush(new Color(0.506f, 0.471f, 0.451f, 0.9f));
         menuStyle.LabelStyle.Font = _uiFont;
         menuStyle.LabelStyle.Margin = new Thickness(2);
     }
@@ -181,6 +191,17 @@ public static class MyraStyle
         button.PressedBackground = _ninePatchButtonDangerDown;
 
         return button;
+    }
+
+    /// <summary>
+    /// The combo box skin only gives ListBoxStyle a background, not a border (unlike the
+    /// menu skin), so a SearchableComboBox's popup - which reads like a menu - looks
+    /// unstyled next to one. Give it the same border as VerticalMenuStyle.
+    /// </summary>
+    public static void ApplySearchComboBoxPopupBorder<T>(SearchableComboBox<T> combo)
+    {
+        combo.PopupBorder = new SolidBrush(TazUO_Orange);
+        combo.PopupBorderThickness = new Thickness(1);
     }
 
     public static Button ApplySkillButtonStyle(Button button, Lock skillLock)

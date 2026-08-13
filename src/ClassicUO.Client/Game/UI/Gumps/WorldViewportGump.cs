@@ -14,7 +14,6 @@ using ClassicUO.Input;
 using ClassicUO.LegionScripting;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
-using ClassicUO.Resources;
 using ClassicUO.Utility;
 using ClassicUO.Utility.Logging;
 using Microsoft.Xna.Framework;
@@ -34,7 +33,7 @@ namespace ClassicUO.Game.UI.Gumps
             _savedSize;
         private readonly GameScene _scene;
         private readonly SystemChatControl _systemChatControl;
-        private List<(string, ushort)>? _userNotifications = null;
+        private List<(string, ushort)> _userNotifications = null;
 
         private static Texture2D damageWindowOutline = SolidColorTextureCache.GetTexture(Color.White);
         public static Vector3 DamageWindowOutlineHue = ShaderHueTranslator.GetHueVector(32);
@@ -91,7 +90,7 @@ namespace ClassicUO.Game.UI.Gumps
             _button.MouseExit += (sender, e) => _button.Alpha = 0.3f;
             _button.Alpha = 0.3f;
 
-            _button.SetTooltip(ResGumps.ResizeGameWindow);
+            _button.SetTooltip(TazLang.Get("resize_game_window"));
             Width = scene.Camera.Bounds.Width + borderOffset;
             Height = scene.Camera.Bounds.Height + borderOffset;
 
@@ -131,25 +130,68 @@ namespace ClassicUO.Game.UI.Gumps
                 _userNotifications.Add(("Warning: It looks like your UO folder is stored inside TazUO, this is discouraged as you may accidentally have your UO files deleted.", Constants.HUE_ERROR));
             }
 
+            while (ConfigurationResolver.CorruptFiles.TryDequeue(out string corruptFile))
+            {
+                _userNotifications ??= new();
+                _userNotifications.Add(($"Warning: The configuration file '{Path.GetFileName(corruptFile)}' was corrupt and could not be loaded. " +
+                                        $"Default settings were used and a backup was saved to '{Path.GetFileName(corruptFile)}.corrupt'.", Constants.HUE_ERROR));
+            }
+
+            // Community poll reminder is fetched asynchronously; kick it off before starting the flush
+            // timer so a fast result lands in the same batch as the notifications above.
+            QueueUnvotedPollsNotification();
+
             if (_userNotifications != null) //Why is this here? This ensures the user is in-game and can see the world viewport before sending them messages
             {
                 var timer = new Timer(TimeSpan.FromSeconds(5));
                 timer.Elapsed += (sender, args) =>
                 {
-                    if (World.Instance != null)
-                        _userNotifications.ForEach((s) =>
-                        {
-                            (string item1, ushort item2) = s;
-                            GameActions.Print(item1, item2);
-                        });
-
-                    _userNotifications.Clear();
-                    _userNotifications = null;
+                    // Flush on the main thread so the list is only ever touched from one thread
+                    // (the async poll fetch also appends to it from the main thread).
+                    MainThreadQueue.InvokeOnMainThread(FlushUserNotifications);
                     timer?.Stop();
                 };
                 timer.Start();
             }
         }
+
+        /// <summary>Prints and clears any queued in-world user notifications. Main thread only.</summary>
+        private void FlushUserNotifications()
+        {
+            if (_userNotifications == null)
+                return;
+
+            if (World.Instance != null)
+                _userNotifications.ForEach((s) =>
+                {
+                    (string item1, ushort item2) = s;
+                    GameActions.Print(item1, item2);
+                });
+
+            _userNotifications.Clear();
+            _userNotifications = null;
+        }
+
+        /// <summary>
+        /// Fetches the community polls from Firebase and, if the profile has any it hasn't voted on,
+        /// shows a reminder. The fetch is asynchronous, so the message is added to the pending
+        /// notification batch while it is still open, otherwise printed directly once we are in-world.
+        /// </summary>
+        private void QueueUnvotedPollsNotification() => Task.Run(async () =>
+                                                                 {
+                                                                     string message = await FirebasePollsManager.GetUnvotedNotificationAsync();
+
+                                                                     if (string.IsNullOrEmpty(message))
+                                                                         return;
+
+                                                                     MainThreadQueue.InvokeOnMainThread(() =>
+                                                                     {
+                                                                         if (_userNotifications != null)
+                                                                             _userNotifications.Add((message, Constants.HUE_WARN));
+                                                                         else if (World.Instance != null)
+                                                                             GameActions.Print(message, Constants.HUE_WARN);
+                                                                     });
+                                                                 });
 
         public override void Update()
         {
