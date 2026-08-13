@@ -353,9 +353,9 @@ namespace ClassicUO.Game.Scenes
         )
         {
             allowSelection = true;
-            if (ProfileManager.CurrentProfile.UseCircleOfTransparency && ProfileManager.CurrentProfile.CircleOfTransparencyType == 2)
+            if (ProfileManager.GlobalSettings.UseCircleOfTransparency && ProfileManager.GlobalSettings.CircleOfTransparencyType == 2)
             {
-                if (Vector2.Distance(new Vector2(obj.RealScreenPosition.X, obj.RealScreenPosition.Y), playerPos) < ProfileManager.CurrentProfile.CircleOfTransparencyRadius)
+                if (Vector2.Distance(new Vector2(obj.RealScreenPosition.X, obj.RealScreenPosition.Y), playerPos) < ProfileManager.GlobalSettings.CircleOfTransparencyRadius)
                 {
                     if (obj.Z >= _maxZ)
                     {
@@ -448,9 +448,9 @@ namespace ClassicUO.Game.Scenes
             ref bool allowSelection
         )
         {
-            if (ProfileManager.CurrentProfile.UseCircleOfTransparency && obj.TransparentTest(maxZ))
+            if (ProfileManager.GlobalSettings.UseCircleOfTransparency && obj.TransparentTest(maxZ))
             {
-                int maxDist = ProfileManager.CurrentProfile.CircleOfTransparencyRadius + 0;
+                int maxDist = ProfileManager.GlobalSettings.CircleOfTransparencyRadius + 0;
                 var pos = new Vector2(obj.RealScreenPosition.X, obj.RealScreenPosition.Y - 44);
                 Vector2.Distance(ref playerPos, ref pos, out float dist);
 
@@ -1172,7 +1172,8 @@ namespace ClassicUO.Game.Scenes
                 winGameScaledHeight = 0;
             }
 
-            int size = (int)(Math.Max(winGameWidth / 44f + 1, winGameHeight / 44f + 1) * zoom);
+            // +1 extra tile in all directions to keep edge objects from popping out
+            int size = (int)(Math.Max(winGameWidth / 44f + 1, winGameHeight / 44f + 1) * zoom) + 1;
 
             if (Camera.Offset.X != 0 || Camera.Offset.Y != 0)
             {

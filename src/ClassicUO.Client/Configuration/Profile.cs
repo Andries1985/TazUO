@@ -87,8 +87,6 @@ namespace ClassicUO.Configuration
 
     public sealed partial class Profile : JsonSave<Profile>, INotifyPropertyChanged
     {
-        public event PropertyChangedEventHandler PropertyChanged;
-
         private static Profile _defaultPreview;
 
         /// <summary>Lives in the profile folder as <c>profile.json</c>.</summary>
@@ -105,31 +103,6 @@ namespace ClassicUO.Configuration
         /// </summary>
         public static Profile DefaultPreviewProfile => _defaultPreview ??= new Profile();
 
-        /// <summary>
-        /// Raises the <see cref="PropertyChanged"/> event with the specified property name
-        /// </summary>
-        /// <param name="propertyName">The property that was updated. Passed by the compiler.</param>
-        private void OnPropertyChanged([CallerMemberName] string propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-        /// <summary>
-        /// Updates the given property with the given value if it is different from the current one.
-        /// Raises the <see cref="PropertyChanged" /> event, if a change has occurred
-        /// </summary>
-        /// <param name="storage">The field to update</param>
-        /// <param name="value">The value to set</param>
-        /// <param name="propertyName">The name of the property being updated</param>
-        /// <typeparam name="T">The type of property being updated</typeparam>
-        /// <returns><c>true</c> if a change has occurred, <c>false</c> otherwise</returns>
-        private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string propertyName = null)
-        {
-            if (EqualityComparer<T>.Default.Equals(storage, value))
-                return false;
-
-            storage = value;
-            OnPropertyChanged(propertyName);
-            return true;
-        }
-
         [JsonIgnore] public string Username { get; set => SetProperty(ref field, value); }
         [JsonIgnore] public string ServerName { get; set => SetProperty(ref field, value); }
         [JsonIgnore] public string CharacterName { get; set => SetProperty(ref field, value); }
@@ -140,13 +113,21 @@ namespace ClassicUO.Configuration
         public string VoiceModelPath { get; set => SetProperty(ref field, value); } = string.Empty;
 
         // sounds
+        [Obsolete("Remove after 10/8/26")]
         public bool EnableSound { get; set => SetProperty(ref field, value); } = true;
+        [Obsolete("Remove after 10/8/26")]
         public int SoundVolume { get; set => SetProperty(ref field, value); } = 50;
+        [Obsolete("Remove after 10/8/26")]
         public bool EnableMusic { get; set => SetProperty(ref field, value); } = true;
+        [Obsolete("Remove after 10/8/26")]
         public int MusicVolume { get; set => SetProperty(ref field, value); } = 50;
+        [Obsolete("Remove after 10/8/26")]
         public bool EnableFootstepsSound { get; set => SetProperty(ref field, value); } = true;
+        [Obsolete("Remove after 10/8/26")]
         public bool EnableRainSound { get; set => SetProperty(ref field, value); } = true;
+        [Obsolete("Remove after 10/8/26")]
         public bool EnableCombatMusic { get; set => SetProperty(ref field, value); } = true;
+        [Obsolete("Remove after 10/8/26")]
         public bool ReproduceSoundsInBackground { get; set => SetProperty(ref field, value); }
 
         // fonts and speech
@@ -212,9 +193,14 @@ namespace ClassicUO.Configuration
         public bool DisableGargoyleFlyingAnimation { get; set => SetProperty(ref field, value); }
         public int FieldsType { get; set => SetProperty(ref field, value); } // 0 = normal, 1 = static, 2 = tile
         public bool NoColorObjectsOutOfRange { get; set => SetProperty(ref field, value); }
+
+        [Obsolete("Remove after 10/8/26")]
         public bool UseCircleOfTransparency { get; set => SetProperty(ref field, value); }
+        [Obsolete("Remove after 10/8/26")]
         public int CircleOfTransparencyRadius { get; set => SetProperty(ref field, value); } = Constants.MAX_CIRCLE_OF_TRANSPARENCY_RADIUS / 2;
+        [Obsolete("Remove after 10/8/26")]
         public int CircleOfTransparencyType { get; set => SetProperty(ref field, value); } // 0 = normal, 1 = like original client
+
         public int VendorGumpHeight { get; set => SetProperty(ref field, value); } = 350;   //original vendor gump size
         public float DefaultScale { get; set => SetProperty(ref field, value); } = 1.0f;
         public bool EnableMousewheelScaleZoom { get; set => SetProperty(ref field, value); } = true;
@@ -236,6 +222,10 @@ namespace ClassicUO.Configuration
         public bool BandageAgentBandagePets { get; set => SetProperty(ref field, value); } = false;
         public bool BandageAgentUseDexFormula { get; set => SetProperty(ref field, value); } = false;
         public bool BandageAgentDisableSelfHeal { get; set => SetProperty(ref field, value); } = false;
+        public TargetType BandageAgentTargetType { get; set => SetProperty(ref field, value); } = TargetType.Beneficial;
+        public bool BandageAgentUseSelfCommand { get; set => SetProperty(ref field, value); } = false;
+        public string BandageAgentSelfCommand { get; set => SetProperty(ref field, value); } = ".bandage";
+        public bool BandageAgentSelfCommandExpectTarget { get; set => SetProperty(ref field, value); } = false;
         public bool SelfHeal_Enabled { get; set => SetProperty(ref field, value); } = false;
         public bool SelfHeal_UseChivalry { get; set => SetProperty(ref field, value); } = false; // false = Magery (Heal/Cure), true = Chivalry (Close Wounds/Cleanse by Fire)
         public int SelfHeal_FC { get; set => SetProperty(ref field, value); } = 2;   // Faster Casting (used to auto-compute timings)
@@ -310,15 +300,16 @@ namespace ClassicUO.Configuration
         public bool OpenModernPaperdollAtMinimizeLoc { get; set => SetProperty(ref field, value); } = false;
 
         // Experimental
+        [Obsolete("Remove after 10/12/26")]
         public bool CastSpellsByOneClick { get; set => SetProperty(ref field, value); }
         public bool BuffBarTime { get; set => SetProperty(ref field, value); }
         public bool FastSpellsAssign { get; set => SetProperty(ref field, value); }
         public bool AutoOpenDoors { get; set => SetProperty(ref field, value); } = true;
+        public bool BlockDoorMovement { get; set => SetProperty(ref field, value); } = true;
         public bool SmoothDoors { get; set => SetProperty(ref field, value); } = true;
         public bool AutoOpenCorpses { get; set => SetProperty(ref field, value); } = true;
         public int AutoOpenCorpseRange { get; set => SetProperty(ref field, value); } = 2;
         public int CorpseOpenOptions { get; set => SetProperty(ref field, value); } = 3;
-        public bool SkipEmptyCorpse { get; set => SetProperty(ref field, value); }
         public bool AutoOpenOwnCorpse { get; set => SetProperty(ref field, value); } = true;
         public bool DisableDefaultHotkeys { get; set => SetProperty(ref field, value); }
         public bool DisableArrowBtn { get; set => SetProperty(ref field, value); }
@@ -348,6 +339,7 @@ namespace ClassicUO.Configuration
         public bool UsePartyHealthBars { get; set => SetProperty(ref field, value); } = true;
         public bool ShowHealCureButtonsAllHealthbars { get; set => SetProperty(ref field, value); }
         public bool ShowHealCureButtonsFriends { get; set => SetProperty(ref field, value); }
+        public bool ShowHealCureButtonsPets { get; set => SetProperty(ref field, value); } = true;
 
         public bool ShowInfoBar { get; set => SetProperty(ref field, value); }
         public int InfoBarHighlightType { get; set => SetProperty(ref field, value); } // 0 = text colour changes, 1 = underline
@@ -848,11 +840,13 @@ namespace ClassicUO.Configuration
         public bool ModernPaperdollAnchorEnabled { get; set => SetProperty(ref field, value); }
         public bool JournalAnchorEnabled { get; set => SetProperty(ref field, value); } = false;
         public bool EnableAutoLootProgressBar { get; set => SetProperty(ref field, value); } = true;
+        [Obsolete("Remove after 10/12/26")]
         public bool UseWASDInsteadArrowKeys { get; set => SetProperty(ref field, value); }
         public int NearbyLootGumpHeight { get; set => SetProperty(ref field, value); } = 550;
         public bool ForceTooltipsOnOldClients { get; set => SetProperty(ref field, value); } = true;
         public bool NearbyLootOpensHumanCorpses { get; set => SetProperty(ref field, value); }
-        public ushort TurnDelay { get; set => SetProperty(ref field, value); } = 100;
+        [Obsolete("Remove after 10/12/26")]
+        public ushort TurnDelay { get; set => SetProperty(ref field, value); } = 80;
         public bool SellAgentEnabled { get; set => SetProperty(ref field, value); }
         public int SellAgentMaxUniques { get; set => SetProperty(ref field, value); } = 50;
         public int SellAgentMaxItems { get; set => SetProperty(ref field, value); } = 0;
@@ -900,6 +894,7 @@ namespace ClassicUO.Configuration
         public int MinGumpMoveDistance { get; set; } = 5;
         public int QuickHealSpell { get; set; } = 29;
         public int QuickCureSpell { get; set; } = 11;
+        [JsonConverter(typeof(Point2Converter))] public Point CoprseContainerPosition { get; set => SetProperty(ref field, value); } = new Point(100, 100);
 
 
         private long lastSave;
@@ -947,7 +942,7 @@ namespace ClassicUO.Configuration
 
             if (ProfileMigrationVersion < 5) //4
             {
-                ProfileMigrationVersion++;
+                ProfileMigrationVersion = 5;
             }
 
             if (ProfileMigrationVersion < 6)
@@ -994,7 +989,53 @@ namespace ClassicUO.Configuration
                 WebMapServerPort = OldWebMapServerPort;
                 WebMapAutoStart = OldWebMapAutoStart;
 
-                ProfileMigrationVersion++;
+                ProfileMigrationVersion = 6;
+            }
+
+            if (ProfileMigrationVersion < 7)
+            {
+                ProfileManager.GlobalSettings.UseCircleOfTransparency = UseCircleOfTransparency;
+                ProfileManager.GlobalSettings.CircleOfTransparencyRadius = CircleOfTransparencyRadius;
+                ProfileManager.GlobalSettings.CircleOfTransparencyType = CircleOfTransparencyType;
+                
+                ProfileMigrationVersion = 7;
+            }
+
+            if (ProfileMigrationVersion < 8)
+            {
+                ProfileManager.GlobalSettings.EnableSound = EnableSound;
+                ProfileManager.GlobalSettings.SoundVolume = SoundVolume;
+                ProfileManager.GlobalSettings.EnableMusic = EnableMusic;
+                ProfileManager.GlobalSettings.MusicVolume = MusicVolume;
+                ProfileManager.GlobalSettings.EnableFootstepsSound = EnableFootstepsSound;
+                ProfileManager.GlobalSettings.EnableRainSound = EnableRainSound;
+                ProfileManager.GlobalSettings.EnableCombatMusic = EnableCombatMusic;
+                ProfileManager.GlobalSettings.ReproduceSoundsInBackground = ReproduceSoundsInBackground;
+
+                ProfileMigrationVersion = 8;
+            }
+
+            if (ProfileMigrationVersion < 9)
+            {
+                ProfileManager.GlobalSettings.EnableSound = EnableSound;
+                ProfileManager.GlobalSettings.SoundVolume = SoundVolume;
+                ProfileManager.GlobalSettings.EnableMusic = EnableMusic;
+                ProfileManager.GlobalSettings.MusicVolume = MusicVolume;
+                ProfileManager.GlobalSettings.EnableFootstepsSound = EnableFootstepsSound;
+                ProfileManager.GlobalSettings.EnableRainSound = EnableRainSound;
+                ProfileManager.GlobalSettings.EnableCombatMusic = EnableCombatMusic;
+                ProfileManager.GlobalSettings.ReproduceSoundsInBackground = ReproduceSoundsInBackground;
+
+                ProfileMigrationVersion = 9;
+            }
+
+            if (ProfileMigrationVersion < 10)
+            {
+                ProfileManager.GlobalSettings.UseWASDInsteadArrowKeys = UseWASDInsteadArrowKeys;
+                ProfileManager.GlobalSettings.SingleClickIconUse = CastSpellsByOneClick;
+                ProfileManager.ServerSettings.TurnDelay = TurnDelay;
+
+                ProfileMigrationVersion = 10;
             }
 
             try //Cleanup old backups from previous save system

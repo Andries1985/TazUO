@@ -90,8 +90,6 @@ namespace ClassicUO.Game.GameObjects
                 byte index = (byte)it.Layer;
                 if (index > 0 && index < _equippedLayers.Length && _equippedLayers[index] == it)
                     _equippedLayers[index] = null;
-                if (it.Layer == Layer.Mount && Mount == it)
-                    Mount = null;
             }
             base.Remove(item);
         }
@@ -568,7 +566,7 @@ namespace ClassicUO.Game.GameObjects
         private void ProcessFootstepsSound()
         {
             if (
-                (ProfileManager.CurrentProfile == null || ProfileManager.CurrentProfile.EnableFootstepsSound)
+                (ProfileManager.GlobalSettings == null || ProfileManager.GlobalSettings.EnableFootstepsSound)
                 && IsHuman
                 && !IsHidden
                 && !IsDead

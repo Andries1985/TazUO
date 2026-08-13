@@ -346,7 +346,13 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 _textboxAccount.ContextMenu = new ContextMenuControl(this);
                 foreach (string acct in accts)
                 {
-                    _textboxAccount.ContextMenu.Add(new ContextMenuItemEntry(acct, () => { _textboxAccount.SetText(acct); }));
+                    _textboxAccount.ContextMenu.Add(new ContextMenuItemEntry(acct, () =>
+                    {
+                        _textboxAccount.SetText(acct);
+                        string accountPassword = SimpleAccountManager.GetAccountPassword(acct);
+                        if (accountPassword != null)
+                            _passwordFake.RealText = Crypter.Decrypt(accountPassword);
+                    }));
                 }
                 _textboxAccount.SetTooltip(TazLang.Get("accountcontextmenutooltip"));
                 _textboxAccount.MouseUp += (s, e) =>
@@ -404,6 +410,15 @@ namespace ClassicUO.Game.UI.Gumps.Login
             {
                 Settings.GlobalSettings.LoginMusic = loginmusic_checkbox.IsChecked;
                 Client.Game.Audio.UpdateCurrentMusicVolume(true);
+
+                if (loginmusic_checkbox.IsChecked)
+                {
+                    Client.Game.Audio.PlayMusic(Client.Game.Audio.LoginMusicIndex, false, true);
+                }
+                else
+                {
+                    Client.Game.Audio.StopMusic();
+                }
 
                 login_music.IsVisible = Settings.GlobalSettings.LoginMusic;
             };
