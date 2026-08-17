@@ -26,6 +26,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using ClassicUO.Game.ScreenDecorations.Manager;
+using ClassicUO.Game.ScreenDecorations.Overlays;
 using ClassicUO.Network.PacketHandlers;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
@@ -174,23 +176,37 @@ namespace ClassicUO
             });
         }
 
-        private const int MAX_PACKETS_PER_FRAME = 25;
+        private const int MAX_PACKETS_PER_FRAME = 1000;
+        private const long MAX_PACKET_PROCESSING_TIME_MS = 5;
 
         private void ProcessNetworkPackets()
         {
+            World world = Client.Game.UO.World;
+
+            // Spread a large burst across frames instead of hitching one frame on a 64KB message.
+            long deadline =
+                Stopwatch.GetTimestamp() + MAX_PACKET_PROCESSING_TIME_MS * Stopwatch.Frequency / 1000;
             int packetsProcessed = 0;
-            while (packetsProcessed < MAX_PACKETS_PER_FRAME)
+
+            // Drain leftover bytes of a huge message that exceeded the budget last frame first.
+            packetsProcessed += PacketParser.Instance.ParseAvailablePackets(world, MAX_PACKETS_PER_FRAME, deadline);
+
+            while (packetsProcessed < MAX_PACKETS_PER_FRAME && Stopwatch.GetTimestamp() < deadline)
             {
                 bool hasPacket = AsyncNetClient.Socket.TryDequeuePacket(out byte[] message);
 
                 if (!hasPacket)
                     break;
 
-                int c = PacketParser.Instance.ParsePackets(Client.Game.UO.World, message);
-
-                AsyncNetClient.Socket.Statistics.TotalPacketsReceived += (uint)c;
-                packetsProcessed++;
+                PacketParser.Instance.AppendToMainBuffer(message);
+                packetsProcessed += PacketParser.Instance.ParseAvailablePackets(
+                    world,
+                    MAX_PACKETS_PER_FRAME - packetsProcessed,
+                    deadline
+                );
             }
+
+            AsyncNetClient.Socket.Statistics.TotalPacketsReceived += (uint)packetsProcessed;
 
             // Plugin packets are buffered separately and would sit unprocessed
             // if no network packets arrived this frame, so always drain them.
@@ -198,10 +214,13 @@ namespace ClassicUO
 
             // UltimaLive defers chunk reloads during packet processing so a streamed
             // area doesn't rebuild the same chunk multiple times. A new-area download
-            // spans many frames (MAX_PACKETS_PER_FRAME), so flush once the socket queue
-            // is drained to coalesce the whole burst; fall back to a time cap in case
-            // steady traffic keeps the queue from ever emptying.
-            if (!AsyncNetClient.Socket.HasPendingPackets || UltimaLive.ShouldFlushPendingChunkReloads)
+            // spans many frames (packet budget), so flush once the socket queue and the
+            // parser buffer are drained to coalesce the whole burst; fall back to a time
+            // cap in case steady traffic keeps the queue from ever emptying.
+            if (
+                (!AsyncNetClient.Socket.HasPendingPackets && !PacketParser.Instance.HasBufferedData)
+                || UltimaLive.ShouldFlushPendingChunkReloads
+            )
             {
                 UltimaLive.FlushPendingChunkReloads(Client.Game.UO.World);
             }
@@ -712,6 +731,8 @@ namespace ClassicUO
 
             Profiler.ExitContext("SceneRender");
 
+            Rectangle destRect;
+
             Profiler.EnterContext("PluginRender");
             if (useRenderTarget)
             {
@@ -722,7 +743,7 @@ namespace ClassicUO
                 GraphicsDevice.Clear(Color.Black);
 
                 var srcRect = new Rectangle(0, 0, _screenRenderTarget.Width, _screenRenderTarget.Height);
-                Rectangle destRect = srcRect;
+                destRect = srcRect;
 
                 _uoSpriteBatch.Begin();
                 if(RenderScale != 1.0f)
@@ -730,6 +751,8 @@ namespace ClassicUO
                     destRect = new Rectangle(0, 0, (int)(_screenRenderTarget.Width * RenderScale), (int)(_screenRenderTarget.Height * RenderScale));
                     _uoSpriteBatch.SetSampler(SamplerState.AnisotropicClamp);
                 }
+
+                destRect = ScreenOverlayManager.Instance.ApplyWindowShake(destRect);
                 _uoSpriteBatch.Draw(_screenRenderTarget, destRect, srcRect, new Vector3(0, 0, 1f));
                 _uoSpriteBatch.End();
             }
@@ -737,8 +760,23 @@ namespace ClassicUO
             {
                 if(_pluginsInitialized)
                     Plugin.ProcessDrawCmdList(GraphicsDevice);
+
+                destRect = GraphicsDevice.Viewport.Bounds;
             }
+
             Profiler.ExitContext("PluginRender");
+
+            Profiler.EnterContext("ScreenOverlays");
+
+            // The offscreen target still holds what was just blitted to the window, so overlays that
+            // distort the frame have a readable copy of it without anything being copied. Without
+            // the target there is no second surface and those layers sit out the frame.
+            ScreenOverlaySource scene = useRenderTarget
+                ? new ScreenOverlaySource(_screenRenderTarget, _screenRenderTarget.Bounds)
+                : ScreenOverlaySource.None;
+
+            ScreenOverlayManager.DrawFullScreenOverlays(_uoSpriteBatch, destRect, scene);
+            Profiler.ExitContext("ScreenOverlays");
 
             base.Draw(gameTime);
 
@@ -1288,8 +1326,7 @@ namespace ClassicUO
         }
 
         // PNG encoding and disk I/O run on a background thread so the frame isn't stalled.
-        private void SaveScreenshotAsync(Color[] colors, int width, int height, string path)
-        {
+        private void SaveScreenshotAsync(Color[] colors, int width, int height, string path) =>
             _ = Task.Run(() =>
             {
                 try
@@ -1346,7 +1383,6 @@ namespace ClassicUO
                     Log.Error($"error saving screenshot: {ex}");
                 }
             });
-        }
 
         private static void FnaLogInfo(string message)=> Log.Info(message);
 
