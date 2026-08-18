@@ -139,7 +139,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             // Community poll reminder is fetched asynchronously; kick it off before starting the flush
             // timer so a fast result lands in the same batch as the notifications above.
-            QueueUnvotedPollsNotification();
+            // QueueUnvotedPollsNotification();
 
             if (_userNotifications != null) //Why is this here? This ensures the user is in-game and can see the world viewport before sending them messages
             {
