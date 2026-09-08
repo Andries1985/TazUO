@@ -38,6 +38,7 @@ using static SDL3.SDL;
 using Keyboard = ClassicUO.Input.Keyboard;
 using Mouse = ClassicUO.Input.Mouse;
 using ClassicUO.Game.UI.MyraWindows;
+using ClassicUO.Utility.Debounce;
 
 namespace ClassicUO
 {
@@ -46,6 +47,7 @@ namespace ClassicUO
         private SDL_EventFilter _filter;
 
         private bool _ignoreNextTextInput;
+        private bool _pendingMouseMotion;
         private readonly float[] _intervalFixedUpdate = new float[2];
         private double _totalElapsed, _currentFpsTime;
         private uint _totalFrames;
@@ -97,7 +99,7 @@ namespace ClassicUO
         }
 
         public readonly float MinRenderScale = 0.1f;
-        public readonly float MaxRenderScale = 1.75f;
+        public readonly float MaxRenderScale = 3.0f;
 
         public float RenderScale
         {
@@ -118,14 +120,10 @@ namespace ClassicUO
 
         public void EnqueueAction(uint time, Action action) => _queuedActions.Add((Time.Ticks + time, action));
 
-        protected override void Initialize()
+        protected override void Initialize() //Called during Game.Run() in FNA
         {
             MainThreadQueue.Load();
 
-            PreloadSettings();
-
-            // Machine-wide JSON settings; loaded once at startup and persisted on exit.
-            ProfileManager.LoadGlobalSettings();
             if (GraphicManager.GraphicsDevice.Adapter.IsProfileSupported(GraphicsProfile.HiDef))
             {
                 GraphicManager.GraphicsProfile = GraphicsProfile.HiDef;
@@ -149,6 +147,12 @@ namespace ClassicUO
             _filter = HandleSdlEvent;
             SDL_SetEventFilter(_filter, IntPtr.Zero);
 
+            // Seed the gamepad gate for pads already connected at startup (SDL also fires
+            // GAMEPAD_ADDED for them, but this covers any that slip through), and get the initial
+            // cursor position so the mouse isn't at (0,0) until the first motion event.
+            Mouse.SetGamepadConnected(Microsoft.Xna.Framework.Input.GamePad.GetState(Microsoft.Xna.Framework.PlayerIndex.One).IsConnected);
+            Mouse.Update(resyncPosition: true);
+
             uint displayId = SDL.SDL_GetDisplayForWindow(Window.Handle);
             nint displayMode = SDL.SDL_GetCurrentDisplayMode(displayId);
             if (displayMode != IntPtr.Zero)
@@ -162,18 +166,6 @@ namespace ClassicUO
             }
 
             base.Initialize();
-        }
-
-        private void PreloadSettings()
-        {
-            bool platformDefault = PlatformHelper.IsLinux;
-            _ = Client.Settings.GetAsyncOnMainThread(SettingsScope.Global, Constants.SqlSettings.MANAGED_ZLIB, platformDefault, (b) =>
-            {
-                if (ZLib.CommandLineOverride)
-                    _ = Client.Settings.SetAsync(SettingsScope.Global, Constants.SqlSettings.MANAGED_ZLIB, true);
-                else
-                    ZLib.SetForceManagedZlib(b);
-            });
         }
 
         private const int MAX_PACKETS_PER_FRAME = 1000;
@@ -463,7 +455,7 @@ namespace ClassicUO
 
             if (viewport != null && ProfileManager.CurrentProfile.GameWindowFullSize)
             {
-                viewport.ResizeGameWindow(new Point(width, height));
+                viewport.ResizeGameWindow(new Point(ScaleHelper.LogicalWindowWidth, ScaleHelper.LogicalWindowHeight));
                 viewport.X = -5;
                 viewport.Y = -5;
             }
@@ -519,6 +511,17 @@ namespace ClassicUO
             }
         }
 
+        private Debounce _pluginCrashed
+        {
+            get
+            {
+                if (field == null)
+                    field = new Debounce(() => { GameActions.Print($"It looks like your plugin had an error. Check the Log History or Console for the full error."); }, 1000);
+
+                return field;
+            }
+        }
+
         protected override void Update(GameTime gameTime)
         {
             Profiler.EnterContext("Update");
@@ -530,18 +533,45 @@ namespace ClassicUO
             Mouse.Update();
             Profiler.ExitContext("Mouse");
 
+            if (_pendingMouseMotion && Scene != null)
+            {
+                if (UO.GameCursor != null && !UO.GameCursor.AllowDrawSDLCursor)
+                {
+                    UO.GameCursor.AllowDrawSDLCursor = true;
+                    UO.GameCursor.Graphic = 0xFFFF;
+                }
+
+                _pendingMouseMotion = false;
+
+                if (Mouse.IsDragging)
+                {
+                    if (!Scene.OnMouseDragging())
+                    {
+                        UIManager.OnMouseDragging();
+                    }
+                }
+            }
+
             Profiler.EnterContext("ProcessNetworkPackets");
             ProcessNetworkPackets();
             Profiler.ExitContext("ProcessNetworkPackets");
 
-            if(_pluginsInitialized)
+            if (_pluginsInitialized)
             {
                 Profiler.EnterContext("PluginTick");
-                Plugin.Tick();
+                try
+                {
+                    Plugin.Tick();
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e.ToString());
+                    _pluginCrashed.Invoke();
+                }
                 Profiler.ExitContext("PluginTick");
             }
 
-            if(drawScene)
+            if (drawScene)
             {
                 Profiler.EnterContext("SceneUpdate");
                 Scene.Update();
@@ -615,21 +645,31 @@ namespace ClassicUO
         /// <summary>
         /// Draws the tiled window background (behind the world and all gumps) using the configured
         /// <see cref="Profile.MainWindowBackgroundHue"/>. Sets a full-window viewport so it fills the
-        /// whole target regardless of any camera viewport the caller had active. Must be called while
-        /// the intended render target is bound.
+        /// whole target regardless of any camera viewport the caller had active. When the screen
+        /// target is larger than the back buffer (scale-down dead space) the background covers it
+        /// all, so the extended area isn't left as garbage/black. Must be called while the intended
+        /// render target is bound.
         /// </summary>
         public void DrawWindowBackground(UltimaBatcher2D batcher)
         {
-            GraphicsDevice.Viewport = new Viewport(bufferRect);
+            Rectangle bounds = _useScreenRenderTarget && _screenRenderTarget != null && !_screenRenderTarget.IsDisposed
+                ? _screenRenderTarget.Bounds
+                : bufferRect;
+
+            GraphicsDevice.Viewport = new Viewport(bounds);
             batcher.Begin();
-            batcher.DrawTiled(_background, bufferRect, _background.Bounds, bgHueShader);
+            batcher.DrawTiled(_background, bounds, _background.Bounds, bgHueShader);
             batcher.End();
         }
 
         private void EnsureScreenRenderTarget()
         {
-            int width = GraphicManager.PreferredBackBufferWidth;
-            int height = GraphicManager.PreferredBackBufferHeight;
+            // When scaled down, the reachable logical area (window / RenderScale) is larger than
+            // the back buffer. Size the target to cover it so gumps/UI can be placed in what would
+            // otherwise be dead space on the right/bottom. At scale >= 1 the logical area fits
+            // inside the back buffer, so the target stays back-buffer sized (upscaling crops).
+            int width = Math.Max(GraphicManager.PreferredBackBufferWidth, ScaleHelper.LogicalWindowWidth);
+            int height = Math.Max(GraphicManager.PreferredBackBufferHeight, ScaleHelper.LogicalWindowHeight);
 
             // Sanity check dimensions
             if (width <= 0 || height <= 0)
@@ -736,7 +776,7 @@ namespace ClassicUO
             Profiler.EnterContext("PluginRender");
             if (useRenderTarget)
             {
-                if(_pluginsInitialized)
+                if (_pluginsInitialized)
                     Plugin.ProcessDrawCmdList(GraphicsDevice);
 
                 GraphicsDevice.SetRenderTarget(null);
@@ -746,7 +786,7 @@ namespace ClassicUO
                 destRect = srcRect;
 
                 _uoSpriteBatch.Begin();
-                if(RenderScale != 1.0f)
+                if (RenderScale != 1.0f)
                 {
                     destRect = new Rectangle(0, 0, (int)(_screenRenderTarget.Width * RenderScale), (int)(_screenRenderTarget.Height * RenderScale));
                     _uoSpriteBatch.SetSampler(SamplerState.AnisotropicClamp);
@@ -758,7 +798,7 @@ namespace ClassicUO
             }
             else
             {
-                if(_pluginsInitialized)
+                if (_pluginsInitialized)
                     Plugin.ProcessDrawCmdList(GraphicsDevice);
 
                 destRect = GraphicsDevice.Viewport.Bounds;
@@ -820,7 +860,7 @@ namespace ClassicUO
             {
                 if (ProfileManager.CurrentProfile.GameWindowFullSize)
                 {
-                    viewport.ResizeGameWindow(new Point(width, height));
+                    viewport.ResizeGameWindow(new Point(ScaleHelper.LogicalWindowWidth, ScaleHelper.LogicalWindowHeight));
                     viewport.X = 0;
                     viewport.Y = 0;
                 }
@@ -849,12 +889,36 @@ namespace ClassicUO
                     Audio?.OnAudioDeviceRemoved();
                     break;
 
+                case SDL_EventType.SDL_EVENT_WINDOW_MOVED:
+                    // Refresh the cached window position (used when the cursor leaves the window)
+                    // only when the window actually moves, not every frame, and re-sync the cursor
+                    // which now maps to a different window position.
+                    Mouse.OnWindowMoved((int)sdlEvent->window.data1, (int)sdlEvent->window.data2);
+                    Mouse.Update(resyncPosition: true);
+                    break;
+
                 case SDL_EventType.SDL_EVENT_WINDOW_MOUSE_ENTER:
                     Mouse.MouseInWindow = true;
+                    // No motion event is guaranteed right after re-entry - re-sync from SDL state.
+                    Mouse.Update(resyncPosition: true);
                     break;
 
                 case SDL_EventType.SDL_EVENT_WINDOW_MOUSE_LEAVE:
                     Mouse.MouseInWindow = false;
+                    break;
+
+                case SDL_EventType.SDL_EVENT_GAMEPAD_ADDED:
+                    Mouse.SetGamepadConnected(true);
+                    break;
+
+                case SDL_EventType.SDL_EVENT_GAMEPAD_REMOVED:
+                    // The removed pad need not be PlayerIndex.One - re-query instead of assuming
+                    // none remain connected, so the warp path keeps running when another pad stays.
+                    Mouse.SetGamepadConnected(
+                        Microsoft.Xna.Framework.Input.GamePad
+                            .GetState(Microsoft.Xna.Framework.PlayerIndex.One)
+                            .IsConnected
+                    );
                     break;
 
                 case SDL_EventType.SDL_EVENT_WINDOW_FOCUS_GAINED:
@@ -868,6 +932,7 @@ namespace ClassicUO
                     // Drop tracked key state so a key held while we lose focus doesn't stick "pressed"
                     // for polled hotkeys (the key-up may never reach us).
                     Keyboard.ClearModifiers();
+                    Keyboard.ClearHeldKeys();
                     ClassicUO.Game.Managers.Hotkeys.HotKeys.ClearHeldKeys();
                     if (_pluginsInitialized)
                         Plugin.OnFocusLost();
@@ -908,7 +973,7 @@ namespace ClassicUO
 
                     Scene.OnKeyUp(sdlEvent->key);
 
-                    Plugin.ProcessHotkeys(0, 0, false);
+                    Plugin.ProcessHotkeys((int)sdlEvent->key.key, (int)sdlEvent->key.mod, false);
 
                     if (key == SDL_Keycode.SDLK_PRINTSCREEN)
                     {
@@ -969,28 +1034,20 @@ namespace ClassicUO
 
                     break;
 
-                case SDL_EventType.SDL_EVENT_MOUSE_MOTION when Scene is not null:
+                case SDL_EventType.SDL_EVENT_MOUSE_MOTION:
+                    // Position is event-driven while the cursor is inside the window; no per-frame
+                    // SDL_GetMouseState poll needed. Drag handling still needs the pending flag.
+                    Mouse.SetPositionFromEvent(sdlEvent->motion.x, sdlEvent->motion.y);
 
-                    if (UO.GameCursor != null && !UO.GameCursor.AllowDrawSDLCursor)
+                    if (Scene is not null)
                     {
-                        UO.GameCursor.AllowDrawSDLCursor = true;
-                        UO.GameCursor.Graphic = 0xFFFF;
-                    }
-
-                    Mouse.Update();
-
-                    if (Mouse.IsDragging)
-                    {
-                        if (!Scene.OnMouseDragging())
-                        {
-                            UIManager.OnMouseDragging();
-                        }
+                        _pendingMouseMotion = true;
                     }
 
                     break;
 
                 case SDL_EventType.SDL_EVENT_MOUSE_WHEEL when Scene is not null:
-                    Mouse.Update();
+                    Mouse.Update(resyncPosition: true);
                     bool isScrolledUp = sdlEvent->wheel.y > 0;
 
                     Mouse.RaiseWheelEvent(isScrolledUp);
@@ -1042,7 +1099,7 @@ namespace ClassicUO
                         }
 
                         Mouse.ButtonPress(buttonType);
-                        Mouse.Update();
+                        Mouse.Update(resyncPosition: true);
 
                         uint ticks = Time.Ticks;
 
@@ -1143,7 +1200,7 @@ namespace ClassicUO
                         }
 
                         Mouse.ButtonRelease(buttonType);
-                        Mouse.Update();
+                        Mouse.Update(resyncPosition: true);
 
                         break;
                     }
@@ -1211,7 +1268,7 @@ namespace ClassicUO
                     break;
 
                 case SDL_EventType.SDL_EVENT_GAMEPAD_AXIS_MOTION when Scene is not null: //Work around because sdl doesn't see trigger buttons as buttons, they are axis probably for pressure support
-                                                                  //GameActions.Print(typeof(SDL_GamepadButton).GetEnumName((SDL_GamepadButton)sdlEvent->gbutton.button));
+                                                                                         //GameActions.Print(typeof(SDL_GamepadButton).GetEnumName((SDL_GamepadButton)sdlEvent->gbutton.button));
                     if (!IsActive || ProfileManager.CurrentProfile == null || !ProfileManager.CurrentProfile.ControllerEnabled)
                     {
                         break;
@@ -1384,7 +1441,7 @@ namespace ClassicUO
                 }
             });
 
-        private static void FnaLogInfo(string message)=> Log.Info(message);
+        private static void FnaLogInfo(string message) => Log.Info(message);
 
         private static void FnaLogWarn(string message)
         {

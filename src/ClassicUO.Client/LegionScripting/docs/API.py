@@ -711,6 +711,22 @@ class ApiUiGump:
         """
         pass
 
+    def CreateGumpRenderedMapArea(self, mapIndex: "int", mapX: "int", mapY: "int", mapWidth: "int", mapHeight: "int", x: "int", y: "int", width: "int", height: "int") -> "Any":
+        """
+         Create a rendered map area, displaying a region of the world map as a texture.
+         Example:
+         ```py
+         gump = API.CreateGump()
+         gump.SetRect(100, 100, 200, 200)
+        
+         map = API.CreateGumpRenderedMapArea(0, 1000, 1000, 1100, 1100, 0, 0, 200, 200)
+         gump.Add(map)
+         API.AddGump(gump)
+         ```
+        
+        """
+        pass
+
     def LegionTextureControl(self, textureName: "str", width: "int" = 0, height: "int" = 0) -> "Any":
         """
          Create an image control that displays a named PNG texture loaded from a ZIP archive.
@@ -1106,6 +1122,10 @@ class ApiUiRadioButton(ApiUiCheckbox):
         """
         pass
 
+class ApiUiRenderedMapArea(ApiUiBaseControl):
+    ""
+    Alpha: float = None
+
 class ApiUiResizableStaticPic(ApiUiBaseControl):
     ""
     Hue: int = None
@@ -1249,6 +1269,15 @@ def OnHotKey(key: "str", callback: "Any" = None) -> None:
      ```
      The <paramref name="key"/> can include modifiers (CTRL, SHIFT, ALT),
      for example: "CTRL+SHIFT+F1" or "ALT+A".
+    
+    """
+    pass
+
+def IsKeyPressed(key: "str") -> "bool":
+    """
+     Returns true if the given key combination is currently held down.
+     The key format matches `OnHotKey` , e.g. "CTRL+SHIFT+F1" or "A".
+     Extra modifiers beyond those specified do not prevent a match.
     
     """
     pass
@@ -1417,6 +1446,20 @@ def Contents(serial: "int") -> "int":
      count = API.Contents(API.Backpack)
      if count > 0:
        API.SysMsg(f"You have {count} items in your backpack")
+     ```
+    
+    """
+    pass
+
+def GetSpellsInSpellbook(serial: "int") -> "list[str]":
+    """
+     Get the names of all spells scribed into a spellbook.
+     Example:
+     ```py
+     spells = API.GetSpellsInSpellbook(book_serial)
+     if spells:
+       for spell in spells:
+         API.SysMsg(spell)
      ```
     
     """
@@ -2938,9 +2981,10 @@ def FindMobile(serial: "int") -> "ApiMobile":
     """
     pass
 
-def GetAllMobiles(graphic: "int | None" = None, distance: "int | None" = None, notoriety: "list[Notoriety]" = None) -> "list[ApiMobile]":
+def GetAllMobiles(graphic: "int | None" = None, distance: "int | None" = None, notoriety: "list[Notoriety]" = None, sortby: "str" = "Distance", name: "str" = None, graphics: "list[int]" = None, minDistance: "int | None" = None, isHuman: "bool | None" = None, isFemale: "bool | None" = None, isGhost: "bool | None" = None, isFriend: "bool | None" = None, poisoned: "bool | None" = None, paralyzed: "bool | None" = None, hasLineOfSight: "bool | None" = None, hues: "list[int]" = None) -> "list[ApiMobile]":
     """
      Return a list of all mobiles the client is aware of, optionally filtered by graphic, distance, and/or notoriety.
+     Any additional filter is ignored unless supplied.
      Example:
      ```py
      # Get all mobiles
@@ -2951,6 +2995,12 @@ def GetAllMobiles(graphic: "int | None" = None, distance: "int | None" = None, n
      nearby_humans = API.GetAllMobiles(400, 5)
      # Get all enemies (murderers and criminals) within 15 tiles
      enemies = API.GetAllMobiles(distance=15, notoriety=[API.Notoriety.Murderer, API.Notoriety.Criminal])
+     # Get all mobiles sorted by current hits, lowest first
+     sorted_by_hits = API.GetAllMobiles(sortby="hits")
+     # Get all poisonous ogres within 10 tiles in line of sight
+     targets = API.GetAllMobiles(name="ogre", distance=10, poisoned=True, hasLineOfSight=True)
+     # Get only dead friends with a specific hue, at least 2 tiles away
+     ghosts = API.GetAllMobiles(isGhost=True, isFriend=True, minDistance=2, hues=[0x83EA])
      ```
     
     """

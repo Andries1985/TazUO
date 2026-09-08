@@ -31,7 +31,8 @@ namespace ClassicUO.Configuration
     public enum NamePlateBackgroundMode
     {
         FixedColor,
-        NotorietyColor
+        NotorietyColor,
+        EntityNotorietyColor
     }
 
     public enum NamePlateHealthBarMode
@@ -56,7 +57,8 @@ namespace ClassicUO.Configuration
         WorldOfWarcraftBlockyBars,
         WorldOfWarcraftCleanHealth,
         WorldOfWarcraftBlockyCast,
-        WorldOfWarcraftRedName
+        WorldOfWarcraftRedName,
+        Legacy
     }
 
     //[JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.Unspecified)]
@@ -87,6 +89,9 @@ namespace ClassicUO.Configuration
 
     public sealed partial class Profile : JsonSave<Profile>, INotifyPropertyChanged
     {
+        internal const string DefaultSystemMessageGlobalChatRegex
+            = @"^\[(?:[01][0-9]|2[0-3]):[0-5][0-9]\] [^:\s\r\n](?:[^:\r\n]*[^:\s\r\n])?: \S(?:[^\r\n]*\S)?$";
+
         private static Profile _defaultPreview;
 
         /// <summary>Lives in the profile folder as <c>profile.json</c>.</summary>
@@ -171,7 +176,13 @@ namespace ClassicUO.Configuration
         // visual
         public bool EnabledCriminalActionQuery { get; set => SetProperty(ref field, value); } = true;
         public bool EnabledBeneficialCriminalActionQuery { get; set => SetProperty(ref field, value); }
+        public StatusGumpStyle StatusGumpStyle { get; set => SetProperty(ref field, value); } = StatusGumpStyle.Standard;
+
+        // Retained only for one-time migration of existing profiles to StatusGumpStyle. Do not use in new code.
+        [Obsolete("Remove after 10/27/26.")]
         public bool UseOldStatusGump { get; set => SetProperty(ref field, value); }
+        [Obsolete("Remove after 10/27/26.")]
+        public bool UseVerticalStatusGump { get; set => SetProperty(ref field, value); }
         public bool StatusGumpBarMutuallyExclusive { get; set => SetProperty(ref field, value); } = true;
         public int BackpackStyle { get; set => SetProperty(ref field, value); }
         public bool HighlightGameObjects { get; set => SetProperty(ref field, value); }
@@ -476,6 +487,8 @@ namespace ClassicUO.Configuration
         public bool NamePlateShowWordOfDeathIcon { get; set => SetProperty(ref field, value); }
         public int NamePlateHeight { get; set => SetProperty(ref field, Math.Clamp(value, 0, 80)); }
         public bool NamePlateSplitHealthBar { get; set => SetProperty(ref field, value); }
+        public bool NamePlateUseNotorietyText { get; set => SetProperty(ref field, value); }
+        public bool NamePlateShowMissingHealth { get; set => SetProperty(ref field, value); } = true;
         public int NamePlateCornerRadius { get; set => SetProperty(ref field, Math.Clamp(value, 0, 40)); } = 0;
         public NamePlateHealthBarMode NamePlateHealthBarMode { get; set => SetProperty(ref field, value); } = NamePlateHealthBarMode.StatusColor;
         public NamePlateBackgroundMode NamePlateBackgroundMode { get; set => SetProperty(ref field, value); } = NamePlateBackgroundMode.FixedColor;
@@ -483,6 +496,7 @@ namespace ClassicUO.Configuration
         public byte NamePlateBackgroundG { get; set => SetProperty(ref field, value); }
         public byte NamePlateBackgroundB { get; set => SetProperty(ref field, value); }
         public NamePlatePreset NamePlatePreset { get; set => SetProperty(ref field, value); } = NamePlatePreset.Custom;
+        public string NamePlateSavedPresetName { get; set => SetProperty(ref field, value); } = string.Empty;
 
         public bool LeftAlignToolTips { get; set => SetProperty(ref field, value); }
         public bool ForceCenterAlignTooltipMobiles { get; set => SetProperty(ref field, value); } = true;
@@ -675,6 +689,7 @@ namespace ClassicUO.Configuration
 
         public int TextBorderSize { get; set => SetProperty(ref field, value); } = 1;
         public uint SavedMountSerial { get; set => SetProperty(ref field, value); } = 0;
+        public int MountDistance { get; set => SetProperty(ref field, value); } = 1;
 
         public uint SavedMainHandSerial { get; set => SetProperty(ref field, value); } = 0;
         public uint SavedOffHandSerial { get; set => SetProperty(ref field, value); } = 0;
@@ -689,6 +704,11 @@ namespace ClassicUO.Configuration
         public bool HideJournalTimestamp { get; set => SetProperty(ref field, value); } = false;
         public bool HideJournalSystemPrefix { get; set => SetProperty(ref field, value); } = false;
 
+        public bool ClassifySystemMessagesAsGlobalChat { get; set => SetProperty(ref field, value); } = false;
+
+        public string SystemMessageGlobalChatRegex { get; set => SetProperty(ref field, value); }
+            = DefaultSystemMessageGlobalChatRegex;
+
         public int HealthLineSizeMultiplier { get; set => SetProperty(ref field, value); } = 1;
 
         public bool OpenHealthBarForLastAttack { get; set => SetProperty(ref field, value); } = true;
@@ -701,29 +721,6 @@ namespace ClassicUO.Configuration
         public int AdvancedSkillsGumpHeight { get; set => SetProperty(ref field, value); } = 510;
 
         #region ToolTip Overrides
-        // The ToolTipOverride_* parallel lists below are the legacy tooltip-override storage. They have been
-        // superseded by tooltip_overrides.json (see TooltipOverridesConfig) and are retained only so existing
-        // profiles can be migrated on load. Do not use them in new code. The defaults are kept so a fresh
-        // profile still migrates the standard resist/damage overrides into the new file.
-        private const string TooltipOverrideMigratedMessage = "Migrated to tooltip_overrides.json (TooltipOverridesConfig); retained only for one-time migration of existing profiles.";
-
-        [Obsolete(TooltipOverrideMigratedMessage)]
-        public List<string> ToolTipOverride_SearchText { get; set => SetProperty(ref field, value); } = new List<string>() { "Physical Res", "Fire Resist", "Cold Resist", "Poison Resist", "Energy Resist", "Weapon Damage" };
-        [Obsolete(TooltipOverrideMigratedMessage)]
-        public List<string> ToolTipOverride_NewFormat { get; set => SetProperty(ref field, value); } = new List<string>() { "/c[#8c733e]Physical Resist {1}%", "/c[red]Fire Resist {1}%", "/c[teal]Cold Resist {1}%", "/c[green]Poison Resist {1}%", "/c[purple]Energy Resist {1}%", "{0} /c[orange]{1}{4} /cd- /c[red]{2}{5}" };
-        [Obsolete(TooltipOverrideMigratedMessage)]
-        public List<int> ToolTipOverride_MinVal1 { get; set => SetProperty(ref field, value); } = new List<int>() { -1, -1, -1, -1, -1, -1 };
-        [Obsolete(TooltipOverrideMigratedMessage)]
-        public List<int> ToolTipOverride_MinVal2 { get; set => SetProperty(ref field, value); } = new List<int>() { -1, -1, -1, -1, -1, -1 };
-        [Obsolete(TooltipOverrideMigratedMessage)]
-        public List<int> ToolTipOverride_MaxVal1 { get; set => SetProperty(ref field, value); } = new List<int>() { 100, 100, 100, 100, 100, 100 };
-        [Obsolete(TooltipOverrideMigratedMessage)]
-        public List<int> ToolTipOverride_MaxVal2 { get; set => SetProperty(ref field, value); } = new List<int>() { 100, 100, 100, 100, 100, 100 };
-        [Obsolete(TooltipOverrideMigratedMessage)]
-        public List<byte> ToolTipOverride_Layer { get; set => SetProperty(ref field, value); } = new List<byte>() { (byte)TooltipLayers.Any, (byte)TooltipLayers.Any, (byte)TooltipLayers.Any, (byte)TooltipLayers.Any, (byte)TooltipLayers.Any, (byte)TooltipLayers.Any };
-        /// <summary>Optional per-override border hue drawn around the tooltip when the rule matches; -1 means no override.</summary>
-        [Obsolete(TooltipOverrideMigratedMessage)]
-        public List<int> ToolTipOverride_BorderHue { get; set => SetProperty(ref field, value); } = new List<int>() { -1, -1, -1, -1, -1, -1 };
         /// <summary>When enabled, tooltip overrides are not applied to mobile tooltips.</summary>
         public bool ToolTipOverride_IgnoreMobiles { get; set => SetProperty(ref field, value); } = true;
         #endregion
@@ -819,6 +816,7 @@ namespace ClassicUO.Configuration
         public bool DisableTargetingGridContainers { get; set => SetProperty(ref field, value); }
         public bool ControllerEnabled { get; set => SetProperty(ref field, value); } = true;
         public bool EnableScavenger { get; set => SetProperty(ref field, value); } = true;
+        public string ScavengerSelectedListUid { get; set => SetProperty(ref field, value); } = "";
         public bool CounterGumpLocked { get; set => SetProperty(ref field, value); }
         public bool NearbyLootConcealsContainerOnOpen { get; set => SetProperty(ref field, value); } = true;
         public bool SpellBar_ShowHotkeys { get; set => SetProperty(ref field, value); } = true;
@@ -869,6 +867,7 @@ namespace ClassicUO.Configuration
         public bool StripChatUsernameId { get; set; }
         public bool OverheadsScaleWithZoom { get; set; } = true;
         public string VotedPolls { get; set; }
+        public AutoStatLockState AutoStatLockState { get; set => SetProperty(ref field, value); } = new();
         public string BandageAgentJournalMessages { get; set; } = "You apply the bandages;You finish applying;You heal what little;You have been cured;You failed to cure;Your fingers slip";
         public bool BandageAgentUseJournalTrigger { get; set; }
         public bool CounterBarDisableIconScaling { get; set; }
@@ -934,13 +933,6 @@ namespace ClassicUO.Configuration
 
         private void HandleMigration()
         {
-            if (ProfileMigrationVersion < 4) //3
-            {
-                MigrateToolTipOverrides();
-
-                ProfileMigrationVersion = 4;
-            }
-
             if (ProfileMigrationVersion < 5) //4
             {
                 ProfileMigrationVersion = 5;
@@ -1046,6 +1038,37 @@ namespace ClassicUO.Configuration
                 ProfileMigrationVersion = 11;
             }
 
+            if (ProfileMigrationVersion < 12)
+            {
+#pragma warning disable CS0618
+                if (UseOldStatusGump)
+                    StatusGumpStyle = StatusGumpStyle.Old;
+                else if (UseVerticalStatusGump)
+                    StatusGumpStyle = StatusGumpStyle.ModernVertical;
+#pragma warning restore CS0618
+
+                ProfileMigrationVersion = 12;
+            }
+
+            if (ProfileMigrationVersion < 13)
+            {
+#pragma warning disable CS0618
+                if (!string.IsNullOrWhiteSpace(OldAutoStatLockJson))
+                {
+                    try
+                    {
+                        AutoStatLockState = JsonSerializer.Deserialize(OldAutoStatLockJson, AutoStatLockStateContext.Default.AutoStatLockState) ?? new AutoStatLockState();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"Failed to migrate legacy auto stat lock state: {ex.Message}");
+                    }
+                }
+#pragma warning restore CS0618
+
+                ProfileMigrationVersion = 13;
+            }
+
             try //Cleanup old backups from previous save system
             {
                 string dir = JsonSaveLocationHelper.GetScopeDirectory(SettingsScope.Char);
@@ -1072,51 +1095,6 @@ namespace ClassicUO.Configuration
             catch
             {}
         }
-
-        /// <summary>
-        /// Moves the legacy parallel <c>ToolTipOverride_*</c> lists into the dedicated
-        /// tooltip_overrides.json (see <see cref="TooltipOverridesConfig"/>) and clears them. The config
-        /// list is rebuilt (not appended) so re-running the migration - e.g. if the profile isn't saved
-        /// before the next launch - stays idempotent.
-        /// </summary>
-#pragma warning disable CS0618 // Reading the obsolete legacy lists is the whole point of migration.
-        private void MigrateToolTipOverrides()
-        {
-            int count = ToolTipOverride_SearchText.Count;
-            if (count == 0)
-                return;
-
-            var overrides = new List<ToolTipOverrideData>(count);
-
-            for (int i = 0; i < count; i++)
-            {
-                overrides.Add(new ToolTipOverrideData(
-                    i,
-                    ToolTipOverride_SearchText[i],
-                    ToolTipOverride_NewFormat.ElementAtOrDefault(i) ?? string.Empty,
-                    i < ToolTipOverride_MinVal1.Count ? ToolTipOverride_MinVal1[i] : -1,
-                    i < ToolTipOverride_MaxVal1.Count ? ToolTipOverride_MaxVal1[i] : 100,
-                    i < ToolTipOverride_MinVal2.Count ? ToolTipOverride_MinVal2[i] : -1,
-                    i < ToolTipOverride_MaxVal2.Count ? ToolTipOverride_MaxVal2[i] : 100,
-                    i < ToolTipOverride_Layer.Count ? ToolTipOverride_Layer[i] : (byte)TooltipLayers.Any,
-                    i < ToolTipOverride_BorderHue.Count ? ToolTipOverride_BorderHue[i] : -1));
-            }
-
-            TooltipOverridesConfig config = TooltipOverridesConfig.Current;
-            config.Overrides = overrides;
-            config.Save();
-
-            // Clear the legacy lists so tooltip overrides live only in tooltip_overrides.json going forward.
-            ToolTipOverride_SearchText.Clear();
-            ToolTipOverride_NewFormat.Clear();
-            ToolTipOverride_MinVal1.Clear();
-            ToolTipOverride_MinVal2.Clear();
-            ToolTipOverride_MaxVal1.Clear();
-            ToolTipOverride_MaxVal2.Clear();
-            ToolTipOverride_Layer.Clear();
-            ToolTipOverride_BorderHue.Clear();
-        }
-#pragma warning restore CS0618
 
         internal void Save(World world, string path, bool saveGumps = true)
         {

@@ -409,7 +409,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             loginmusic_checkbox.ValueChanged += (sender, e) =>
             {
                 Settings.GlobalSettings.LoginMusic = loginmusic_checkbox.IsChecked;
-                Client.Game.Audio.UpdateCurrentMusicVolume(true);
+                Client.Game.Audio.UpdateCurrentMusicVolume();
 
                 if (loginmusic_checkbox.IsChecked)
                 {
@@ -426,7 +426,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             login_music.ValueChanged += (sender, e) =>
             {
                 Settings.GlobalSettings.LoginMusicVolume = login_music.Value;
-                Client.Game.Audio.UpdateCurrentMusicVolume(true);
+                Client.Game.Audio.UpdateCurrentMusicVolume();
             };
 
 
@@ -487,9 +487,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             var c = new ContextMenuControl(this);
             c.Add(new ContextMenuItemEntry(TazLang.Get("skipserverselectdesc"), () =>
             {
-                Settings.GlobalSettings.SkipServerSelect = !Settings.GlobalSettings.SkipServerSelect;
-                _ = Client.Settings.SetAsync(SettingsScope.Global, Constants.SqlSettings.SKIP_SERVER_SELECTION, Settings.GlobalSettings.SkipServerSelect);
-            }, true, Settings.GlobalSettings.SkipServerSelect));
+                ProfileManager.GlobalSettings.SkipServerSelection = !ProfileManager.GlobalSettings.SkipServerSelection;
+            }, true, ProfileManager.GlobalSettings.SkipServerSelection));
 
             c.Add(new ContextMenuItemEntry(TazLang.Get("editsettings"), OpenEditSettings, true, false));
 
