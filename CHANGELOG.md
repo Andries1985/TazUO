@@ -3,6 +3,36 @@ All notable changes to TazUO will be recorded here.
 
 ---
 
+## 9/17/26
+* ***Feature:*** Added a "Show server prompts in a popup window" option to the Options chat tab, so server prompts (like naming a rune) can be toggled between the popup and chat input without using the checkbox inside the popup itself
+
+## 9/15/26
+* ***Misc:*** Confirm with user when saving shared configs between clients that are mismatched which one to keep
+* ***Feature:*** Counter bar cells now show the hotkey in the tooltip
+* ***Feature:*** Healthbar collector now supports anchoring together and expanding width in addition to height
+* ***Fix:*** Fixed grid container items locked to the same slot double stacking - the first item keeps the slot and the second is moved to the first empty slot
+
+## 9/13/26
+* ***Feature:*** Added a "Skip locked-down items" option to the Scavenger agent tab (on by default) so locked down or secured house decorations are no longer picked up - [P.R 1079](https://github.com/PlayTazUO/TazUO/pull/1079) ([yuval-po](https://github.com/yuval-po))
+* ***Feature:*** Added a "Send crash reports" option under Options > Misc (on by default) to opt out of uploading crash reports; crash logs are still written to your Logs folder either way - [P.R 1079](https://github.com/PlayTazUO/TazUO/pull/1079) ([yuval-po](https://github.com/yuval-po))
+* ***Misc:*** Crash reports now include the .NET runtime, OS/architecture, and an anonymous install ID (a random value in `Data/installid`, no hardware, account, or network information) to group reports from the same installation - [P.R 1079](https://github.com/PlayTazUO/TazUO/pull/1079) ([yuval-po](https://github.com/yuval-po))
+* ***Misc:*** Localized the Scavenger agent tab - [P.R 1079](https://github.com/PlayTazUO/TazUO/pull/1079) ([yuval-po](https://github.com/yuval-po))
+
+## 9/12/26
+* ***Feature:*** Increased the maximum world map zoom from 8x to 10x
+* ***Legion:*** Added `API.SetLastTarget()` to override the client's last target - pass an entity `serial`, or a location (`x`, `y`, `z`) with an optional `graphic` to set a static (or land when omitted)
+
+## 9/10/26
+* ***Feature:*** Added `ForceDriver = 4` to force DirectX 11. Set it in the profile's `settings.json`. This can significantly improve performance on some Windows machines where OpenGL performs poorly. **If you experience low FPS or unusually poor performance, try setting `ForceDriver` to `4`** - [P.R 1067](https://github.com/PlayTazUO/TazUO/pull/1067) ([LasherasGH](https://github.com/LasherasGH))
+* ***Legion:*** Added `API.TargetRel()` to target the topmost visible object (entity, static/multi, or land) at a tile offset from the player, and added `Target()`/`TargetRel()` to entity objects to target the entity itself or a tile relative to its position
+* ***Legion:*** Fixed `API.TargetTileRel()` to target the highest non-land tile at the location instead of the base land tile. `API.TargetRel()`, `API.TargetTileRel()`, and entity `TargetRel()` accept a new `tilesOnly` argument (default `True`) to ignore entities
+* ***Fix:*** Fixed `PlayerMobile.IsCasting` not being cleared when a spell finished casting successfully, which could leave the self-heal hotkey and scripts waiting on a cast that had already ended. The casting freeze now only releases the freeze the client applied, so it no longer clears server-side paralysis on an HP change
+* ***Fix:*** Fixed crashes on startup when the native zlib library could not be loaded (for example a missing or mismatched `zlib.dll`). TazUO now always uses the built-in managed zlib, and the native `zlib.dll` is no longer shipped. The "Force using a managed zlib" option and the `-zlib` launch argument were removed since they are no longer needed
+
+## 9/8/26
+* ***Feature:*** Added a "Multi Move" sub-menu to the grid container context menu for selecting items into the multi-move system - "Select all", "Select by layer" (populated only with layers present in the container), "Select by graphic" (each entry shows the item's art next to its graphic id), and "Select by name" (distinct item names, no duplicates)
+* ***Fix:*** Fixed a NullReferenceException when opening a grid container caused by the new "Multi Move" context menu being built before the container's slot manager existed
+
 ## 9/7/26
 * ***Legion:*** Added optional filters to `API.GetAllMobiles()` - `name` (case-insensitive partial match), `graphics`, `hues`, `minDistance`, `isHuman`, `isFemale`, `isGhost` (dead mobiles), `isFriend` (friends list), `poisoned`, `paralyzed`, and `hasLineOfSight`; each is ignored unless supplied, and `True`/`False` toggles include or exclude
 * ***Fix:*** Added a crash fix suggestion for when SDL cannot start the video system because the OS offers no display to the process (game launched outside a graphical desktop session, e.g. over SSH or on a headless machine) - crash logs now explain the cause and how to launch the game with a desktop display
@@ -10,9 +40,10 @@ All notable changes to TazUO will be recorded here.
 
 ## 9/6/26
 * ***Misc:*** Changed city selection gump to use clilocs for facet location instead of hard coded
+* ***Feature:*** Added ObjectUsed API event, support for multi-sound/serial overlay triggers and a new ObjectUsed overlay trigger - [P.R 1051](https://github.com/PlayTazUO/TazUO/pull/1051) ([yuval-po](https://github.com/yuval-po))
 
 ## 9/5/26
-* ***Fix:*** Fixed nameplate profiles not wokring with modifier only hotkeys
+* ***Fix:*** Fixed nameplate profiles not working with modifier only hotkeys
 * ***Fix:*** Fixed the world map "always show markers at any zoom" option not showing marker name labels when zoomed out - labels now respect the always-show override instead of being hidden below zoom level 6
 * ***Fix:*** Fixed a NullReferenceException in world map pathfinding when the player left the world or closed the map gump while a path search was still running on its background thread - the completion and step-failed callbacks now check whether the world/player is still present and abandon cleanly instead of crashing
 * ***Legion:*** Hardened the Legion scripting API against the world, player, or map going null while a script is running (e.g. during world teardown) - calls like `API.Pathfind`, `API.PathfindEntity`, `API.GetPath`, movement, targeting, and item handling now safely return false/null instead of throwing a NullReferenceException

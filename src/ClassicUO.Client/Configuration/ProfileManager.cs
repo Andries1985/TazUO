@@ -3,6 +3,7 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Gumps.GridHighLight;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
@@ -56,7 +57,14 @@ namespace ClassicUO.Configuration
         /// <summary>Settings for the currently logged-in account. Loaded once the server and account are known.</summary>
         public static AccountSettingsSave AccountSettings { get; private set; }
 
-        public static void LoadGlobalSettings() => GlobalSettings = GlobalSettingsSave.Load();
+        public static void LoadGlobalSettings()
+        {
+            GlobalSettings = GlobalSettingsSave.Load();
+
+            // The crashreporter caches its opt-out setting, as the global config is nulled
+            // during some operations - have to track separately.
+            CrashReporter.RefreshReportingPreference();
+        }
 
         /// <summary>
         /// Loads the settings for the currently selected server. The server folder is derived from
@@ -73,6 +81,10 @@ namespace ClassicUO.Configuration
         public static void SaveGlobalSettings()
         {
             GlobalSettings?.Save();
+
+            // Must happen before the instance is dropped, or a crash during shutdown loses the opt-out.
+            CrashReporter.RefreshReportingPreference();
+
             GlobalSettings = null;
         }
 
@@ -157,34 +169,22 @@ namespace ClassicUO.Configuration
         private static void ValidateFields(Profile profile)
         {
             if (profile == null)
-            {
                 return;
-            }
 
             if (string.IsNullOrEmpty(profile.ServerName))
-            {
-                throw new InvalidDataException();
-            }
+                throw new InvalidDataException("The current profile has no stored server name");
 
             if (string.IsNullOrEmpty(profile.Username))
-            {
-                throw new InvalidDataException();
-            }
+                throw new InvalidDataException("The current profile has no stored username");
 
             if (string.IsNullOrEmpty(profile.CharacterName))
-            {
-                throw new InvalidDataException();
-            }
+                throw new InvalidDataException("The current profile has no stored character name");
 
             if (profile.WindowClientBounds.X < 600)
-            {
                 profile.WindowClientBounds = new Point(600, profile.WindowClientBounds.Y);
-            }
 
             if (profile.WindowClientBounds.Y < 480)
-            {
                 profile.WindowClientBounds = new Point(profile.WindowClientBounds.X, 480);
-            }
         }
 
         public static void UnLoadProfile()
