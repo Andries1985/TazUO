@@ -158,23 +158,23 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 1
             );
 
-            Add
-            (
-                _elfRadio = new Button((int)Buttons.ElfButton, 0x0768, 0x0767, 0x0768)
-                {
-                    X = 160, Y = 455, ButtonAction = ButtonAction.Activate
-                },
-                1
-            );
-
-            Add
-            (
-                new Button((int) Buttons.ElfButton, 0x0705, 0x0707, 0x0706)
-                {
-                    X = 180, Y = 455, ButtonAction = ButtonAction.Activate
-                },
-                1
-            );
+            // Add
+            // (
+            //     _elfRadio = new Button((int)Buttons.ElfButton, 0x0768, 0x0767, 0x0768)
+            //     {
+            //         X = 160, Y = 455, ButtonAction = ButtonAction.Activate
+            //     },
+            //     1
+            // );
+            //
+            // Add
+            // (
+            //     new Button((int) Buttons.ElfButton, 0x0705, 0x0707, 0x0706)
+            //     {
+            //         X = 180, Y = 455, ButtonAction = ButtonAction.Activate
+            //     },
+            //     1
+            // );
 
             // if (Client.Game.UO.Version >= ClientVersion.CV_60144)
             // {
