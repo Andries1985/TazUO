@@ -23,10 +23,10 @@ namespace ClassicUO.Game.UI.Gumps.Login
         private const byte FACE_LEFT = (byte)Direction.Left;  // right-side characters face left
 
         // Logical working area for the arc layout. Replace/align with the real campfire art later.
-        private const int AREA_X = 100;
-        private const int AREA_Y = 70;
-        private const int AREA_W = 540;
-        private const int AREA_H = 410;
+        private const int AREA_X = 0;
+        private const int AREA_Y = 0;
+        private const int AREA_W = 640;
+        private const int AREA_H = 480;
 
         // Portrait box sized to roughly an actual mobile's footprint (characters render at native size).
         private const int PORTRAIT_W = 64;

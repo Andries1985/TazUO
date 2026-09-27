@@ -51,7 +51,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
 
             Add
             (
-                new Label(localization.GetString(3000326, "You can choose your race and class in game!"), unicode, hue, font: font)
+                new Label(localization.GetString(3000326, "Select starting stats and skills!"), unicode, hue, font: font)
                 {
                     X = 158,
                     Y = 132

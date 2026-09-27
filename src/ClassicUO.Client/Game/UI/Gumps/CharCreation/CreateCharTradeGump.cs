@@ -108,7 +108,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                     60,
                     defStatsValues[0],
                     HSliderBarStyle.MetalWidgetRecessedBar,
-                    true
+                    true,
+                    color: 0xFFFF
                 )
             );
 
@@ -123,7 +124,8 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                     60,
                     defStatsValues[1],
                     HSliderBarStyle.MetalWidgetRecessedBar,
-                    true
+                    true,
+                    color: 0xFFFF
                 )
             );
 

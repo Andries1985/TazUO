@@ -20,7 +20,7 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
         private readonly List<CityControl> _cityControls = new List<CityControl>();
         private readonly string[] _cityNames = { 
             Client.Game.UO.FileManager.Clilocs.GetStringOrDefault(1012001, "Felucca"), 
-            Client.Game.UO.FileManager.Clilocs.GetStringOrDefault(1012000, "Sosaria"), 
+            Client.Game.UO.FileManager.Clilocs.GetStringOrDefault(1012000, "Trammel"), 
             Client.Game.UO.FileManager.Clilocs.GetStringOrDefault(1012002, "Ilshenar"), 
             Client.Game.UO.FileManager.Clilocs.GetStringOrDefault(1060643, "Malas"), 
             Client.Game.UO.FileManager.Clilocs.GetStringOrDefault(1151078, "Tokuno"), 

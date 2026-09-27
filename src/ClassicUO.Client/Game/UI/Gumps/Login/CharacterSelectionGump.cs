@@ -33,12 +33,12 @@ namespace ClassicUO.Game.UI.Gumps.Login
 
             Add
             (
-                new ResizePic(0x0A28)
+                new ResizePic(0x015E)
                 {
-                    X = 160,
-                    Y = 70,
-                    Width = 408,
-                    Height = 343 + yBonus
+                    X = 0,
+                    Y = 0,
+                    Width = 640,
+                    Height = 435 + yBonus
                 },
                 1
             );
@@ -55,7 +55,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Label(Client.Game.UO.FileManager.Clilocs.GetString(3000050, "Character Selection"), unicode, hue, font: font)
                 {
-                    X = 267,
+                    X = 227,
                     Y = listTitleY
                 },
                 1
@@ -68,7 +68,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (g =
                     new CharacterEntryGump(slot.Index, slot.Name, SelectCharacter, LoginCharacter)
                     {
-                        X = 224,
+                        X = 184,
                         Y = yOffset + posInList * 40,
                         Hue = slot.Index == _selectedCharacter ? SELECTED_COLOR : NORMAL_COLOR
                     },
@@ -91,7 +91,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
                 (
                     new Button((int)Buttons.New, 0x159D, 0x159F, 0x159E)
                     {
-                        X = 224,
+                        X = 184,
                         Y = 350 + yBonus,
                         ButtonAction = ButtonAction.Activate
                     },
@@ -103,7 +103,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int)Buttons.Delete, 0x159A, 0x159C, 0x159B)
                 {
-                    X = 442,
+                    X = 402,
                     Y = 350 + yBonus,
                     ButtonAction = ButtonAction.Activate
                 },
@@ -114,8 +114,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int)Buttons.Prev, 0x15A1, 0x15A3, 0x15A2)
                 {
-                    X = 586,
-                    Y = 445,
+                    X = 540,
+                    Y = 430,
                     ButtonAction = ButtonAction.Activate
                 },
                 1
@@ -125,8 +125,8 @@ namespace ClassicUO.Game.UI.Gumps.Login
             (
                 new Button((int)Buttons.Next, 0x15A4, 0x15A6, 0x15A5)
                 {
-                    X = 610,
-                    Y = 445,
+                    X = 570,
+                    Y = 430,
                     ButtonAction = ButtonAction.Activate
                 },
                 1
@@ -135,7 +135,7 @@ namespace ClassicUO.Game.UI.Gumps.Login
             // Live switch to the campfire-style selection screen.
             Add
             (
-                new NiceButton(10, 445, 120, 25, ButtonAction.Activate, TazLang.Get("modernview"))
+                new NiceButton(15, 430, 120, 25, ButtonAction.Activate, TazLang.Get("modernview"))
                 {
                     ButtonParameter = (int)Buttons.ToggleStyle,
                     IsSelectable = false,
