@@ -3,8 +3,17 @@ All notable changes to TazUO will be recorded here.
 
 ---
 
+## 9/28/26
+* ***Feature:*** Added "Set Rows" and "Set Columns" options to the Action Bar cell context menu's Size submenu, so you can type an exact row or column count
+* ***Fix:*** Fixed Action Bar cells sliding to a new position when adding or removing a column - every cell below the first row shifted because the grid is stored row-major. Cells now keep their visual position
+
 ## 9/27/26
+* ***Feature:*** Added new Action Bars
 * ***Fix:*** Fixed the grid container context menu's "Select by name" sub-menu rendering item names as plain text - embedded HTML formatting is now interpreted
+* ***Fix:*** Fixed a client crash when drawing a game effect created while no profile was loaded (the effect's captured profile was null) - it now falls back to the default preview profile
+* ***Fix:*** Fixed a client crash on shutdown when the save-conflict prompt appeared while the current profile had already been unloaded - input events pumped through the native prompt are no longer dispatched into the tearing-down game, where they could dereference the missing profile
+* ***Fix:*** Fixed a client crash when loading a corrupt gump whose gumpart data describes a pixel run past the end of the decoded image - the bad run is now skipped instead of throwing (this could crash at startup on a malformed `gumpart` file)
+* ***Fix:*** Fixed a client crash when the journal log location becomes unavailable mid-session (for example a removable or network drive) - the write failure is now logged and journaling to file is disabled instead of propagating into the message handler
 
 ## 9/23/26
 * ***Feature:*** Added bandaging option to quick heal/cure buttons along with an internal rework of how it works
