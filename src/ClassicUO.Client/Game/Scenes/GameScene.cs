@@ -552,7 +552,7 @@ namespace ClassicUO.Game.Scenes
         public void RequestQuitGame() => UIManager.Add(
                 new QuestionGump(
                     _world,
-                    Client.Game.UO.FileManager.Clilocs.GetString(3000000),
+                    "\n" + Client.Game.UO.FileManager.Clilocs.GetString(3000000),
                     s =>
                     {
                         if (s)
