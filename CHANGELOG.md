@@ -3,9 +3,40 @@ All notable changes to TazUO will be recorded here.
 
 ---
 
+## 10/03/26
+* ***Fix:*** Fixed trees and other statics popping in at the screen edges while walking - viewport culling now accounts for the full art size (art is centered horizontally and grows upward from its base tile) instead of culling on the base tile alone, and map chunks are preloaded just beyond the viewport so statics are resident before they scroll into view
+* ***Feature:*** Changing a containers (local) custom name will now also show in it's tooltip
+* ***Misc:*** Adjusted tooltip rendering behavior when near the edge of the screen - [P.R 1118](https://github.com/PlayTazUO/TazUO/pull/1118) ([yuval-po](https://github.com/yuval-po)) 
+* ***Misc:*** Split the "Auto unequp for actions" setting into separate settings for spells and potions - [P.R 1112](https://github.com/PlayTazUO/TazUO/pull/1112) ([yuval-po](https://github.com/yuval-po))
+* ***Fix:*** Removed duplicated "Turn delay", "Show incoming mobiles" and "Show incoming corpses" settings - [P.R 1112](https://github.com/PlayTazUO/TazUO/pull/1112) ([yuval-po](https://github.com/yuval-po))
+* ***Misc:*** Added per-packet tracking to profiler - [P.R 1112](https://github.com/PlayTazUO/TazUO/pull/1112) ([yuval-po](https://github.com/yuval-po))
+* ***Misc:*** Improved packet logger with additional debug information - [P.R 1112](https://github.com/PlayTazUO/TazUO/pull/1112) ([yuval-po](https://github.com/yuval-po))
+* ***Misc:*** Reduced the work and memory allocated when opening server gumps - compressed gump decompression now reuses pooled buffers, gump text lines skip a redundant NUL scan, and layout parsing no longer allocates a token list per command or rebuilds each command with string joins
+* ***Misc:*** Reworked outgoing network sends to be event-driven instead of polling every millisecond, so a queued packet is written immediately rather than on the next tick. This also removes the send-path lock that could contend with the game thread and the 4 KiB send chunking left over from the old synchronous path
+* ***Misc:*** Reduced rendering spikes when entering new areas: UOP animation data compressed with the BWT codec now decompresses several times faster (the decoder no longer builds and sorts a 65K-entry table, and its large shifts use a bulk move instead of byte-at-a-time), and animation reads reuse a pooled buffer instead of allocating per load
+* ***Fix:*** Fixed a multi-hundred-millisecond freeze when a custom house design loads (packet 0xD8) - each component was re-scanning the full wall/floor/roof/door/stair/teleport tables to classify it, and one tile loop still linearly searched every component. Lookups are now memoized and use the house's spatial index
+
+## 10/2/26
+* ***Feature:*** The system chat message width is now adjustable under Options > Chat > Speech (defaults to the previous 320px), controlling how wide messages get before wrapping
+* ***Feature:*** Added a "Stack health bars" option to the last attack health bars, so automatically opened bars are offset instead of opening on top of each other. It is mutually exclusive with "Update one bar as last attack", and gains an "Anchor health bars" sub-option to keep the stacked bars anchored together
+* ***Misc:*** Moved the last attack health bar options into their own section under Options > Health Bars
+* ***Fix:*** Fixed the nameplate mini-settings gump ignoring right-click to close after logging back in with "Stay active" enabled - the closeable state was only synced while toggling the checkbox during the session, so it is now seeded from the saved "Stay active" setting when the gump opens
+* ***Fix:*** Fixed a client crash when an item tooltip override or tooltip header format contained a malformed format string (for example an unescaped `{`) - the invalid format is now reported and the plain item name shown instead
+* ***Fix:*** Fixed a client crash on mouse click when the clicked control was cleared while its mouse-down handler ran (`NullReferenceException` in `UIManager.OnMouseButtonDown`) - the control is now captured before dispatch so the focus update no longer dereferences a missing control
+
 ## 9/28/26
+* ***Feature:*** Added a "Toggle Scavenging" macro, and both it and "Toggle Auto Loot" now report when they enable or disable
 * ***Feature:*** Added "Set Rows" and "Set Columns" options to the Action Bar cell context menu's Size submenu, so you can type an exact row or column count
+* ***Feature:*** The improved buff bar's names and timers now use TrueType fonts instead of the classic bitmap font, with a selectable font and size under Options > Fonts (defaults to avadonian)
 * ***Fix:*** Fixed Action Bar cells sliding to a new position when adding or removing a column - every cell below the first row shifted because the grid is stored row-major. Cells now keep their visual position
+* ***Fix:*** Fixed the spell cursor indicator (including the line for linear spells like Wall of Stone) vanishing as soon as the target cursor appeared - the cast was being cleared in the network gap before the cursor arrived, so the indicator now shows until the cursor closes or the cast is cleared, and no longer requires "Show Range During Cast"
+* ***Feature:*** Added a cursor-following debug overlay when `-debug` mode is enabled - it identifies what is under the cursor (world objects, items, land, statics, and gumps/controls), shows a sprite preview where one exists, and reports the button ID when hovering a server gump button
+* ***Fix:*** Adjusted rider heights on several mounts: raised on the Clydesdale and elemental horses, lowered on the Manticore and True Britannian Horse
+* ***Fix:*** Applied `verdata.mul` animation patches (FileID 6) - animations shipped only as verdata patches (custom mounts, creatures, clothing on some shards) now render and animate instead of being invisible
+* ***Feature:*** Added support for a plain-text `Clilocs.txt` in the client folder to add or override cliloc strings (one per line: `number` then whitespace then text, `#` for comments)
+* ***Feature:*** Added support for loose art, gump and sound files - place static art in `Art/Statics/<id>.art`, land tiles in `Art/Land/<id>.art`, and gumps in `Gumps/<id>.gump`, or 22050 Hz mono 16-bit WAVs in `Sounds/<id>.wav`, to add or override the client's assets without repacking the archives
+* ***Fix:*** Fixed server map patches (0xBF 0x18) reading the land and static patch counts in the wrong order - they arrive statics-first, so land patches were silently discarded on shards that patch ground tiles
+* ***Feature:*** When a shared config file changed on disk, the save-conflict prompt now lists which settings differ (old and new values, truncated to fit), and the buttons are shortened so they fit on Windows
 
 ## 9/27/26
 * ***Feature:*** Added new Action Bars
