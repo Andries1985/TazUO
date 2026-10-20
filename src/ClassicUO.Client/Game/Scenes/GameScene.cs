@@ -6,6 +6,7 @@ using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
 using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
+using ClassicUO.Game.Managers.EnhancedMap;
 using ClassicUO.Game.Managers.Hotkeys;
 using ClassicUO.Game.UI;
 using ClassicUO.Game.UI.Gumps;
@@ -257,8 +258,8 @@ namespace ClassicUO.Game.Scenes
             HotKeys.Load();
             HotKeyRegistrar.RegisterAll();
             ScriptHotkeysManager.RegisterAll();
-            SpellBarManager.Load();
             SelfHealManager.Load();
+            EnhancedMapManager.Instance.Start();
             if(ProfileManager.CurrentProfile.EnableCaveBorder)
                 StaticFilters.ApplyCaveTileBorder();
 
@@ -404,7 +405,6 @@ namespace ClassicUO.Game.Scenes
             JournalFilterManager.Instance.Save();
 
             ScreenOverlayManager.Instance.Reset();
-            SpellBarManager.Unload();
             SelfHealManager.Unload();
             _autoUnequipActionManager?.Dispose();
             ObjectActionQueue.Instance.Clear();
@@ -452,6 +452,7 @@ namespace ClassicUO.Game.Scenes
 
             ProfileManager.CurrentProfile?.Save(_world, ProfileManager.ProfilePath);
             MapWebServerManager.Instance.Stop();
+            EnhancedMapManager.Instance.Stop();
             TileMarkerManager.Instance.Save();
             SpellVisualRangeManager.Instance.Save();
             SpellVisualRangeManager.Instance.OnSceneUnload();
@@ -812,6 +813,11 @@ namespace ClassicUO.Game.Scenes
                 return;
             }
 
+            // Spend a small, bounded slice of main-thread time decoding static art queued by chunk
+            // loads, before the render lists are built, so newly seen statics do not all decode
+            // synchronously in a single draw.
+            Client.Game.UO.Arts.WarmQueued();
+
             _alphaChanged = _alphaTimer < Time.Ticks;
 
             if (_alphaChanged)
@@ -1138,6 +1144,7 @@ namespace ClassicUO.Game.Scenes
             AutoLootManager.Instance.Update();
             ScavengerManager.Instance.Update();
             BandageManager.Instance.Update();
+            EnhancedMapManager.Instance.Update();
             GridHighlightData.ProcessQueue(_world);
             Profiler.ExitContext("Actions");
 
@@ -1153,9 +1160,14 @@ namespace ClassicUO.Game.Scenes
                     _flags[3]
                 );
 
-                if (_world.InGame && !_world.Player.Pathfinder.AutoWalking && dir != Direction.NONE)
+                if (_world.InGame && dir != Direction.NONE)
                 {
-                    _world.Player.Walk(dir, currentProfile.AlwaysRun);
+                    StopFollowing();
+
+                    if (!_world.Player.Pathfinder.AutoWalking)
+                    {
+                        _world.Player.Walk(dir, currentProfile.AlwaysRun);
+                    }
                 }
             }
 
