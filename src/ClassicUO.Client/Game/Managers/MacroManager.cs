@@ -108,6 +108,11 @@ namespace ClassicUO.Game.Managers
 
         public void Load()
         {
+            // A macro can still be mid-run when the scene changes (logout, disconnect, reconnect). The
+            // action chain it points at is about to be replaced, so drop the execution state instead of
+            // letting it resume against the freshly loaded macros on the next login.
+            StopExecution();
+
             string path = Path.Combine(ProfileManager.ProfilePath, "macros.xml");
 
             if (!File.Exists(path))
@@ -2735,7 +2740,7 @@ namespace ClassicUO.Game.Managers
             if (world == null)
                 return;
 
-            GameActions.Print(world, "Target a mount to save it for the Mount macro.", 48);
+            GameActions.Print(world, "Target a mount or mount item to save it for the Mount macro.", 48);
             world.TargetManager.SetTargeting(CursorTarget.SetMount, 0, TargetType.Neutral);
         }
 
